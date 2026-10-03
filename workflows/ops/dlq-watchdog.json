@@ -1,0 +1,50 @@
+{
+  "name": "ops/dlq-watchdog",
+  "version": "1.0.0",
+  "steps": [
+    {
+      "id": "check",
+      "task": "dlq.check",
+      "type": "normal",
+      "timeout": 30000000000,
+      "retry": {
+        "max_attempts": 2,
+        "strategy": "fixed",
+        "initial_delay": 10000000000,
+        "max_delay": 10000000000
+      }
+    },
+    {
+      "id": "build-alert",
+      "task": "transform.json",
+      "type": "normal",
+      "timeout": 30000000000,
+      "depends_on": ["check"],
+      "skip_if": {
+        "step_id": "check",
+        "field": "alert",
+        "op": "==",
+        "value": false
+      },
+      "metadata": {
+        "expression": "{webhook_secret: \"OPS_SLACK_WEBHOOK_URL\", payload: {text: (\"DLQ depth \" + (.depth | tostring) + \" on \" + .stream), depth: .depth, stream: .stream, client: \"ops\", workflow: \"ops/dlq-watchdog\"}}"
+      }
+    },
+    {
+      "id": "notify-ops",
+      "task": "notify.webhook",
+      "type": "normal",
+      "timeout": 30000000000,
+      "depends_on": ["build-alert"]
+    }
+  ],
+  "triggers": [
+    {
+      "id": "ops-dlq-watchdog-cron",
+      "cron": {
+        "expression": "*/5 * * * *",
+        "timezone": "UTC"
+      }
+    }
+  ]
+}

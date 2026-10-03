@@ -42,7 +42,11 @@ func RegisterAll(w *worker.Worker) {
 	w.Handle("condition", handleCondition)
 	w.Handle("map", handleMap)
 	w.Handle("delay", handleDelay)
+	w.Handle("notify.webhook", handleNotifyWebhook)
 	w.Handle("notify.slack", handleNotifySlack)
+	w.Handle("notify.telegram", handleNotifyTelegram)
+	w.Handle("notify.discord", handleNotifyDiscord)
 	w.Handle("request.approval", handleRequestApproval)
 	w.Handle("llm.complete", handleLLMComplete)
+	w.Handle("dlq.check", handleDLQCheck)
 }

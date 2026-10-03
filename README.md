@@ -66,12 +66,21 @@ curl -X POST localhost:8090/ops/approvals/<run-id> \
   -H "Authorization: Bearer $OPS_APPROVAL_TOKEN" -d '{"approved":true}'
 ```
 
+## Operator alerts
+
+Failures page the operator three ways (see `docs/alerting.md`):
+`on_failure` → notify in every production recipe (example:
+`approval-refund.json`), the `ops/dlq-watchdog.json` cron watching
+`DEAD_LETTERS` depth, and an external uptime probe on `GET /health`
+(dagnats cannot alert when itself is down).
+
 ## Docs
 
 - `docs/writing-recipes.md` — recipe anatomy, engine-vs-handler table,
   v0.0.24 traps, custom-handler checklist.
 - `docs/handlers-reference.md` — task inputs/outputs, metadata keys.
 - `docs/agent-tools.md` — exact CLI/API for an authoring agent.
+- `docs/alerting.md` — operator notifications: on_failure pages, DLQ watchdog, external uptime.
 - `docs/tenancy-evolution.md` — stages 1→3 without redesign.
 - `docs/isolating-a-client.md` — extract one client to its own host.
 - `docs/migrate-to-windmill.md` — Windmill escape hatch (docs only).

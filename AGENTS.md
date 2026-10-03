@@ -3,7 +3,7 @@
 ## Layout
 
 - `cmd/worker/` — single worker binary (registers handlers, pulls NATS tasks).
-- `internal/handlers/` — 8 generic tasks (stable names recipes depend on).
+- `internal/handlers/` — 12 generic tasks (stable names recipes depend on).
 - `internal/secret/` — env + age loader. `internal/opshttp/` — approval shim.
 - `workflows/<client>/*.json` — THE automation code. `workflows/_templates/` — skeletons.
 - `env/<client>.env.example` — secret names (commit); `env/<client>.env` — values (never).
@@ -16,7 +16,10 @@
   timeouts, table tests, human review. Never arbitrary script exec from JSON.
 - Secrets by NAME in JSON (`"auth_secret": "ACME_X"`); values only in env/age.
 - Tenancy: names `<client>/…`, trigger ids `<client>-…`, webhook paths contain
-  `<client>`. No shared names. Register per client: `./scripts/register-workflows.sh <client>`.
+  `<client>` (`ops/` reserved for platform). No shared names. Register per client.
+- Alerts: every production recipe gets `on_failure` → notify; `ops/dlq-watchdog`
+  covers silent DLQ buildup; external probe on `GET /health` covers total death.
+  Never rely solely on the console (see `docs/alerting.md`).
 - dagnats v0.0.24 traps: durations are INTEGER ns (`30000000000` = 30s);
   NO `$schema` key (CLI rejects it); `on_failure` targets need `aux_steps`
   + no `depends_on`; `sleep`/`approval` steps take no `task`; `map` = 1 dep

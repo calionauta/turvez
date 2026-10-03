@@ -61,7 +61,7 @@ keys per task. Secret *names* go in metadata or input
 | Wait | `type: sleep` step, `config` = exactly one of `{"duration": NS}`, `{"cron": "…"}`, `{"until_input_path": "…"}`, max 365d. Durable, holds no worker slot | `delay` task (≤4h, holds a worker slot) |
 | Branch | `skip_if: {"step_id": "…", "field": "…", "op": "…", "value": …}` — `step_id` must be in `depends_on`; `field` is a **top-level** key of that parent's output; ops `==,!=,<,>,<=,>=` (numbers as float64) | `condition` task (nested paths, jq, branch names) |
 | Human gate, days | `type: approval` step (no `task`), `config: {"timeout": NS, "subject": "…", "description": "…"}`. Timeout ≤168h. Decision via `POST /runs/{id}/approval/{step}?action=approve\|reject&token=…`; grant payload becomes the step output; reject takes the `on_failure` path | `request.approval` task + run signal (custom notify, chunked waits) |
-| Failure path | `on_failure: "other-step"` + **`"aux_steps": {"other-step": true}`** at top level (see trap below) | — |
+| Failure path | `on_failure: "other-step"` + **`"aux_steps": {"other-step": true}`** at top level (see trap below). The target must be a **single terminal step** (no `depends_on`, no downstream chain — aux steps never resolve normally) and receives `{"failed_step":…, "error":…}`. Point it at a notify step (see `docs/alerting.md`) | — |
 
 ## dagnats v0.0.24 traps (verified against upstream source)
 

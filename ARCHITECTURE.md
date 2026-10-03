@@ -14,8 +14,9 @@
                     ┌─────────────────────────────────┴──────────┐
                     │ worker (this repo, single binary)          │
                     │  handlers: http.request, transform.json,   │
-                    │  condition, map, delay, notify.slack,      │
-                    │  request.approval, llm.complete            │
+                    │  condition, map, delay, notify.* (webhook, │
+                    │  slack, telegram, discord),                │
+                    │  request.approval, llm.complete, dlq.check │
                     │  secrets resolved from env at task time    │
                     │  optional ops HTTP (:8090)                 │
                     └──────┬────────────────────────┬────────────┘

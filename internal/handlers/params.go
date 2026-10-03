@@ -62,6 +62,14 @@ func decodeData(raw []byte) (any, error) {
 	return data, nil
 }
 
+// decodeDataInto unmarshals raw JSON into v with a wrapped error.
+func decodeDataInto(raw []byte, v any) error {
+	if err := json.Unmarshal(raw, v); err != nil {
+		return fmt.Errorf("handlers: invalid task input JSON: %w", err)
+	}
+	return nil
+}
+
 // normalizeJSON round-trips a decoded value through JSON so numbers are
 // float64, matching what handlers see from real task payloads in tests
 // that construct values in Go (gojq preserves Go ints otherwise).

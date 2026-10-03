@@ -19,9 +19,11 @@ Most handlers accept the full envelope object **or** raw data:
 - `condition` — envelope or raw data (rule then comes from metadata).
 - `map` — `{"items":…, "expression":…}` or a bare JSON array.
 - `delay` — `{"duration":"…"}` or a bare JSON string.
-- `notify.slack` — `{"webhook_secret":…, "message":…}` or a bare string
-  (secret name from metadata).
+- `notify.*` — envelope, bare string (message), or empty input with
+  metadata only (the `on_failure`-safe shape: failure steps always get
+  `{"failed_step":…, "error":…}`, which becomes the webhook payload).
 - `request.approval` — envelope, `{}` or empty (metadata/defaults apply).
+- `dlq.check` — `{"stream":…, "threshold":…}`, `{}` or empty (defaults apply).
 
 Static metadata keys are listed per handler. Task input wins on conflict.
 
@@ -95,6 +97,40 @@ POST `{"text":…}` to an incoming-webhook URL held in a secret.
 `{"webhook_secret": "ACME_SLACK_WEBHOOK_URL", "message": "…"}` →
 `{"ok": true}`. Metadata keys: `webhook_secret, message`.
 
+## notify.webhook
+
+POST any JSON payload to a URL held in a secret — the generic operator
+path. All chat wrappers funnel through it.
+
+`{"webhook_secret": "OPS_SLACK_WEBHOOK_URL", "payload": {"text": "…"}}`
+→ `{"ok": true, "status": 200, "run_id": "…"}`. Shorthand:
+`{"webhook_secret": "…", "message": "…"}` wraps as `{"text": …}`.
+Raw data (or the `on_failure` input `{"failed_step":…, "error":…}`)
+becomes the payload; `client` / `workflow` merge from metadata;
+`run_id` / `step_id` stamp automatically. Empty input with metadata
+only is valid (the `on_failure`-safe shape).
+Metadata keys: `webhook_secret, message, client, workflow`.
+
+## notify.telegram / notify.discord
+
+Thin wrappers over the same HTTP path.
+`notify.telegram`: `webhook_secret` holds the full Bot API sendMessage
+URL (`https://api.telegram.org/bot<token>/sendMessage`), `chat_id` in
+input or metadata. `notify.discord`: `webhook_secret` holds the Discord
+webhook URL, posts `{"content": …}`.
+Metadata keys: `webhook_secret, message` (+ `chat_id` for telegram).
+
+## dlq.check
+
+Read the dead-letter stream depth for the ops watchdog. There is no
+dagnats HTTP route for the DLQ (CLI/NATS only), so this handler dials
+NATS directly (short-lived connection, `DAGNATS_NATS_URL`) and returns
+`StreamInfo.State.Msgs`.
+
+`{"stream": "DEAD_LETTERS", "threshold": 0}` (both optional; metadata
+keys `stream, threshold`) → `{"stream":…, "depth":…, "threshold":…,
+"alert": depth>threshold}`. Backend errors are retryable; pair with a
+`skip_if` on `alert` (see `workflows/ops/dlq-watchdog.json`).
 ## request.approval
 
 Signal-based human gate with optional pre-notify. Blocks in ≤55m chunks

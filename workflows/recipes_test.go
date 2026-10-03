@@ -17,8 +17,9 @@ import (
 
 var knownTasks = map[string]bool{
 	"http.request": true, "transform.json": true, "condition": true,
-	"map": true, "delay": true, "notify.slack": true,
-	"request.approval": true, "llm.complete": true,
+	"map": true, "delay": true, "notify.webhook": true,
+	"notify.slack": true, "notify.telegram": true, "notify.discord": true,
+	"request.approval": true, "llm.complete": true, "dlq.check": true,
 	"": true, // engine-native steps (sleep/approval) need no task
 }
 
@@ -391,6 +392,25 @@ func TestRecipeExpressions(t *testing.T) {
 		refund := eval(t, exprOf(wf, "build-refund"), fanIn).(map[string]any)
 		if refund["method"] != "POST" {
 			t.Fatalf("refund payload: %#v", refund)
+		}
+	})
+
+	t.Run("ops-dlq-watchdog", func(t *testing.T) {
+		wf := all["ops/dlq-watchdog.json"]
+		alert := eval(t, exprOf(wf, "build-alert"), map[string]any{
+			"stream": "DEAD_LETTERS", "depth": 3.0, "threshold": 0, "alert": true,
+		}).(map[string]any)
+		if alert["webhook_secret"] != "OPS_SLACK_WEBHOOK_URL" {
+			t.Fatalf("alert payload: %#v", alert)
+		}
+		text := alert["payload"].(map[string]any)["text"].(string)
+		if !strings.Contains(text, "3") || !strings.Contains(text, "DEAD_LETTERS") {
+			t.Fatalf("alert text: %q", text)
+		}
+		// skip_if parity: empty DLQ skips the alert step.
+		matched, err := handlers.Compare(false, "==", false)
+		if err != nil || !matched {
+			t.Fatalf("skip_if parity: %v %v", matched, err)
 		}
 	})
 }

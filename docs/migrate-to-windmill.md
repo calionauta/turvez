@@ -18,7 +18,8 @@ historical run logs — only definitions, triggers, and secret *names*.
 | map (engine `type: map` or `map` task) | for-loop step, or parallel map/branch-per-item in the flow |
 | delay / sleep | sleep step, or scheduled continuation per Windmill suspend/resume patterns |
 | request.approval / approval | Windmill approval step, or form + suspend/resume; `OPS_*` shim becomes a Windmill webhook trigger URL |
-| notify.slack | HTTP POST step to the webhook URL (same `{"text":…}` payload) |
+| notify.webhook / slack / telegram / discord | HTTP POST step to the webhook URL (same payload shape) |
+| dlq.check | scheduled script reading the dead-letter queue depth (API/CLI equivalent) |
 | custom Go handler | rewrite as a Windmill script (TypeScript/Python/Go); list each handler with its inputs/outputs — it is the long pole |
 
 ## Per-client checklist
