@@ -1,0 +1,93 @@
+# Consultancy Automation Runtime
+
+Production-oriented template for running durable customer automations on
+**dagnats** (DAG workflows on NATS JetStream) with a single Go worker.
+The operator edits **workflow JSON recipes**; Go handlers are shared
+platform code.
+
+- Engine: dagnats `v0.0.24` (`dagnats serve`: embedded NATS + API +
+  console). Compatibility notes in `ARCHITECTURE.md`.
+- Worker: one binary, eight generic handlers (HTTP, jq transform,
+  condition, map, delay, Slack, approval, LLM).
+- Recipes: `workflows/<client>/*.json`, namespaced `<client>/…`.
+- Secrets: env vars + optional age-encrypted files. Never in JSON.
+
+## Quickstart
+
+```bash
+# 1. Engine + worker stack
+make up            # dagnats :4222/:8080, worker pulls tasks
+
+# …or locally (needs dagnats serve in another terminal):
+go install github.com/danmestas/dagnats/cmd/dagnats@v0.0.24
+dagnats serve &
+cp .env.example .env   # fill real values
+make worker
+
+# 2. Register the example recipes
+make register
+
+# 3. Smoke: start a run, print status/events
+make smoke
+```
+
+Console: http://127.0.0.1:8080/console/
+
+## Operator loop
+
+1. **Edit JSON** — copy the closest file from `workflows/_templates/`
+   into `workflows/<client>/`, keep the `<client>/` name prefix.
+2. **Validate** — `dagnats workflow validate workflows/<client>/x.json`
+   (or `make validate`; `go test ./workflows/` executes every jq
+   expression against samples).
+3. **Register** — `dagnats workflow register …` (embedded `triggers`
+   register with it) or attach a schedule:
+   `dagnats trigger create '<client>/nightly-sync' --cron='0 2 * * *'`.
+4. **Run & monitor** — `dagnats run start <name> '<input>' --watch`,
+   then `run status|events|output|inspect`, `dlq list|replay`.
+
+## Examples
+
+| Recipe | Flow |
+|---|---|
+| `hubspot-lead-to-slack` | webhook → HTTP GET → transform → Slack |
+| `invoice-paid-route` | fetch → transform → `skip_if` VIP/standard split |
+| `nightly-sync` | embedded cron trigger, fully static first step |
+| `approval-refund` | native `approval` gate (48h) → refund POST → receipt |
+
+Human approval from Slack/email: point the button at the ops shim
+(`internal/opshttp`, `OPS_HTTP_ADDR=127.0.0.1:8090`):
+
+```bash
+curl -X POST localhost:8090/ops/approvals/<run-id> \
+  -H "Authorization: Bearer $OPS_APPROVAL_TOKEN" -d '{"approved":true}'
+```
+
+## Docs
+
+- `docs/writing-recipes.md` — recipe anatomy, engine-vs-handler table,
+  v0.0.24 traps, custom-handler checklist.
+- `docs/handlers-reference.md` — task inputs/outputs, metadata keys.
+- `docs/agent-tools.md` — exact CLI/API for an authoring agent.
+- `docs/isolating-a-client.md` — extract one client to its own host.
+- `ARCHITECTURE.md` — diagram, data flow, decisions.
+
+## Conventions
+
+- Automation code = workflow JSON. New Go handler = last resort + tests
+  + human review. No arbitrary script execution from JSON.
+- Secrets by name in JSON (`"auth_secret": "ACME_HUBSPOT_TOKEN"`),
+  values in env/age files only.
+- Durations in JSON are **integer nanoseconds** (`30000000000` = 30s).
+
+---
+
+## Seção curta em português
+
+Este repositório é um modelo para operar automações duráveis de
+consultoria sobre dagnats + NATS. O ciclo é: **editar o JSON da receita
+→ validar → registar → ligar o trigger → acompanhar na consola/CLI**.
+Segredos vivem em variáveis de ambiente (ou ficheiros encriptados com
+`age`); nunca dentro do JSON. Cada cliente tem a sua pasta
+(`workflows/<cliente>/`) e o seu ficheiro de segredos, por isso mover
+um cliente para um servidor dedicado é uma cópia, não um redesenho.

@@ -1,0 +1,54 @@
+{
+  "name": "TODO-CLIENT/webhook-pipeline",
+  "version": "1.0.0",
+  "steps": [
+    {
+      "id": "build-fetch",
+      "task": "transform.json",
+      "type": "normal",
+      "timeout": 30000000000,
+      "metadata": {
+        "expression": "((.data // .) | {id: .id}) as $r | {method: \"GET\", url: (\"https://api.example.com THING/\" + $r.id), auth_secret: \"TODO_CLIENT_TOKEN\", response_json: true}"
+      }
+    },
+    {
+      "id": "fetch",
+      "task": "http.request",
+      "type": "normal",
+      "timeout": 30000000000,
+      "depends_on": ["build-fetch"],
+      "retry": {
+        "max_attempts": 3,
+        "strategy": "exponential",
+        "initial_delay": 2000000000,
+        "max_delay": 30000000000,
+        "multiplier": 2.0
+      }
+    },
+    {
+      "id": "build-notify",
+      "task": "transform.json",
+      "type": "normal",
+      "timeout": 30000000000,
+      "depends_on": ["fetch"],
+      "metadata": {
+        "expression": "{webhook_secret: \"TODO_CLIENT_SLACK_WEBHOOK\", message: (\"Event: \" + (.json.id // \"?\"))}"
+      }
+    },
+    {
+      "id": "notify",
+      "task": "notify.slack",
+      "type": "normal",
+      "timeout": 30000000000,
+      "depends_on": ["build-notify"]
+    }
+  ],
+  "triggers": [
+    {
+      "id": "TODO-CLIENT-webhook",
+      "webhook": {
+        "path": "/hooks/TODO-CLIENT/event"
+      }
+    }
+  ]
+}

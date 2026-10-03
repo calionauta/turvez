@@ -1,0 +1,81 @@
+{
+  "name": "example-client/approval-refund",
+  "version": "1.0.0",
+  "aux_steps": {
+    "notify-rejected": true
+  },
+  "steps": [
+    {
+      "id": "build-review",
+      "task": "transform.json",
+      "type": "normal",
+      "timeout": 30000000000,
+      "metadata": {
+        "expression": "((.data // .) | {order_id: .order_id, amount: .amount, reason: .reason})"
+      }
+    },
+    {
+      "id": "approve",
+      "type": "approval",
+      "timeout": 60000000000,
+      "depends_on": ["build-review"],
+      "config": {
+        "timeout": 172800000000000,
+        "subject": "approvals.example-client.refund",
+        "description": "Approve refund for order"
+      },
+      "on_failure": "notify-rejected"
+    },
+    {
+      "id": "build-refund",
+      "task": "transform.json",
+      "type": "normal",
+      "timeout": 30000000000,
+      "depends_on": ["approve", "build-review"],
+      "metadata": {
+        "expression": "{method: \"POST\", url: \"https://api.example.com/refunds\", auth_secret: \"ACME_REFUND_API_TOKEN\", auth_scheme: \"Bearer\", response_json: true, body: {order_id: .[\"build-review\"].order_id, amount: .[\"build-review\"].amount}}"
+      }
+    },
+    {
+      "id": "refund",
+      "task": "http.request",
+      "type": "normal",
+      "timeout": 60000000000,
+      "depends_on": ["build-refund"],
+      "retry": {
+        "max_attempts": 3,
+        "strategy": "exponential",
+        "initial_delay": 2000000000,
+        "max_delay": 30000000000,
+        "multiplier": 2.0
+      }
+    },
+    {
+      "id": "build-receipt",
+      "task": "transform.json",
+      "type": "normal",
+      "timeout": 30000000000,
+      "depends_on": ["refund", "build-review"],
+      "metadata": {
+        "expression": "{webhook_secret: \"ACME_SLACK_WEBHOOK_URL\", message: (\"Refund issued for \" + .[\"build-review\"].order_id + \" ($\" + ((.[\"build-review\"].amount | tostring) // \"?\") + \")\")}"
+      }
+    },
+    {
+      "id": "notify-done",
+      "task": "notify.slack",
+      "type": "normal",
+      "timeout": 30000000000,
+      "depends_on": ["build-receipt"]
+    },
+    {
+      "id": "notify-rejected",
+      "task": "notify.slack",
+      "type": "normal",
+      "timeout": 30000000000,
+      "metadata": {
+        "webhook_secret": "ACME_SLACK_WEBHOOK_URL",
+        "message": "A refund request was rejected — see the run in dagnats console for details."
+      }
+    }
+  ]
+}

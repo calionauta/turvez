@@ -1,0 +1,17 @@
+# Binaries and build output
+/bin/
+/dist/
+*.test
+
+# Local env with real secrets — never commit
+.env
+
+# Age identities (private keys) — never commit
+*.age.key
+*identity*.txt
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp

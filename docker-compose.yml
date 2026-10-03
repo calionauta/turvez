@@ -1,0 +1,37 @@
+# dagnats has no published image yet (upstream README: "published image
+# pending"), so we build it from the pinned upstream ref. The single
+# worker binary is built from this repo.
+#
+# Ports: 4222 NATS, 8080 dagnats HTTP API + console (/console/).
+services:
+  dagnats:
+    build:
+      context: .
+      dockerfile: Dockerfile.dagnats
+    ports:
+      - "4222:4222"
+      - "8080:8080"
+    command: ["dagnats", "serve", "--nats-addr", "0.0.0.0:4222", "--http-addr", "0.0.0.0:8080"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    depends_on:
+      dagnats:
+        condition: service_healthy
+    environment:
+      DAGNATS_NATS_URL: nats://dagnats:4222
+      DAGNATS_API_URL: http://dagnats:8080
+    env_file:
+      - path: .env
+        required: false
+    # Mount an age-encrypted env file if you use one (decrypted in RAM at
+    # container start only when SECRETS_AGE_FILE + AGE_IDENTITY_FILE are set).
+    # volumes:
+    #   - ~/.secrets:/run/secrets:ro

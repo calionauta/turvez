@@ -1,0 +1,44 @@
+{
+  "name": "TODO-CLIENT/approval-flow-signal",
+  "version": "1.0.0",
+  "steps": [
+    {
+      "id": "build-request",
+      "task": "transform.json",
+      "type": "normal",
+      "timeout": 30000000000,
+      "metadata": {
+        "expression": "((.data // .) | {order_id: .order_id, amount: .amount}) as $r | $r"
+      }
+    },
+    {
+      "id": "wait-approval",
+      "task": "request.approval",
+      "type": "normal",
+      "timeout": 3600000000000,
+      "depends_on": ["build-request"],
+      "metadata": {
+        "signal": "approval",
+        "timeout": "1h",
+        "webhook_secret": "TODO_CLIENT_SLACK_WEBHOOK"
+      }
+    },
+    {
+      "id": "build-apply",
+      "task": "transform.json",
+      "type": "normal",
+      "timeout": 30000000000,
+      "depends_on": ["wait-approval", "build-request"],
+      "metadata": {
+        "expression": "{method: \"POST\", url: \"https://api.example.com/apply\", auth_secret: \"TODO_CLIENT_TOKEN\", response_json: true, body: {order_id: .[\"build-request\"].order_id, approved: .[\"wait-approval\"].approved}}"
+      }
+    },
+    {
+      "id": "apply",
+      "task": "http.request",
+      "type": "normal",
+      "timeout": 60000000000,
+      "depends_on": ["build-apply"]
+    }
+  ]
+}

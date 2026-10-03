@@ -1,0 +1,11 @@
+# Pinned dagnats engine build. Upstream publishes no image yet, so build
+# the CLI/server from source at the pinned version (see DAGNATS_VERSION).
+ARG DAGNATS_VERSION=v0.0.24
+FROM golang:1.27-bookworm AS build
+ARG DAGNATS_VERSION
+RUN go install github.com/danmestas/dagnats/cmd/dagnats@${DAGNATS_VERSION}
+
+FROM debian:bookworm-slim
+COPY --from=build /go/bin/dagnats /usr/local/bin/dagnats
+EXPOSE 4222 8080
+ENTRYPOINT ["dagnats"]
