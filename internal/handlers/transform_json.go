@@ -71,9 +71,10 @@ func decodeTransform(raw []byte, md map[string]string) (TransformInput, error) {
 		if err != nil {
 			return in, err
 		}
-		var normalized any
-		round, _ := json.Marshal(data)
-		_ = json.Unmarshal(round, &normalized)
+		normalized, err := normalizeJSON(data)
+		if err != nil {
+			return in, err
+		}
 		in.Input = normalized
 	}
 	if in.Expression == "" {

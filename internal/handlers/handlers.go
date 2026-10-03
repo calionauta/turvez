@@ -24,14 +24,13 @@ func decodeInput(raw []byte, v any) error {
 	return nil
 }
 
-// marshalOutput marshals a handler result for ctx.Complete.
+// marshalOutput marshals a handler result for ctx.Complete. An
+// unserializable value cannot occur for JSON-derived data; the static
+// fallback keeps the failure visible instead of panicking.
 func marshalOutput(v any) []byte {
 	data, err := json.Marshal(v)
 	if err != nil {
-		// Structured outputs are marshalled from known structs; this is
-		// a programmer error, surfaced as a failure payload, not a panic.
-		fallback, _ := json.Marshal(map[string]string{"error": err.Error()})
-		return fallback
+		return []byte(`{"error":"unserializable handler output"}`)
 	}
 	return data
 }

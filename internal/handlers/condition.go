@@ -148,8 +148,10 @@ func EvalCondition(in ConditionInput) (ConditionOutput, error) {
 			return ConditionOutput{}, worker.NewNonRetryableError(fmt.Errorf("condition: need field+op+value or expression"))
 		}
 		var normalized any
-		raw, _ := json.Marshal(in.Input)
-		_ = json.Unmarshal(raw, &normalized)
+		normalized, err := normalizeJSON(in.Input)
+		if err != nil {
+			return ConditionOutput{}, err
+		}
 		left, ok := lookupDotPath(normalized, in.Field)
 		if !ok {
 			return ConditionOutput{}, fmt.Errorf("condition: field %q not found in input", in.Field)
@@ -185,9 +187,10 @@ func decodeCondition(raw []byte, md map[string]string) (ConditionInput, error) {
 		if err != nil {
 			return in, err
 		}
-		var normalized any
-		round, _ := json.Marshal(data)
-		_ = json.Unmarshal(round, &normalized)
+		normalized, err := normalizeJSON(data)
+		if err != nil {
+			return in, err
+		}
 		in.Input = normalized
 	}
 	if in.Field == "" {

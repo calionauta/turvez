@@ -112,10 +112,16 @@ func isContextErr(err error) bool {
 
 // decodeApproval accepts an empty payload (all defaults/metadata), the
 // {"signal","timeout","notify"} envelope, or metadata-only configuration.
-func decodeApproval(raw []byte, md map[string]string) RequestApprovalInput {
+// Malformed JSON objects fail loudly; anything else falls back to defaults.
+func decodeApproval(raw []byte, md map[string]string) (RequestApprovalInput, error) {
 	var in RequestApprovalInput
-	if len(bytes.TrimSpace(raw)) > 0 && isJSONObject(raw) {
-		_ = json.Unmarshal(raw, &in)
+	if len(bytes.TrimSpace(raw)) > 0 {
+		if !isJSONObject(raw) {
+			return in, fmt.Errorf("handlers: invalid request.approval input: want JSON object or empty")
+		}
+		if err := json.Unmarshal(raw, &in); err != nil {
+			return in, fmt.Errorf("handlers: invalid request.approval input: %w", err)
+		}
 	}
 	if in.Signal == "" {
 		in.Signal = md["signal"]
@@ -126,11 +132,14 @@ func decodeApproval(raw []byte, md map[string]string) RequestApprovalInput {
 	if in.Message == "" {
 		in.Message = md["message"]
 	}
-	return in
+	return in, nil
 }
 
 func handleRequestApproval(ctx worker.TaskContext) error {
-	in := decodeApproval(ctx.Input(), metadataOf(ctx.Metadata()))
+	in, err := decodeApproval(ctx.Input(), metadataOf(ctx.Metadata()))
+	if err != nil {
+		return worker.NewNonRetryableError(err)
+	}
 	total := 72 * time.Hour
 	if in.Timeout != "" {
 		d, err := time.ParseDuration(in.Timeout)
@@ -148,7 +157,7 @@ func handleRequestApproval(ctx worker.TaskContext) error {
 			msg = "Approval requested for run — reply via ops endpoint."
 		}
 		// Best effort: a failed ping must not fail the approval gate.
-		_ = PostSlackMessage(ctx.Context(), httpClientFor(10000), in.Notify.WebhookSecret, msg)
+		_ = PostSlackMessage(ctx.Context(), httpClientFor(10000), in.Notify.WebhookSecret, msg) //nolint:errcheck // best-effort notify by design
 	}
 	out, err := WaitForApproval(ctx, in.Signal, total)
 	if err != nil {

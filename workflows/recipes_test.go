@@ -111,7 +111,12 @@ func loadRecipes(t *testing.T) map[string]workflowFile {
 func TestRecipeStructure(t *testing.T) {
 	// $schema breaks `dagnats workflow validate` at v0.0.24 (strict
 	// top-level check; upstream's own examples fail too). Keep it out
-	// until an upgrade re-allows it.
+	// until an upgrade re-allows it. The same loop also rejects
+	// embedded credential values: JSON carries secret NAMES only.
+	var secretValuePatterns = []string{
+		"hooks.slack.com/services/", "xoxb-", "xoxp-", "sk-live-",
+		"sk-test-", "ghp_", "-----BEGIN",
+	}
 	for _, f := range recipeFiles(t) {
 		raw, err := os.ReadFile(f)
 		if err != nil {
@@ -119,6 +124,11 @@ func TestRecipeStructure(t *testing.T) {
 		}
 		if strings.Contains(string(raw), "$schema") {
 			t.Fatalf("%s: $schema is rejected by workflow validate/register", f)
+		}
+		for _, p := range secretValuePatterns {
+			if strings.Contains(string(raw), p) {
+				t.Fatalf("%s: looks like an embedded secret value (%q); use secret names only", f, p)
+			}
 		}
 	}
 	for path, wf := range loadRecipes(t) {
@@ -272,9 +282,14 @@ func isThree(v any) bool {
 // eval runs a recipe's jq expression against sample data.
 func eval(t *testing.T, expr string, input any) any {
 	t.Helper()
-	raw, _ := json.Marshal(input)
+	raw, err := json.Marshal(input)
+	if err != nil {
+		t.Fatalf("marshal sample: %v", err)
+	}
 	var normalized any
-	_ = json.Unmarshal(raw, &normalized)
+	if err := json.Unmarshal(raw, &normalized); err != nil {
+		t.Fatalf("normalize sample: %v", err)
+	}
 	res, err := handlers.ApplyJQLight(normalized, expr)
 	if err != nil {
 		t.Fatalf("expr %q: %v", expr, err)

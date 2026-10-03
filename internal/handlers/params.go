@@ -62,6 +62,21 @@ func decodeData(raw []byte) (any, error) {
 	return data, nil
 }
 
+// normalizeJSON round-trips a decoded value through JSON so numbers are
+// float64, matching what handlers see from real task payloads in tests
+// that construct values in Go (gojq preserves Go ints otherwise).
+func normalizeJSON(v any) (any, error) {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return nil, fmt.Errorf("handlers: cannot normalize input: %w", err)
+	}
+	var out any
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, fmt.Errorf("handlers: cannot normalize input: %w", err)
+	}
+	return out, nil
+}
+
 // intFromMeta parses an int metadata value; 0 when unset/invalid.
 func intFromMeta(md map[string]string, key string) int {
 	s, ok := md[key]

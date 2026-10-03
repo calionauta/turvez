@@ -43,7 +43,8 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ops/approvals/", s.handleApproval)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte("ok"))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok")) //nolint:errcheck // health probe body is best-effort
 	})
 	return mux
 }
@@ -130,11 +131,15 @@ func (s *Server) forward(w http.ResponseWriter, r *http.Request, url string, bod
 		http.Error(w, fmt.Sprintf("signal dagnats: %v", err), http.StatusBadGateway)
 		return
 	}
-	defer resp.Body.Close()
-	out, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	defer resp.Body.Close() //nolint:errcheck // close error after full read is unactionable
+	out, err := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+	if err != nil {
+		http.Error(w, "read upstream body", http.StatusBadGateway)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(resp.StatusCode)
-	_, _ = w.Write(out)
+	_, _ = w.Write(out) //nolint:errcheck // partial write to client is unactionable here
 }
 
 // subtleCompare avoids short-circuit length leaks in a two-line helper.

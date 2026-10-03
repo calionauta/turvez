@@ -5,13 +5,17 @@ linters:
     - ineffassign
     - staticcheck
     - unused
-    - gofmt
     - misspell
     - unconvert
     - errcheck
   settings:
     errcheck:
       check-blank: true
+  exclusions:
+    rules:
+      # Tests intentionally ignore writes/closes; assertions are the checks.
+      - path: _test\.go
+        linters: [errcheck]
 formatters:
   enable:
     - gofmt

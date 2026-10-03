@@ -94,7 +94,7 @@ func DoHTTPRequest(ctx context.Context, in HTTPRequestInput, client *http.Client
 	if err != nil {
 		return out, fmt.Errorf("http.request: %s %s: %w", method, in.URL, err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck // close error after full read is unactionable
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 	if err != nil {
 		return out, fmt.Errorf("http.request: read body: %w", err)

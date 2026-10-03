@@ -11,11 +11,25 @@ services:
     ports:
       - "4222:4222"
       - "8080:8080"
-    command: ["dagnats", "serve", "--nats-addr", "0.0.0.0:4222", "--http-addr", "0.0.0.0:8080"]
+    environment:
+      # Loopback is the upstream default (server/nats.go binds 127.0.0.1 in
+      # standalone mode); containers need external binds, hence 0.0.0.0 here.
+      DAGNATS_HTTP_ADDR: 0.0.0.0:8080
+      DAGNATS_NATS_PORT: 4222
+      # Forces the embedded NATS bind to 0.0.0.0 (upstream only does this
+      # in leaf mode). Points at a deliberately-unused port: solicitation
+      # fails/retries in the background, the server itself is unaffected.
+      # Replace with a real remote when adopting a leaf topology.
+      DAGNATS_LEAF_REMOTES: nats://127.0.0.1:14229
+      DAGNATS_DATA_DIR: /data
+    volumes:
+      - dagnats-data:/data
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      # status needs only NATS; exits non-zero when unhealthy. No curl/wget
+      # in the slim image by design.
+      test: ["CMD", "dagnats", "status"]
       interval: 10s
-      timeout: 3s
+      timeout: 5s
       retries: 12
 
   worker:
@@ -38,3 +52,6 @@ services:
     # container start only when SECRETS_AGE_FILE + AGE_IDENTITY_FILE are set).
     # volumes:
     #   - ~/.secrets:/run/secrets:ro
+
+volumes:
+  dagnats-data:

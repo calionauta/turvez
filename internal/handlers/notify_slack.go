@@ -33,7 +33,10 @@ func PostSlackMessage(ctx context.Context, client *http.Client, secretName, mess
 	if err != nil {
 		return fmt.Errorf("notify.slack: %w", err)
 	}
-	payload, _ := json.Marshal(map[string]string{"text": message})
+	payload, err := json.Marshal(map[string]string{"text": message})
+	if err != nil {
+		return fmt.Errorf("notify.slack: encode message: %w", err)
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, webhookURL, bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("notify.slack: build request: %w", err)
@@ -43,8 +46,10 @@ func PostSlackMessage(ctx context.Context, client *http.Client, secretName, mess
 	if err != nil {
 		return fmt.Errorf("notify.slack: post: %w", err)
 	}
-	defer resp.Body.Close()
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
+	defer resp.Body.Close() //nolint:errcheck // close error after drain is unactionable
+	if _, err := io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10)); err != nil {
+		return fmt.Errorf("notify.slack: drain body: %w", err)
+	}
 	if resp.StatusCode >= 500 {
 		return fmt.Errorf("notify.slack: slack %d (retryable)", resp.StatusCode)
 	}

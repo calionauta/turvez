@@ -4,6 +4,14 @@ A recipe is a **workflow JSON file**: the automation code. Go handlers are
 shared platform code — you touch them only when a recipe cannot express
 the logic (see the checklist at the bottom).
 
+## Change flow: git is the source of truth
+
+Every recipe change is a commit in `workflows/<client-id>/`. Never edit a
+definition only inside dagnats KV (console/API) without updating git —
+KV is a deployment target, git is the source of truth. The extract and
+disaster-recovery paths re-register from git; anything that lives only
+in KV is lost on cutover.
+
 ## Anatomy of a run
 
 1. A run starts with an **input**. Manual starts pass it directly:

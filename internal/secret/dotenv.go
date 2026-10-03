@@ -1,6 +1,7 @@
 package secret
 
 import (
+	"fmt"
 	"os"
 	"strings"
 )
@@ -25,7 +26,9 @@ func mergeDotEnvBytes(raw []byte) error {
 			v = v[1 : len(v)-1]
 		}
 		if _, exists := os.LookupEnv(k); !exists {
-			_ = os.Setenv(k, v)
+			if err := os.Setenv(k, v); err != nil {
+				return fmt.Errorf("secret: set %s: %w", k, err)
+			}
 		}
 	}
 	return nil

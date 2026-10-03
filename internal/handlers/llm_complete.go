@@ -62,7 +62,10 @@ func CallLLM(ctx context.Context, client *http.Client, in LLMCompleteInput) (LLM
 	if in.Temperature != nil {
 		body["temperature"] = *in.Temperature
 	}
-	payload, _ := json.Marshal(body)
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return out, fmt.Errorf("llm.complete: encode request: %w", err)
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/chat/completions", bytes.NewReader(payload))
 	if err != nil {
 		return out, fmt.Errorf("llm.complete: build request: %w", err)
@@ -73,7 +76,7 @@ func CallLLM(ctx context.Context, client *http.Client, in LLMCompleteInput) (LLM
 	if err != nil {
 		return out, fmt.Errorf("llm.complete: post: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck // close error after full read is unactionable
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if err != nil {
 		return out, fmt.Errorf("llm.complete: read body: %w", err)

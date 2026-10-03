@@ -12,7 +12,7 @@ set -euo pipefail
 
 WF="example-client/hubspot-lead-to-slack"
 
-./scripts/register-workflows.sh workflows/example-client
+./scripts/register-workflows.sh example-client
 
 echo "== starting run: $WF"
 if dagnats run start --help 2>&1 | grep -q -- '--json'; then
@@ -40,5 +40,5 @@ dagnats run events "$RUN_ID" 2>/dev/null | tail -20 || true
 echo "== output (empty unless completed)"
 dagnats run output "$RUN_ID" || true
 echo
-echo "Done. Green path needs real ACME_* secrets in .env (see .env.example)."
+echo "Done. Green path needs real secrets in env/example-client.env (see env/example-client.env.example)."
 echo "Failure inspection: dagnats run inspect $RUN_ID ; dagnats dlq list --run=$RUN_ID"

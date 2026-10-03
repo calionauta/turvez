@@ -35,7 +35,7 @@ func ApplyMap(ctx context.Context, in MapInput) (MapOutput, error) {
 		out.Results = []any{}
 		return out, nil
 	}
-	if in.Items != nil && len(in.Items) > 10000 {
+	if len(in.Items) > 10000 {
 		return out, worker.NewNonRetryableError(fmt.Errorf("map: %d items exceeds 10000 cap; use native type:map fan-out", len(in.Items)))
 	}
 	limit := in.Concurrency
@@ -91,9 +91,14 @@ func decodeMap(raw []byte, md map[string]string) (MapInput, error) {
 		if err := json.Unmarshal(raw, &in); err != nil {
 			return in, fmt.Errorf("handlers: invalid map input: %w", err)
 		}
+		round, err := json.Marshal(in.Items)
+		if err != nil {
+			return in, fmt.Errorf("handlers: cannot normalize items: %w", err)
+		}
 		var normalized []any
-		round, _ := json.Marshal(in.Items)
-		_ = json.Unmarshal(round, &normalized)
+		if err := json.Unmarshal(round, &normalized); err != nil {
+			return in, fmt.Errorf("handlers: cannot normalize items: %w", err)
+		}
 		in.Items = normalized
 	}
 	if in.Expression == "" {

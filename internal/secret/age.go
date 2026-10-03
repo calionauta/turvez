@@ -70,7 +70,10 @@ func InitFromEnv() error {
 	}
 	identity := os.Getenv("AGE_IDENTITY_FILE")
 	if identity == "" {
-		home, _ := os.UserHomeDir()
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("secret: AGE_IDENTITY_FILE unset and home dir unknown: %w", err)
+		}
 		identity = home + "/.secrets/consultancy.age.key"
 	}
 	return LoadAgeEnv(enc, identity)
