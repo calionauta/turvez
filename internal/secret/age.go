@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 )
 
 // DecryptAgeFile shells out to the `age` binary (https://age-encryption.org)
@@ -36,7 +38,10 @@ func LoadAgeEnv(encryptedPath, identityFile string) error {
 
 // InitFromEnv implements the startup chain used by cmd/worker:
 //
-//  1. If DOTENV_FILE is set, load it (local dev convenience).
+//  1. If DOTENV_FILE is set, load it; else if CLIENT_ID is set, load
+//     env/<CLIENT_ID>.env when it exists (per-client file; a missing
+//     file warns on stderr and continues — secrets may come from the
+//     host environment or SECRETS_AGE_FILE instead).
 //  2. If SECRETS_AGE_FILE is set, decrypt with AGE_IDENTITY_FILE (or
 //     ~/.secrets/consultancy.age.key fallback) and merge.
 //
@@ -45,6 +50,18 @@ func InitFromEnv() error {
 	if dotenv := os.Getenv("DOTENV_FILE"); dotenv != "" {
 		if err := LoadDotEnvFile(dotenv); err != nil {
 			return err
+		}
+	} else if client := os.Getenv("CLIENT_ID"); client != "" {
+		if strings.ContainsAny(client, `/.\`) || client != filepath.Base(client) {
+			return fmt.Errorf("secret: invalid CLIENT_ID %q", client)
+		}
+		p := filepath.Join("env", client+".env")
+		if _, err := os.Stat(p); err == nil {
+			if err := LoadDotEnvFile(p); err != nil {
+				return err
+			}
+		} else {
+			fmt.Fprintf(os.Stderr, "secret: CLIENT_ID=%s but %s not found; continuing with host env\n", client, p)
 		}
 	}
 	enc := os.Getenv("SECRETS_AGE_FILE")

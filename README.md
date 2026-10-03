@@ -10,7 +10,10 @@ platform code.
 - Worker: one binary, eight generic handlers (HTTP, jq transform,
   condition, map, delay, Slack, approval, LLM).
 - Recipes: `workflows/<client>/*.json`, namespaced `<client>/…`.
-- Secrets: env vars + optional age-encrypted files. Never in JSON.
+- Secrets: per-client env files (`env/<client>.env`) + optional
+  age-encrypted files (`secrets/<client>/`). Never in JSON.
+- Tenancy: prefix conventions + extract runbook; Windmill is a
+  documented escape hatch, not a dependency.
 
 ## Quickstart
 
@@ -69,8 +72,11 @@ curl -X POST localhost:8090/ops/approvals/<run-id> \
   v0.0.24 traps, custom-handler checklist.
 - `docs/handlers-reference.md` — task inputs/outputs, metadata keys.
 - `docs/agent-tools.md` — exact CLI/API for an authoring agent.
+- `docs/tenancy-evolution.md` — stages 1→3 without redesign.
 - `docs/isolating-a-client.md` — extract one client to its own host.
+- `docs/migrate-to-windmill.md` — Windmill escape hatch (docs only).
 - `ARCHITECTURE.md` — diagram, data flow, decisions.
+- `AGENTS.md` — agent quick rules (this file's essentials).
 
 ## Conventions
 

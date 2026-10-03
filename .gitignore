@@ -3,8 +3,10 @@
 /dist/
 *.test
 
-# Local env with real secrets — never commit
+# Local env with real secrets — never commit (.env.example stays tracked)
 .env
+# Per-client real env — never commit (templates are env/*.env.example)
+env/*.env
 
 # Age identities (private keys) — never commit
 *.age.key

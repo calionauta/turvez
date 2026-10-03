@@ -46,28 +46,53 @@ type skipIf struct {
 }
 
 type workflowFile struct {
-	Name     string            `json:"name"`
-	Version  string            `json:"version"`
-	Steps    []stepDef         `json:"steps"`
-	AuxSteps map[string]bool   `json:"aux_steps"`
-	Triggers []json.RawMessage `json:"triggers"`
+	Name     string          `json:"name"`
+	Version  string          `json:"version"`
+	Steps    []stepDef       `json:"steps"`
+	AuxSteps map[string]bool `json:"aux_steps"`
+	Triggers []triggerDef    `json:"triggers"`
 }
 
+type triggerDef struct {
+	ID      string `json:"id"`
+	Webhook *struct {
+		Path string `json:"path"`
+	} `json:"webhook"`
+	Cron    any `json:"cron"`
+	Subject any `json:"subject"`
+}
+
+// recipeFiles lists every client recipe. _templates holds TODO-CLIENT
+// placeholders (validated by `make validate`, not by these tests).
 func recipeFiles(t *testing.T) []string {
 	t.Helper()
-	files, err := filepath.Glob("example-client/*.json")
-	if err != nil || len(files) == 0 {
-		t.Fatalf("no example recipes found: %v", err)
+	dirs, err := filepath.Glob("*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var files []string
+	for _, d := range dirs {
+		if d == "_templates" {
+			continue
+		}
+		if fi, err := os.Stat(d); err != nil || !fi.IsDir() {
+			continue
+		}
+		matches, err := filepath.Glob(filepath.Join(d, "*.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		files = append(files, matches...)
+	}
+	if len(files) == 0 {
+		t.Fatal("no client recipes found")
 	}
 	return files
 }
 
 func loadRecipes(t *testing.T) map[string]workflowFile {
 	t.Helper()
-	files, err := filepath.Glob("example-client/*.json")
-	if err != nil || len(files) == 0 {
-		t.Fatalf("no example recipes found: %v", err)
-	}
+	files := recipeFiles(t)
 	out := map[string]workflowFile{}
 	for _, f := range files {
 		raw, err := os.ReadFile(f)
@@ -78,7 +103,7 @@ func loadRecipes(t *testing.T) map[string]workflowFile {
 		if err := json.Unmarshal(raw, &wf); err != nil {
 			t.Fatalf("%s: %v", f, err)
 		}
-		out[filepath.Base(f)] = wf
+		out[f] = wf
 	}
 	return out
 }
@@ -96,13 +121,27 @@ func TestRecipeStructure(t *testing.T) {
 			t.Fatalf("%s: $schema is rejected by workflow validate/register", f)
 		}
 	}
-	for name, wf := range loadRecipes(t) {
-		t.Run(name, func(t *testing.T) {
+	for path, wf := range loadRecipes(t) {
+		client := filepath.Dir(path) // workflows/<client-id>/*.json
+		t.Run(path, func(t *testing.T) {
 			if wf.Name == "" || wf.Version == "" {
 				t.Fatal("name and version are required")
 			}
-			if !strings.HasPrefix(wf.Name, "example-client/") {
-				t.Fatalf("name %q must carry the client namespace prefix", wf.Name)
+			// Tenancy: folder, workflow name, and trigger ids/paths
+			// share the <client-id> prefix. No shared names.
+			if !strings.HasPrefix(wf.Name, client+"/") {
+				t.Fatalf("name %q must start with %q/ (folder prefix)", wf.Name, client)
+			}
+			for _, tr := range wf.Triggers {
+				if tr.ID == "" {
+					t.Fatal("trigger with empty id")
+				}
+				if !strings.HasPrefix(tr.ID, client+"-") {
+					t.Fatalf("trigger id %q must start with %q-", tr.ID, client)
+				}
+				if tr.Webhook != nil && !strings.Contains(tr.Webhook.Path, client) {
+					t.Fatalf("webhook path %q must contain %q", tr.Webhook.Path, client)
+				}
 			}
 			ids := map[string]bool{}
 			auxTargets := map[string]bool{}
@@ -256,7 +295,7 @@ func TestRecipeExpressions(t *testing.T) {
 	all := loadRecipes(t)
 
 	t.Run("hubspot-lead-to-slack", func(t *testing.T) {
-		wf := all["hubspot-lead-to-slack.json"]
+		wf := all["example-client/hubspot-lead-to-slack.json"]
 		// Manual run input and trigger-envelope input must both work.
 		for _, runInput := range []any{
 			map[string]any{"lead_id": "123"},
@@ -280,7 +319,7 @@ func TestRecipeExpressions(t *testing.T) {
 	})
 
 	t.Run("invoice-paid-route", func(t *testing.T) {
-		wf := all["invoice-paid-route.json"]
+		wf := all["example-client/invoice-paid-route.json"]
 		hi := eval(t, exprOf(wf, "shape"), map[string]any{
 			"json": map[string]any{"total": 20000.0, "customer": "Acme"},
 		}).(map[string]any)
@@ -305,7 +344,7 @@ func TestRecipeExpressions(t *testing.T) {
 	})
 
 	t.Run("nightly-sync", func(t *testing.T) {
-		wf := all["nightly-sync.json"]
+		wf := all["example-client/nightly-sync.json"]
 		fetch := eval(t, exprOf(wf, "build-fetch"), nil)
 		if fetch.(map[string]any)["method"] != "GET" {
 			t.Fatalf("fetch payload: %#v", fetch)
@@ -323,7 +362,7 @@ func TestRecipeExpressions(t *testing.T) {
 	})
 
 	t.Run("approval-refund", func(t *testing.T) {
-		wf := all["approval-refund.json"]
+		wf := all["example-client/approval-refund.json"]
 		review := eval(t, exprOf(wf, "build-review"), map[string]any{
 			"order_id": "ord_1", "amount": 42.5, "reason": "dup",
 		}).(map[string]any)

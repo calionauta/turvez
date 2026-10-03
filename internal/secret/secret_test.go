@@ -20,6 +20,40 @@ func TestGet(t *testing.T) {
 	}
 }
 
+func TestInitFromEnvClientID(t *testing.T) {
+	cwd, _ := os.Getwd()
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "env"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "env", "acme.env"), []byte("CLIENT_ID_FILE_VAR=loaded\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Chdir(cwd) }()
+	t.Setenv("DOTENV_FILE", "")
+	t.Setenv("SECRETS_AGE_FILE", "")
+	t.Setenv("CLIENT_ID", "acme")
+	os.Unsetenv("CLIENT_ID_FILE_VAR")
+	if err := InitFromEnv(); err != nil {
+		t.Fatal(err)
+	}
+	if got := os.Getenv("CLIENT_ID_FILE_VAR"); got != "loaded" {
+		t.Fatalf("CLIENT_ID env file not loaded, got %q", got)
+	}
+}
+
+func TestInitFromEnvBadClientID(t *testing.T) {
+	t.Setenv("DOTENV_FILE", "")
+	t.Setenv("SECRETS_AGE_FILE", "")
+	t.Setenv("CLIENT_ID", "../escape")
+	if err := InitFromEnv(); err == nil {
+		t.Fatal("expected error for path-traversal CLIENT_ID")
+	}
+}
+
 func TestLoadDotEnvFileDoesNotOverride(t *testing.T) {
 	t.Setenv("DOTENV_KEPT", "from-env")
 	dir := t.TempDir()

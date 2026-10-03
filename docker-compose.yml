@@ -28,6 +28,9 @@ services:
     environment:
       DAGNATS_NATS_URL: nats://dagnats:4222
       DAGNATS_API_URL: http://dagnats:8080
+      # Stage 1/2: empty = serve all clients. Stage 3: set CLIENT_ID=acme
+      # so the worker loads only env/acme.env (see docs/tenancy-evolution.md).
+      CLIENT_ID: ${CLIENT_ID:-}
     env_file:
       - path: .env
         required: false

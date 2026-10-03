@@ -45,7 +45,7 @@
   ],
   "triggers": [
     {
-      "id": "lead-webhook",
+      "id": "example-client-lead-webhook",
       "webhook": {
         "path": "/hooks/example-client/lead"
       }

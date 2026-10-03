@@ -11,9 +11,9 @@ down:
 worker:
 	go run ./cmd/worker
 
-# Validate then register all example workflows.
+# Validate then register example workflows (all clients, or one).
 register:
-	./scripts/register-workflows.sh
+	./scripts/register-workflows.sh $(CLIENT)
 
 # End-to-end smoke path (register + start run + print status).
 smoke:
@@ -26,7 +26,7 @@ lint:
 	golangci-lint run ./... 2>/dev/null || go vet ./...
 
 validate:
-	@for f in workflows/example-client/*.json workflows/_templates/*.json; do \
+	@for f in workflows/*/*.json; do \
 		echo "== $$f"; \
 		dagnats workflow validate "$$f" || exit 1; \
 	done

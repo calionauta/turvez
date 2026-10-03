@@ -62,7 +62,7 @@
   ],
   "triggers": [
     {
-      "id": "nightly-sync-cron",
+      "id": "example-client-nightly-sync-cron",
       "cron": {
         "expression": "0 2 * * *",
         "timezone": "UTC"
