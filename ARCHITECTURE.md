@@ -39,7 +39,9 @@
   DAG + static config in step `metadata` + trigger declarations.
   Registered into dagnats, versioned in git.
 - **Secrets** (`internal/secret`): env-first, optional age-encrypted
-  dotenv second. JSON carries names, never values.
+  dotenv second (`secrets/<client>/env.age`, decrypted to memory at boot).
+  JSON carries names, never values. Full flow in `docs/secrets.md`
+  (per-client keys, JIT runtime, sops evaluation, LLM hygiene).
 - **Ops HTTP** (`internal/opshttp`, optional): Bearer-token shim turning
   a human click into a dagnats signal (`request.approval` flows) or a
   tokenized approval call (native `approval` steps).

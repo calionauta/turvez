@@ -10,7 +10,7 @@ in folder + name prefix + env file only — never in Go code.
 - `workflows/<client-id>/*.json` — all recipes for that client
 - Trigger definitions for that client (ids start with `<client-id>-`;
   recreate from the JSON `triggers` arrays, see below)
-- `env/<client-id>.env` (or `secrets/<client-id>/prod.env.age` +
+- `env/<client-id>.env` (or `secrets/<client-id>/env.age` +
   the age identity out-of-band)
 - Worker image at the same git SHA / version (same binary, different env)
 
@@ -43,7 +43,7 @@ git clone <this-template> && cd <this-template>
 git checkout <same-sha-as-old-server>
 cp env/$CLIENT.env.example env/$CLIENT.env   # fill real values (gitignored)
 # or decrypt: age --decrypt -i ~/.secrets/consultancy.age.key \
-#   -o /tmp/$CLIENT.env secrets/$CLIENT/prod.env.age
+#   -o /tmp/$CLIENT.env secrets/$CLIENT/env.age
 #   export DOTENV_FILE=/tmp/$CLIENT.env
 export CLIENT_ID=$CLIENT
 export DAGNATS_NATS_URL=nats://127.0.0.1:4222
