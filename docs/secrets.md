@@ -20,13 +20,15 @@ Workflow JSON references **names** only (`"auth_secret": "ACME_X"`). The
 (`hooks.slack…`, `xoxb-`, `sk-`, `ghp_`, PEM) shows up in any recipe.
 
 ## Keys: one per environment, per client when needed
-
 - **Default:** one consultancy key per execution environment (laptop,
   server). One file per client, all encrypted to the same recipient —
   simple to operate.
 - **Per client:** generate a dedicated pair when a client requires
   isolation or compliance (stage 3 in `docs/tenancy-evolution.md`).
   The loader does not care: each host uses its own `AGE_IDENTITY_FILE`.
+- **Per person (partners):** recipients are listed per client in the
+  committed `secrets/<client>/.recipients` — see the handoff section
+  below. age encrypts to several recipients natively; no extra tooling.
 
 ```bash
 age-keygen -o ~/.secrets/consultancy.age.key   # once per machine
@@ -52,8 +54,43 @@ Bootstrap (first time, no ciphertext yet): the script starts from
 `env/<client>.env.example`. Git history is the backup — the previous
 ciphertext stays committed until the next commit.
 
-## age cheat-sheet (for when you need the manual cycle)
+## Clients handing you keys, and partners supporting clients
 
+**Receiving keys from a client.** Agree on a channel first — shared
+1Password vault item is best; encrypted email acceptable; plain chat or
+email never. Paste straight into the edit flow (`make edit-secrets`),
+commit the ciphertext, then delete the original message/file. If the
+client is capable, they can encrypt to your public key themselves with
+plain `age -r` and send only ciphertext.
+
+**Partner supporting another client.** Each person holds their own age
+keypair; the private key never leaves their machine:
+
+1. Partner sends you their **public** key (authenticated channel —
+   confirm it out-of-band the first time).
+2. You append it to `secrets/<client>/.recipients` (committed — public
+   keys are public) for the clients they support, and commit.
+3. Partner runs the same `make edit-secrets CLIENT=<client>` — the
+   script encrypts to every listed recipient.
+
+The effect is cryptographic least privilege on a shared private repo:
+the partner decrypts only the clients whose `.recipients` lists them;
+everyone else's ciphertext is opaque, including to anyone browsing git.
+Repo access ≠ secret access. Clients get no repo access at all.
+
+**Revoking.** Delete the line, re-encrypt without editing, commit:
+
+```bash
+make edit-secrets CLIENT=acme   # after removing their key from .recipients
+./scripts/edit-secrets.sh --re-encrypt acme
+git add -f secrets/acme/env.age && git commit
+```
+
+Honest limit: revocation blocks **future** reads only. Values already
+decrypted while access lasted cannot be unseen — for a hostile split,
+rotate the underlying SaaS tokens too.
+
+## age cheat-sheet (for when you need the manual cycle)
 ```bash
 age-keygen -o ~/.secrets/x.age.key && chmod 600 ~/.secrets/x.age.key
 age-keygen -y ~/.secrets/x.age.key                    # public key
