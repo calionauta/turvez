@@ -181,6 +181,40 @@ reasons, the first decisive:
    runtime uses `sops exec-env` / `sops --decrypt`, or the file stays in
    plain age. Do not mix both formats in one folder.
 
+## dotenvx: evaluation
+
+[`dotenvx`](https://dotenvx.com) encrypts values in place (`KEY=
+`encrypted:…``), keeping names readable and the public key in the file;
+the private key lives in `.env.keys` (never commit) or the platform.
+Crypto is ECIES/secp256k1 per value. Editing UX is genuinely the best
+of the three (`dotenvx set KEY v -f file`, per-key `-k`, mixed
+plaintext, `rotate`). Tested locally against v1.66.0.
+
+**Verdict: not for this repo.** Two structural mismatches, both
+verified, not matters of taste:
+
+1. **One keypair per file, no multi-recipient.** A file carries a
+   single `DOTENV_PUBLIC_KEY`; onboarding a partner means **sending
+   them the private key** over a secure channel. Compare with age
+   here: the partner generates a pair and sends you only the *public*
+   key (`secrets/<client>/.recipients`). The direction of trust is
+   inverted — dotenvx makes the sensitive material the thing you
+   distribute. Per-client files scope the blast radius, but multiply
+   private-key distribution instead of eliminating it.
+2. **Runtime is Node.js** (the binary is a node script). The worker
+   image is distroless static Go; integration would mean wrapping the
+   process (`dotenvx run -- ./worker`) or shelling out per key —
+   dragging Node into a Go stack for zero secrecy gain (values land in
+   env identically). Format lock-in also differs: age files open with
+   any age implementation; dotenvx files need dotenvx (commercially
+   backed, with vault upsell baked into the CLI).
+
+Fair credit: for a Node.js shop sharing keys via platform secret
+managers, with no partner least-privilege requirement, dotenvx's
+editing flow and readable diffs are the most ergonomic option.
+Reconsider only if this stack becomes Node, or `DOTENV_PRIVATE_KEY`
+moves to a managed platform per environment.
+
 ## Hygiene against LLM/agent reads
 
 - Agents work with secret **names** (`env/*.env.example`), never ask
