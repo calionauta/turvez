@@ -25,6 +25,23 @@
   + no `depends_on`; `sleep`/`approval` steps take no `task`; `map` = 1 dep
   emitting an array; trigger runs arrive as `{…, "data": …}` — open recipes
   with `((.data // .) | …)`.
+- **dagnats v0.0.24 console cannot create the FIRST trigger.** The console
+  calls `ListTriggers` before writing, to check for a duplicate id, and on an
+  empty `triggers` bucket that returns `jetstream.ErrNoKeysFound` raw from
+  `listTriggersInner` (`internal/api/service_triggers.go`). The console turns
+  it into `500 lookup failed: nats: no keys found` and never writes — so the
+  bucket can never become non-empty through the UI. **This project's normal
+  path is not affected:** every trigger is declared inline in a recipe and
+  applied with `dagnats workflow register`, which writes through
+  `CreateTrigger` or straight to the KV and never calls the raising function.
+  The CLI (`dagnats trigger create`) is also unaffected.
+  Workaround: `internal/bootstrap/triggers.go` seeds one disabled placeholder
+  trigger when the bucket is empty, so the console is usable on a fresh
+  engine. Set `DAGNATS_TRIGGER_BOOTSTRAP=false` to disable. Upstream fix:
+  [danmestas/dagnats#745](https://github.com/danmestas/dagnats/pull/745).
+  **Re-check on every dagnats bump** — when the fix ships, delete
+  `internal/bootstrap/triggers.go` and its call in `cmd/worker/main.go` in the
+  SAME commit as the bump, and remove the paragraph above.
 - Windmill: no dependency; keep recipes in portable step types; flag any new
   Go handler as "Windmill migration cost" (see `docs/migrate-to-windmill.md`).
 
