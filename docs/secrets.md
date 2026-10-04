@@ -34,15 +34,35 @@ chmod 600 ~/.secrets/consultancy.age.key
 age-keygen -y ~/.secrets/consultancy.age.key   # imprime a pública
 ```
 
-## Ciclo: criar → criptografar → versionar
+## Ciclo: criar → editar → versionar
+
+Edição sempre via `scripts/edit-secrets.sh <client>` — descriptografa
+para um temp dir com trap de destruição (inclui swap do editor),
+re-criptografa para um recipiente derivado da sua própria identidade
+(nunca cifra para uma chave que você não abre), avisa sobre chaves fora
+do template e verifica a descriptografia antes de sair:
 
 ```bash
-cp env/acme.env.example env/acme.env
-$EDITOR env/acme.env                            # valores reais (gitignored)
-age -r age1PUBLICADACONSULTORIA -o secrets/acme/env.age env/acme.env
-git add -f secrets/acme/env.age                 # -f: muitos operadores ignoram secrets/ globalmente
-shred -u env/acme.env   # Linux; no macOS: rm -P env/acme.env
+make edit-secrets CLIENT=acme
+# …edita no $EDITOR, salva, sai…
+git add -f secrets/acme/env.age && git commit
 ```
+
+Bootstrap (primeira vez, sem ciphertext ainda): o script parte do
+`env/<client>.env.example`. O histórico git é o backup — o ciphertext
+anterior continua commitado até o próximo commit.
+
+## Cheat-sheet age (quando precisar do manual)
+
+```bash
+age-keygen -o ~/.secrets/x.age.key && chmod 600 ~/.secrets/x.age.key
+age-keygen -y ~/.secrets/x.age.key                    # pública
+age -r age1PUBLICA -o secrets/acme/env.age env/acme.env
+age --decrypt -i ~/.secrets/x.age.key -o - secrets/acme/env.age | head -c 200  # confere
+```
+
+Prefira o script ao manual: o ciclo manual esquece `shred` do temp e
+deixa backup/swap do editor para trás.
 
 ## Runtime: descriptografia just-in-time, sem `.env` em disco
 
@@ -81,13 +101,28 @@ adiciona edição in-place (`sops arquivo` abre o editor, descriptografa
 em temp, re-criptografa ao salvar), múltiplos recipientes e rotação de
 chaves (`sops updatekeys` / `rotate`).
 
-**Veredito: manter age nativo como padrão.** O caso deste repo é um
-operador solo com arquivos dotenv planos editados raramente — `age -r /
-age -d` cobre tudo sem nova dependência, e o loader atual já entende o
-formato. sops vale quando edição for frequente, houver mais de um
-operador, ou recipientes por cliente virarem rotina.
+**Veredito (revisto com o ambiente real): manter age nativo.** Três
+motivos, o primeiro decisivo:
 
-**Se adotar sops, a integração é:**
+1. **sops não edita arquivos age puros.** Adotá-lo trocaria o formato
+   (envelope sops) — e aí o runtime muda junto: `age --decrypt` do
+   `internal/secret` não lê envelope sops, então seria preciso binário
+   sops no container (`sops exec-env`) ou mudança no loader. Custo de
+   migração real, benefício zero em runtime (os valores caem nas mesmas
+   env vars do mesmo jeito).
+2. Os superpoderes do sops (times, múltiplos recipientes, Shamir/KMS,
+   rotação frequente) não casam com operador solo editando raramente.
+3. A dor real — editar sem vazar plaintext em temp/swap — já está
+   resolvida sem dependência nova: `scripts/edit-secrets.sh` (ciclo
+   testado: bootstrap, roundtrip, no-op, guarda de typos).
+
+**Quando migrar para sops — gatilhos concretos, não antes:**
+
+- segundo operador com acesso a segredos, ou
+- recipientes por cliente virando rotina (stage 3 com compliance), ou
+- edição semanal+ onde o ciclo manual vira atrito.
+
+**Se um gatilho disparar, a integração é:**
 
 1. `.sops.yaml` na raiz mapeando cada pasta ao recipiente:
    ```yaml

@@ -15,6 +15,10 @@ worker:
 register:
 	./scripts/register-workflows.sh $(CLIENT)
 
+# Safe decrypt-edit-encrypt cycle for one client's secrets.
+edit-secrets:
+	./scripts/edit-secrets.sh $(CLIENT)
+
 # End-to-end smoke path (register + start run + print status).
 smoke:
 	./scripts/smoke-test.sh
