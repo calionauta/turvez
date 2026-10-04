@@ -95,15 +95,3 @@ Failures page the operator three ways (see `docs/alerting.md`):
 - Secrets by name in JSON (`"auth_secret": "ACME_HUBSPOT_TOKEN"`),
   values in env/age files only.
 - Durations in JSON are **integer nanoseconds** (`30000000000` = 30s).
-
----
-
-## Seção curta em português
-
-Este repositório é um modelo para operar automações duráveis de
-consultoria sobre dagnats + NATS. O ciclo é: **editar o JSON da receita
-→ validar → registar → ligar o trigger → acompanhar na consola/CLI**.
-Segredos vivem em variáveis de ambiente (ou ficheiros encriptados com
-`age`); nunca dentro do JSON. Cada cliente tem a sua pasta
-(`workflows/<cliente>/`) e o seu ficheiro de segredos, por isso mover
-um cliente para um servidor dedicado é uma cópia, não um redesenho.

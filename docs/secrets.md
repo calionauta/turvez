@@ -1,154 +1,155 @@
-# Gestão de segredos por cliente (age)
+# Per-client secret management (age)
 
-O repositório só armazena ciphertext. Valores em claro existem apenas na
-memória do worker em runtime, ou em arquivos fora do git. Criptografia
-assimétrica com [age](https://github.com/filosottile/age): quem criptografa
-precisa só da chave **pública**; só o ambiente de execução detém a privada.
+The repo stores ciphertext only. Cleartext values exist only in worker
+memory at runtime, or in files outside git. Asymmetric encryption with
+[age](https://github.com/filosottile/age): encrypting needs just the
+**public** key; only the execution environment holds the private one.
 
-## Estrutura
+## Layout
 
-| Caminho | Conteúdo | No git? |
+| Path | Content | In git? |
 |---|---|---|
-| `env/<client>.env.example` | Nomes das variáveis (template) | Sim |
-| `env/<client>.env` | Valores reais, dev local | Não (`env/*.env` no `.gitignore`) |
-| `secrets/<client>/env.age` | Mesmo `.env`, criptografado | Sim (ciphertext; pode exigir `git add -f`) |
-| `~/.secrets/` (operador/servidor) | `.env` de produção e/ou `*.age.key` (chmod 600) | Nunca |
-| `*.age.key` | Identidade privada age | Nunca, em lugar nenhum versionado |
+| `env/<client>.env.example` | Variable names (template) | Yes |
+| `env/<client>.env` | Real values, local dev | No (`env/*.env` in `.gitignore`) |
+| `secrets/<client>/env.age` | Same `.env`, encrypted | Yes (ciphertext; may need `git add -f`) |
+| `~/.secrets/` (operator/server) | Production `.env` and/or `*.age.key` (chmod 600) | Never |
+| `*.age.key` | age private identity | Never, anywhere versioned |
 
-Workflow JSON referencia só **nomes** (`"auth_secret": "ACME_X"`). O teste
-`TestRecipeStructure` quebra o build se um valor com cara de segredo
-(`hooks.slack…`, `xoxb-`, `sk-`, `ghp_`, PEM) aparecer em qualquer receita.
+Workflow JSON references **names** only (`"auth_secret": "ACME_X"`). The
+`TestRecipeStructure` test fails the build if a secret-looking value
+(`hooks.slack…`, `xoxb-`, `sk-`, `ghp_`, PEM) shows up in any recipe.
 
-## Chaves: uma por ambiente, por cliente quando preciso
+## Keys: one per environment, per client when needed
 
-- **Padrão:** uma chave da consultoria por ambiente de execução
-  (laptop, servidor). Um arquivo por cliente, todos para o mesmo
-  recipiente — simples de operar.
-- **Por cliente:** gere um par dedicado quando o cliente exigir
-  isolamento ou compliance (stage 3 em `docs/tenancy-evolution.md`).
-  O loader não distingue: cada host usa seu `AGE_IDENTITY_FILE`.
+- **Default:** one consultancy key per execution environment (laptop,
+  server). One file per client, all encrypted to the same recipient —
+  simple to operate.
+- **Per client:** generate a dedicated pair when a client requires
+  isolation or compliance (stage 3 in `docs/tenancy-evolution.md`).
+  The loader does not care: each host uses its own `AGE_IDENTITY_FILE`.
 
 ```bash
-age-keygen -o ~/.secrets/consultancy.age.key   # uma vez por máquina
+age-keygen -o ~/.secrets/consultancy.age.key   # once per machine
 chmod 600 ~/.secrets/consultancy.age.key
-age-keygen -y ~/.secrets/consultancy.age.key   # imprime a pública
+age-keygen -y ~/.secrets/consultancy.age.key   # prints the public key
 ```
 
-## Ciclo: criar → editar → versionar
+## Cycle: create → edit → version
 
-Edição sempre via `scripts/edit-secrets.sh <client>` — descriptografa
-para um temp dir com trap de destruição (inclui swap do editor),
-re-criptografa para um recipiente derivado da sua própria identidade
-(nunca cifra para uma chave que você não abre), avisa sobre chaves fora
-do template e verifica a descriptografia antes de sair:
+Always edit via `scripts/edit-secrets.sh <client>` — it decrypts into a
+trapped temp dir (wiped on any exit, editor swap included), re-encrypts
+to a recipient derived from your own identity (never encrypts to a key
+you cannot open), warns about keys missing from the template, and
+verifies decryption before finishing:
 
 ```bash
 make edit-secrets CLIENT=acme
-# …edita no $EDITOR, salva, sai…
+# …edit in $EDITOR, save, quit…
 git add -f secrets/acme/env.age && git commit
 ```
 
-Bootstrap (primeira vez, sem ciphertext ainda): o script parte do
-`env/<client>.env.example`. O histórico git é o backup — o ciphertext
-anterior continua commitado até o próximo commit.
+Bootstrap (first time, no ciphertext yet): the script starts from
+`env/<client>.env.example`. Git history is the backup — the previous
+ciphertext stays committed until the next commit.
 
-## Cheat-sheet age (quando precisar do manual)
+## age cheat-sheet (for when you need the manual cycle)
 
 ```bash
 age-keygen -o ~/.secrets/x.age.key && chmod 600 ~/.secrets/x.age.key
-age-keygen -y ~/.secrets/x.age.key                    # pública
-age -r age1PUBLICA -o secrets/acme/env.age env/acme.env
-age --decrypt -i ~/.secrets/x.age.key -o - secrets/acme/env.age | head -c 200  # confere
+age-keygen -y ~/.secrets/x.age.key                    # public key
+age -r age1PUBLICKEY -o secrets/acme/env.age env/acme.env
+age --decrypt -i ~/.secrets/x.age.key -o - secrets/acme/env.age | head -c 200  # inspect
 ```
 
-Prefira o script ao manual: o ciclo manual esquece `shred` do temp e
-deixa backup/swap do editor para trás.
+Prefer the script over manual: the manual cycle forgets to shred the
+temp file and leaves editor backup/swap behind.
 
-## Runtime: descriptografia just-in-time, sem `.env` em disco
+## Runtime: just-in-time decryption, no `.env` on disk
 
-O `internal/secret` descriptografa via binário `age` e faz merge **em
-memória** — o worker nunca precisa de um `.env` descriptografado no disco.
-Evite o padrão `age --decrypt … > .env`; se um entrypoint precisar de
-arquivo, use tmpfs e destrua após o boot (e o `.gitignore` já cobre
-`.env` e `env/*.env`).
+`internal/secret` decrypts via the `age` binary and merges **in memory**
+— the worker never needs a decrypted `.env` on disk. Avoid the
+`age --decrypt … > .env` pattern; if an entrypoint must have a file, use
+tmpfs and destroy it after boot (and `.gitignore` already covers `.env`
+and `env/*.env`).
 
 ```bash
-# Dev local: arquivo do cliente direto
+# Local dev: client file directly
 CLIENT_ID=acme go run ./cmd/worker
 
-# Servidor / container: ciphertext + identidade fora do repo
+# Server / container: ciphertext + identity outside the repo
 export SECRETS_AGE_FILE=/run/secrets/acme/env.age
 export AGE_IDENTITY_FILE=/run/secrets/consultancy.age.key
-./worker   # merge em memória; env já exportado tem precedência
+./worker   # in-memory merge; already-exported env wins
 ```
 
 ```dockerfile
-# Exemplo de entrypoint que só monta segredos (nunca bake na imagem)
+# Example entrypoint that only mounts secrets (never bake them in the image)
 # docker run -v ~/.secrets:/run/secrets:ro -e SECRETS_AGE_FILE=/run/secrets/acme/env.age \
 #   -e AGE_IDENTITY_FILE=/run/secrets/consultancy.age.key worker
 ```
 
-## Rotação
+## Rotation
 
-Vazou ou trocou de máquina: gere um novo par, re-criptografe cada
-`secrets/<client>/env.age` para a nova pública, commite, destrua a
-privada antiga nos hosts. Rotação é por **arquivo** — nenhum código muda.
+Leaked or retired machine: generate a new pair, re-encrypt every
+`secrets/<client>/env.age` to the new public key, commit, destroy the
+old private key on hosts. Rotation is per **file** — no code changes.
 
-## sops: avaliação
+## sops: evaluation
 
-[`sops`](https://github.com/getsops/sops) também usa age por baixo, mas
-adiciona edição in-place (`sops arquivo` abre o editor, descriptografa
-em temp, re-criptografa ao salvar), múltiplos recipientes e rotação de
-chaves (`sops updatekeys` / `rotate`).
+[`sops`](https://github.com/getsops/sops) also uses age under the hood,
+but adds in-place editing (`sops file` opens the editor, decrypts to
+temp, re-encrypts on save), multiple recipients, and key rotation
+(`sops updatekeys` / `rotate`).
 
-**Veredito (revisto com o ambiente real): manter age nativo.** Três
-motivos, o primeiro decisivo:
+**Verdict (reviewed against the real setup): keep native age.** Three
+reasons, the first decisive:
 
-1. **sops não edita arquivos age puros.** Adotá-lo trocaria o formato
-   (envelope sops) — e aí o runtime muda junto: `age --decrypt` do
-   `internal/secret` não lê envelope sops, então seria preciso binário
-   sops no container (`sops exec-env`) ou mudança no loader. Custo de
-   migração real, benefício zero em runtime (os valores caem nas mesmas
-   env vars do mesmo jeito).
-2. Os superpoderes do sops (times, múltiplos recipientes, Shamir/KMS,
-   rotação frequente) não casam com operador solo editando raramente.
-3. A dor real — editar sem vazar plaintext em temp/swap — já está
-   resolvida sem dependência nova: `scripts/edit-secrets.sh` (ciclo
-   testado: bootstrap, roundtrip, no-op, guarda de typos).
+1. **sops cannot edit plain age files.** Adopting it changes the format
+   (sops envelope) — and then the runtime changes with it: the
+   `age --decrypt` in `internal/secret` cannot read a sops envelope, so
+   the container would need the sops binary (`sops exec-env`) or a
+   loader change. Real migration cost, zero runtime benefit (values land
+   in the same env vars the same way).
+2. sops superpowers (teams, multiple recipients, Shamir/KMS, frequent
+   rotation) do not match a solo operator editing rarely.
+3. The real pain — editing without leaking cleartext into temp/swap —
+   is already solved with no new dependency:
+   `scripts/edit-secrets.sh` (tested cycle: bootstrap, roundtrip,
+   no-op, typo guard).
 
-**Quando migrar para sops — gatilhos concretos, não antes:**
+**When to migrate to sops — concrete triggers, not before:**
 
-- segundo operador com acesso a segredos, ou
-- recipientes por cliente virando rotina (stage 3 com compliance), ou
-- edição semanal+ onde o ciclo manual vira atrito.
+- a second operator with secret access, or
+- per-client recipients becoming routine (compliance-heavy stage 3), or
+- weekly+ editing where the manual cycle becomes friction.
 
-**Se um gatilho disparar, a integração é:**
+**If a trigger fires, integration is:**
 
-1. `.sops.yaml` na raiz mapeando cada pasta ao recipiente:
+1. Root `.sops.yaml` mapping each folder to its recipient:
    ```yaml
    creation_rules:
      - path_regex: secrets/[^/]+/\.env$
-       age: age1PUBLICADACONSULTORIA
+       age: age1PUBLICKEYOFCONSULTANCY
    ```
-2. Criar/editar: `sops secrets/acme/prod.env` (abre `$EDITOR`; nunca
-   deixe o temp vazar — sops limpa ao salvar).
-3. Runtime **sem mudar código**: entrypoint com o binário sops
-   disponível, sem arquivo em disco:
+2. Create/edit: `sops secrets/acme/prod.env` (opens `$EDITOR`; never
+   let the temp escape — sops cleans it on save).
+3. Runtime **with no code changes**: entrypoint with the sops binary
+   available, no file on disk:
    ```bash
    sops exec-env secrets/acme/prod.env './worker'
    ```
-   (`exec-env` injeta os valores descriptografados no ambiente e executa.)
-4. **Caveat de formato (importante):** arquivo sops usa envelope próprio
-   — `age --decrypt` do `internal/secret` **não** o lê. Ou o runtime usa
-   `sops exec-env`/`sops --decrypt`, ou o arquivo continua em age puro.
-   Não misture os dois formatos na mesma pasta.
+   (`exec-env` injects decrypted values into the environment and execs.)
+4. **Format caveat (important):** a sops file uses its own envelope —
+   `age --decrypt` in `internal/secret` **cannot** read it. Either the
+   runtime uses `sops exec-env` / `sops --decrypt`, or the file stays in
+   plain age. Do not mix both formats in one folder.
 
-## Higiene contra leitura por LLMs/agentes
+## Hygiene against LLM/agent reads
 
-- Agentes trabalham com **nomes** de segredos (`env/*.env.example`),
-  nunca pedem nem exibem valores.
-- Nunca cole conteúdo de `.env`/`~/.secrets` em chat, issue ou prompt.
-- Identidades (`*.age.key`) ficam em `~/.secrets` com `600`, fora de
-  qualquer repo — mesmo que um agente liste o diretório, não há o que ler.
-- O scan de valores em `go test ./workflows/` é a rede de segurança:
-  segredo que cair numa receita quebra o CI antes do commit.
+- Agents work with secret **names** (`env/*.env.example`), never ask
+  for or print values.
+- Never paste `.env` / `~/.secrets` content into chat, issues, or prompts.
+- Identities (`*.age.key`) live in `~/.secrets` with `600`, outside any
+  repo — even if an agent lists the directory, there is nothing to read.
+- The value scan in `go test ./workflows/` is the safety net: a secret
+  landing in a recipe breaks CI before commit.
