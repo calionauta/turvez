@@ -63,6 +63,28 @@ keys per task. Secret *names* go in metadata or input
 | Human gate, days | `type: approval` step (no `task`), `config: {"timeout": NS, "subject": "…", "description": "…"}`. Timeout ≤168h. Decision via `POST /runs/{id}/approval/{step}?action=approve\|reject&token=…`; grant payload becomes the step output; reject takes the `on_failure` path | `request.approval` task + run signal (custom notify, chunked waits) |
 | Failure path | `on_failure: "other-step"` + **`"aux_steps": {"other-step": true}`** at top level (see trap below). The target must be a **single terminal step** (no `depends_on`, no downstream chain — aux steps never resolve normally) and receives `{"failed_step":…, "error":…}`. Point it at a notify step (see `docs/alerting.md`) | — |
 
+## What the engine allows in this runtime
+
+dagnats v0.0.24 is larger than what this repo exposes. Stay inside the
+left column; the right column exists upstream but has no handler or
+recipe pattern here — do not assume it.
+
+| Allowed here | Upstream-only (do not use in recipes) |
+|---|---|
+| Linear durable steps (`depends_on`, output persisted) | Bounded agent loops (`StepTypeAgentLoop` + `MaxIterations`/`MaxDuration`) |
+| Branch via `skip_if` (top-level parent key, `==,!=,<,>,<=,>=`, numbers as float64) | Runtime-planned sub-DAGs (planner fragments, `MaxSteps`/`MaxDepth`/`AllowedTasks`) |
+| Fan-out via native `type: map` (one array-emitting dep) | Agent-spawned runs (`ControlPlane` + audit KV) |
+| Durable waits via `type: sleep` (max 365d, no worker slot) | Subworkflows (child runs from KV defs) |
+| Human gates via native `type: approval` (timeout ≤168h) or `request.approval` task (≤55m `WaitForSignal` chunks, engine ceiling 1h) | `waitforevent` gates with match/dotpaths |
+| Failure path via `on_failure` + `aux_steps` (single terminal step) | Compensation (`compensate`) targets |
+| Per-step retry/backoff (`timeout`, `initial_delay`/`max_delay`) + cron/webhook/NATS triggers | Free-form expressions (engine has none — comparisons + dotpaths only) |
+
+Bounds enforced in this repo: in-worker `map` ≤10 000 items
+(`internal/handlers/map_items.go`); `delay` ≤4h (`internal/handlers/delay.go`);
+signal chunks ≤55m against the 1h engine ceiling
+(`internal/handlers/request_approval.go`). Upstream position is "bounded
+dynamism": every dynamic surface carries a numeric bound + validation.
+
 ## dagnats v0.0.24 traps (verified against upstream source)
 
 1. **Durations are integer nanoseconds.** The docs mention Go strings

@@ -1,0 +1,28 @@
+# llms.txt — agent entry index for dagnats-automation
+
+> Read AGENTS.md first (normative rules). This file only routes each
+> task to the right doc — fetch only what the task needs.
+
+## Start here (every task)
+
+- AGENTS.md — layout, rules, traps, commands (normative)
+- ARCHITECTURE.md — diagram, data flow, decisions
+- README.md — quickstart, operator loop, examples
+
+## By task
+
+- Write/edit a recipe: docs/writing-recipes.md (anatomy, engine-vs-handler
+  table, what the engine allows here, traps, handler checklist)
+- Task inputs/outputs: docs/handlers-reference.md (never invent task names)
+- CLI/API for authoring: docs/agent-tools.md (prefer `--json`)
+- Secrets: docs/secrets.md (names in JSON, values in env/age only)
+- Alerts: docs/alerting.md (on_failure, DLQ watchdog, external probe)
+- Tenancy/extract: docs/tenancy-evolution.md, docs/isolating-a-client.md
+- Windmill escape hatch: docs/migrate-to-windmill.md (docs only)
+
+## Invariants (do not relearn these)
+
+- Automation code = workflow JSON in `workflows/<client>/`; git is source
+  of truth, dagnats KV is a deployment target.
+- Durations are integer nanoseconds; no `$schema` key (CLI rejects it).
+- New Go handler = last resort + tests + human review; no script exec.

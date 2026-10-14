@@ -24,7 +24,8 @@
   NO `$schema` key (CLI rejects it); `on_failure` targets need `aux_steps`
   + no `depends_on`; `sleep`/`approval` steps take no `task`; `map` = 1 dep
   emitting an array; trigger runs arrive as `{…, "data": …}` — open recipes
-  with `((.data // .) | …)`.
+  with `((.data // .) | …)`. Allowed/excluded engine surfaces:
+  `docs/writing-recipes.md#what-the-engine-allows-in-this-runtime`.
 - **dagnats v0.0.24 console cannot create the FIRST trigger.** The console
   calls `ListTriggers` before writing, to check for a duplicate id, and on an
   empty `triggers` bucket that returns `jetstream.ErrNoKeysFound` raw from

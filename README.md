@@ -77,7 +77,7 @@ Failures page the operator three ways (see `docs/alerting.md`):
 ## Docs
 
 - `docs/writing-recipes.md` — recipe anatomy, engine-vs-handler table,
-  v0.0.24 traps, custom-handler checklist.
+  what the engine allows here, v0.0.24 traps, custom-handler checklist.
 - `docs/handlers-reference.md` — task inputs/outputs, metadata keys.
 - `docs/agent-tools.md` — exact CLI/API for an authoring agent.
 - `docs/secrets.md` — per-client age encryption, JIT runtime, sops evaluation.
