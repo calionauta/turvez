@@ -29,7 +29,7 @@ client id, workflow name, run id, error summary.
 
 (`workflows/example-client/approval-refund.json` — the reference example.)
 
-Two engine facts shape this pattern (verified at v0.0.24):
+Two engine facts shape this pattern (verified at v0.0.30):
 
 - An `on_failure` step receives `{"failed_step":"…","error":"…"}` as
   input, and it must be a **single terminal step**: no `depends_on`,

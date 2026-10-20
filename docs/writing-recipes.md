@@ -65,7 +65,7 @@ keys per task. Secret *names* go in metadata or input
 
 ## What the engine allows in this runtime
 
-dagnats v0.0.24 is larger than what this repo exposes. Stay inside the
+dagnats v0.0.30 is larger than what this repo exposes. Stay inside the
 left column; the right column exists upstream but has no handler or
 recipe pattern here — do not assume it.
 
@@ -78,6 +78,7 @@ recipe pattern here — do not assume it.
 | Human gates via native `type: approval` (timeout ≤168h) or `request.approval` task (≤55m `WaitForSignal` chunks, engine ceiling 1h) | `waitforevent` gates with match/dotpaths |
 | Failure path via `on_failure` + `aux_steps` (single terminal step) | Compensation (`compensate`) targets |
 | Per-step retry/backoff (`timeout`, `initial_delay`/`max_delay`) + cron/webhook/NATS triggers | Free-form expressions (engine has none — comparisons + dotpaths only) |
+| Input/output contracts via `input_schema` / `output_schema` (JSON Schema; input checked at run start, output at completion) | — |
 
 Bounds enforced in this repo: in-worker `map` ≤10 000 items
 (`internal/handlers/map_items.go`); `delay` ≤4h (`internal/handlers/delay.go`);
@@ -85,15 +86,13 @@ signal chunks ≤55m against the 1h engine ceiling
 (`internal/handlers/request_approval.go`). Upstream position is "bounded
 dynamism": every dynamic surface carries a numeric bound + validation.
 
-## dagnats v0.0.24 traps (verified against upstream source)
+## dagnats v0.0.30 traps (verified against upstream source)
 
-1. **Durations are integer nanoseconds.** The docs mention Go strings
-   (`"5m"`), but `workflow register` fails to parse them — use numbers:
-   `30s = 30000000000`, `1m = 60000000000`, `1h = 3600000000000`,
-   `48h = 172800000000000`. This applies to `timeout`, retry
+1. **Durations accept two forms.** Integer nanoseconds (`30000000000`)
+   or a Go duration string (`"30s"`, `"48h"`); the engine rewrites the
+   string to ns before decoding. Applies to `timeout`, retry
    `initial_delay`/`max_delay`, and `sleep`/`approval` config timeouts.
-   An editor schema (`docs/workflow-schema.json` upstream) still shows the
-   string form — it is autocomplete only; the CLI parses Go structs.
+   The recipes here use integers; neither form is wrong.
 2. **`config` is real but undocumented.** `map`/`sleep`/`approval` steps
    take a `config` object (see table). Verified in `dag/config.go`,
    `dag/approval.go`.
@@ -104,18 +103,18 @@ dynamism": every dynamic surface carries a numeric bound + validation.
    builder does). Without it, your failure step also runs on the happy
    path. And validation rejects `depends_on` on such targets outright.
    `approval-refund.json` shows the pattern.
-4. **No `$schema` key (for now).** Upstream docs recommend a `$schema`
-   pointer and the JSON schema file allows it, but the CLI's strict
-   top-level check rejects it — upstream's own `examples/*` fail
-   `workflow validate` for this reason at v0.0.24. This repo omits it
-   (editor autocomplete is the loss); `recipes_test.go` guards the
-   absence so the trap stays visible. Re-check on upgrade.
 4. **`sleep`/`approval` steps take no `task`.** They are engine-executed;
    omit `task` (validation enforces this split).
-5. **Cron is 5-field, minute precision.** Sub-minute schedules are rejected.
+5. **Cron is 5-field, minute precision, and UTC by default.** Trigger
+   cron and `sleep` cron both default to UTC; `cron_timezone` (static)
+   or `cron_timezone_input_path` (read from input) picks another zone,
+   and at most one of the two may be set.
 6. **Approval tokens** arrive in the step's `subject` (NATS) as an
    `approval.requested` event; the ops shim (`internal/opshttp`) turns a
    human click into the tokenized API call.
+7. **`$schema` is accepted (optional).** It was rejected through
+   v0.0.24; since v0.0.26 the CLI carries it as a known top-level key.
+   These recipes omit it — adding it only buys editor autocomplete.
 
 ## Custom Go handler checklist (add one only if ALL apply)
 

@@ -15,11 +15,12 @@ dagnats workflow show <name>            # (if available) print stored def
 ```
 
 Validate locally after every edit; register only when the operator asks.
-Recipe pitfalls (dagnats v0.0.24, verified): durations are **integer
-nanoseconds** (`30000000000` = 30s — string forms fail to parse);
+Recipe pitfalls (dagnats v0.0.30, verified): durations accept **integer
+nanoseconds** (`30000000000` = 30s) or Go duration strings (`"30s"`);
 `map` steps need exactly one dep emitting a JSON array; `on_failure`
 targets must also be listed in top-level `aux_steps`; `sleep`/`approval`
-steps take **no** `task`.
+steps take **no** `task`; cron defaults to UTC (`--tz` / `cron_timezone`
+to change).
 
 ## Runs
 

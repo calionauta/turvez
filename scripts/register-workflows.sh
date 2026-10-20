@@ -14,7 +14,7 @@ set -euo pipefail
 CLIENT="${1:-${CLIENT_ID:-}}"
 
 command -v dagnats >/dev/null || {
-  echo "dagnats CLI not found. Install: go install github.com/danmestas/dagnats/cmd/dagnats@v0.0.24" >&2
+  echo "dagnats CLI not found. Install: go install github.com/danmestas/dagnats/cmd/dagnats@v0.0.30" >&2
   exit 1
 }
 command -v python3 >/dev/null || {

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/solo-operator/dagnats-automation-template/internal/handlers"
 )
@@ -110,10 +111,9 @@ func loadRecipes(t *testing.T) map[string]workflowFile {
 }
 
 func TestRecipeStructure(t *testing.T) {
-	// $schema breaks `dagnats workflow validate` at v0.0.24 (strict
-	// top-level check; upstream's own examples fail too). Keep it out
-	// until an upgrade re-allows it. The same loop also rejects
-	// embedded credential values: JSON carries secret NAMES only.
+	// The same loop also rejects embedded credential values: JSON carries
+	// secret NAMES only. ($schema is accepted since dagnats v0.0.26 and is
+	// optional; none of these recipes carry it.)
 	var secretValuePatterns = []string{
 		"hooks.slack.com/services/", "xoxb-", "xoxp-", "sk-live-",
 		"sk-test-", "ghp_", "-----BEGIN",
@@ -122,9 +122,6 @@ func TestRecipeStructure(t *testing.T) {
 		raw, err := os.ReadFile(f)
 		if err != nil {
 			t.Fatal(err)
-		}
-		if strings.Contains(string(raw), "$schema") {
-			t.Fatalf("%s: $schema is rejected by workflow validate/register", f)
 		}
 		for _, p := range secretValuePatterns {
 			if strings.Contains(string(raw), p) {
@@ -177,11 +174,17 @@ func TestRecipeStructure(t *testing.T) {
 						t.Fatalf("step %q depends on unknown %q", s.ID, d)
 					}
 				}
-				// Durations must be JSON numbers (nanoseconds) — Go
-				// duration strings fail dagnats parsing at v0.0.24.
+				// Durations accept integer nanoseconds or a Go duration
+				// string ("30s") since dagnats v0.0.26; both parse.
 				if s.Timeout != nil {
-					if _, ok := s.Timeout.(float64); !ok {
-						t.Fatalf("step %q: timeout must be a number (ns), got %T", s.ID, s.Timeout)
+					switch v := s.Timeout.(type) {
+					case float64:
+					case string:
+						if _, err := time.ParseDuration(v); err != nil {
+							t.Fatalf("step %q: timeout %q: %v", s.ID, v, err)
+						}
+					default:
+						t.Fatalf("step %q: timeout must be ns or a duration string, got %T", s.ID, v)
 					}
 				}
 				if s.Type == "map" && len(s.DependsOn) != 1 {

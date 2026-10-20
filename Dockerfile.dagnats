@@ -1,6 +1,6 @@
 # Pinned dagnats engine build. Upstream publishes no image yet, so build
 # the CLI/server from source at the pinned version (see DAGNATS_VERSION).
-ARG DAGNATS_VERSION=v0.0.24
+ARG DAGNATS_VERSION=v0.0.30
 FROM golang:1.27-bookworm AS build
 # ARG must be re-declared after FROM to be visible in RUN (an ARG before
 # the first FROM is only available in FROM lines).

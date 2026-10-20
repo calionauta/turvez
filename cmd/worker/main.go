@@ -19,7 +19,6 @@ import (
 	"github.com/danmestas/dagnats/worker"
 	"github.com/nats-io/nats.go"
 
-	"github.com/solo-operator/dagnats-automation-template/internal/bootstrap"
 	"github.com/solo-operator/dagnats-automation-template/internal/handlers"
 	"github.com/solo-operator/dagnats-automation-template/internal/opshttp"
 	"github.com/solo-operator/dagnats-automation-template/internal/secret"
@@ -44,20 +43,6 @@ func run() error {
 		return fmt.Errorf("connect NATS %s: %w", natsURL, err)
 	}
 	defer nc.Close()
-
-	// WORKAROUND (upstream dagnats v0.0.24 bug): the console cannot create the
-	// FIRST trigger, because listing an empty bucket returns ErrNoKeysFound,
-	// which it reports as a 500 before writing anything. This project creates
-	// its triggers via `workflow register`, so nothing here hits it today — but
-	// the console is a documented surface, and a 500 with no explanation is a
-	// bad first experience. Never fatal: a failure here means the console stays
-	// broken, not that the worker is unusable. Set
-	// DAGNATS_TRIGGER_BOOTSTRAP=false to skip. See internal/bootstrap/triggers.go.
-	if bootstrap.Enabled() {
-		if err := bootstrap.EnsureTriggerBucket(nc); err != nil {
-			log.Printf("worker: WARN dagnats trigger bootstrap skipped: %v", err)
-		}
-	}
 
 	w := worker.NewWorker(nc)
 	handlers.RegisterAll(w)

@@ -24,5 +24,6 @@
 
 - Automation code = workflow JSON in `workflows/<client>/`; git is source
   of truth, dagnats KV is a deployment target.
-- Durations are integer nanoseconds; no `$schema` key (CLI rejects it).
+- Durations in JSON accept integer nanoseconds or Go duration strings
+  (`"30s"`); `$schema` is accepted but optional.
 - New Go handler = last resort + tests + human review; no script exec.

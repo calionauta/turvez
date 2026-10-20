@@ -28,7 +28,7 @@
 
 ## Components
 
-- **dagnats** (pinned `v0.0.24`, built from upstream — no published
+- **dagnats** (pinned `v0.0.30`, built from upstream — no published
   image yet) is the only infrastructure: JetStream streams (`TASK_QUEUES`,
   `WORKFLOW_HISTORY`, `DEAD_LETTERS`, …) plus KV buckets. No Postgres,
   no Redis, no per-automation callback servers — workers **pull**.
@@ -75,12 +75,15 @@
   `approval` / signal-resume in the DAG (durable in KV); the `delay`
   handler is capped at 4h so a stuck run is loud.
 
-## Verified upstream behaviors (v0.0.24)
+## Verified upstream behaviors (v0.0.30)
 
 Recorded here so upgrades re-check them: durations parse as **integer
-nanoseconds** (string forms rejected); `config` exists on
-map/sleep/approval steps though the JSON schema file omits it;
-`aux_steps` must be set manually in JSON; `sleep`/`approval` steps take
-no `task`; `map` needs exactly one array-emitting dep; trigger runs get
-a TriggerEnvelope (`data` holds the payload); `WaitForSignal` ≤1h per
-call; approval grant payload = step output, reject = failure path.
+nanoseconds or Go duration strings** (`"30s"`); `$schema` is accepted
+(optional); `config` exists on map/sleep/approval steps though the JSON
+schema file omits it; `aux_steps` must be set manually in JSON;
+`sleep`/`approval` steps take no `task`; `map` needs exactly one
+array-emitting dep; trigger runs get a TriggerEnvelope (`data` holds the
+payload); `WaitForSignal` ≤1h per call; approval grant payload = step
+output, reject = failure path; cron schedules default to UTC
+(`cron_timezone` / `cron_timezone_input_path` override it);
+`output_schema`, when set, is enforced against the run output.

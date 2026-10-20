@@ -5,7 +5,7 @@ Production-oriented template for running durable customer automations on
 The operator edits **workflow JSON recipes**; Go handlers are shared
 platform code.
 
-- Engine: dagnats `v0.0.24` (`dagnats serve`: embedded NATS + API +
+- Engine: dagnats `v0.0.30` (`dagnats serve`: embedded NATS + API +
   console). Compatibility notes in `ARCHITECTURE.md`.
 - Worker: one binary, eight generic handlers (HTTP, jq transform,
   condition, map, delay, Slack, approval, LLM).
@@ -22,7 +22,7 @@ platform code.
 make up            # dagnats :4222/:8080, worker pulls tasks
 
 # …or locally (needs dagnats serve in another terminal):
-go install github.com/danmestas/dagnats/cmd/dagnats@v0.0.24
+go install github.com/danmestas/dagnats/cmd/dagnats@v0.0.30
 dagnats serve &
 cp .env.example .env   # fill real values
 make worker
@@ -77,7 +77,7 @@ Failures page the operator three ways (see `docs/alerting.md`):
 ## Docs
 
 - `docs/writing-recipes.md` — recipe anatomy, engine-vs-handler table,
-  what the engine allows here, v0.0.24 traps, custom-handler checklist.
+  what the engine allows here, v0.0.30 traps, custom-handler checklist.
 - `docs/handlers-reference.md` — task inputs/outputs, metadata keys.
 - `docs/agent-tools.md` — exact CLI/API for an authoring agent.
 - `docs/secrets.md` — per-client age encryption, JIT runtime, sops evaluation.
@@ -94,4 +94,5 @@ Failures page the operator three ways (see `docs/alerting.md`):
   + human review. No arbitrary script execution from JSON.
 - Secrets by name in JSON (`"auth_secret": "ACME_HUBSPOT_TOKEN"`),
   values in env/age files only.
-- Durations in JSON are **integer nanoseconds** (`30000000000` = 30s).
+- Durations in JSON accept **integer nanoseconds** (`30000000000` = 30s)
+  or Go duration strings (`"30s"`); both parse.
