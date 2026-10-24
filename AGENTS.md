@@ -74,6 +74,9 @@ Full reference: `docs/agent-tools.md`. After edits: `go test ./...`, `dagnats wo
   hand after the `v0.1.0` bootstrap.
 - Run `./scripts/install-hooks.sh` once per clone: pre-commit recipe scan and
   the commit-msg Conventional Commits check.
+- Never move the version to 1.x: the project stays 0.x until a human explicitly
+  asks for 1.0.0. `bump-minor-pre-major` keeps breaking changes in 0.x and
+  `scripts/guard-version.sh` (CI) blocks a 1.x manifest.
 - Ops repos pin `TURVEZ_REF` to a release tag (`v0.1.0`); SHA only for an
   unreleased commit under test.
 

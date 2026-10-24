@@ -189,3 +189,5 @@ curl -X POST localhost:8090/ops/approvals/<run-id> \
   `./scripts/install-hooks.sh`.
 - Versioned releases: Conventional Commits → release-please → tag +
   changelog. Ops repos pin `TURVEZ_REF=vX.Y.Z` (tag), not a moving branch.
+- Pre-1.0 by policy: 1.0.0 requires an explicit human decision; the version
+  guard fails CI if the manifest crosses 1.0.0.

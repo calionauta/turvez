@@ -1,4 +1,4 @@
-.PHONY: up down worker register smoke test lint validate tidy new-ops-repo new-client validate-ops register-ops hooks
+.PHONY: up down worker register smoke test lint validate tidy new-ops-repo new-client validate-ops register-ops hooks guard-version
 
 # Start dagnats (engine + embedded NATS + API + console) and the worker.
 up:
@@ -38,6 +38,10 @@ edit-secrets:
 # Install local hooks: pre-commit recipe scan + commit-msg convention check.
 hooks:
 	./scripts/install-hooks.sh
+
+# Refuse a 1.x manifest until a human explicitly promotes the project.
+guard-version:
+	./scripts/guard-version.sh
 
 # End-to-end smoke path (register + start run + print status).
 smoke:
