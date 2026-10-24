@@ -1,9 +1,10 @@
 # turvez — the solo consultancy runtime for durable client automations
 
-Turvez runs client work that survives failures, waits for humans, and keeps
-receipts. Recipes live in git — your agent drafts them, tests gate them, you
-approve. One folder per client, extractable to dedicated infra when they grow.
-Your own automations run free on the same engine.
+Turvez is built for forward-deployed engineers: client work that survives
+failures, waits for humans, and keeps receipts. Recipes live in git — your
+agent drafts them, tests gate them, you approve. One folder per client,
+extractable to dedicated infra when they grow. Your own automations run
+free on the same engine.
 
 ## What it solves, and how
 
