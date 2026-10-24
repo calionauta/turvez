@@ -35,6 +35,84 @@ or from a trigger, open webhook/cron recipes with:
 (`.data // .` = trigger envelope or raw manual input.) All example recipes
 do this; `workflows/recipes_test.go` executes both shapes.
 
+## Idempotency: what re-runs, and what must not duplicate
+
+Delivery is **at-least-once**. A step that finished is never re-executed
+(its `step.completed` event is in the log), but a step that was **in
+flight** when the worker died is redelivered after `AckWait`. The engine
+cannot tell whether your side effect landed, so it runs the step again.
+
+| Surface | Duplicate is… | Rule |
+|---|---|---|
+| GET / read | harmless | nothing to do |
+| PUT/upsert with a natural key | harmless | prefer over POST |
+| POST that creates a resource | dangerous | send an idempotency key |
+| Charge / payment | critical | provider idempotency key, always |
+| Slack / email notification | noisy but acceptable | document it; include `run_id` |
+| Ledger append | dangerous | unique constraint at the destination |
+
+### Layer 1 — one run per event (`idempotency_key`)
+
+```json
+{
+  "name": "acme/invoice-paid",
+  "idempotency_key": "data.event_id",
+  "steps": [ … ]
+}
+```
+
+Dot-path into the **raw** input; the engine hashes `{workflow}.{value}`
+(SHA-256) into the `idempotency_keys` KV bucket (24h TTL) and returns the
+existing run instead of starting a second one.
+
+- Trigger envelope → `data.<field>`; manual start → `<field>`. One path does
+  not cover both shapes.
+- A missing path is a **soft failure**: the run starts without dedup and
+  logs a warning. `go test ./workflows/` cannot catch it — check the field
+  exists in every producer.
+- It is check-then-start, not a lock: two concurrent deliveries can both
+  pass. Treat it as duplicate *reduction*, not a guarantee.
+
+### Layer 2 — HTTP triggers (`idempotency_header`)
+
+Durable Endpoints (`/api/...`) accept an `idempotency_header` (e.g.
+`Idempotency-Key`), backed by the `http_idempotency` KV (1h TTL) which also
+stores the response payload. A sender retry gets the same response instead
+of a new run. Fire-and-forget webhooks (`/hooks/...`) do not have this —
+use layer 1 there.
+
+### Layer 3 — the effect (`Idempotency-Key` at the destination)
+
+This is the only layer that gives a real guarantee. Build the request in a
+`transform.json` step and carry a deterministic key:
+
+```json
+{
+  "id": "build-charge",
+  "task": "transform.json",
+  "metadata": {
+    "expression": "{method: \"POST\", url: \"https://api.stripe.com/v1/charges\", headers: {\"Idempotency-Key\": .payment_id}, body: {amount: .amount}}"
+  }
+}
+```
+
+- Prefer PUT/upsert + natural key (`lead_id`, `invoice_id`) over blind POST.
+- Use the provider's idempotency key where it exists (Stripe, Shopify, many
+  CRMs).
+- Slack has no idempotency key. Duplicates are inherent — include `run_id`
+  in the message so an operator can tell them apart, and record the
+  tolerance in the client fieldbook.
+- `singleton` prevents overlapping runs; it does **not** deduplicate.
+
+**Exactly-once does not exist end to end.** What exists is at-least-once
+delivery plus a deterministic key plus a destination that enforces
+uniqueness — the same outbox/unique-key pattern every durable engine ends
+up with.
+
+**Review rule:** any recipe whose final write is a non-idempotent POST must
+carry a key from the source event. If it cannot, the recipe needs a
+destination-side unique constraint or it does not ship.
+
 ## Static config in metadata, dynamic data in input
 
 Handlers read **static recipe config from step `metadata`** (strings) and
