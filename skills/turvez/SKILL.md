@@ -28,7 +28,7 @@ Methodology questions (discover, scope, runbook): see `references/methodology.md
 2. Copy → `<client>/` prefix → envelope-tolerant first step `((.data // .) | …)`.
 3. `dagnats workflow validate` + `go test ./workflows/`.
 4. Propose `register` + triggers. Never run unasked.
-5. Traps: INTEGER ns; NO `$schema`; `on_failure`→`aux_steps`, no `depends_on` (`docs/writing-recipes.md`).
+5. Traps: durations ns or Go strings; `$schema` accepted (optional); `on_failure`→`aux_steps`, no `depends_on` (`docs/writing-recipes.md`).
 
 ## Examples
 

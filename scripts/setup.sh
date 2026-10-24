@@ -8,7 +8,7 @@
 #
 # What a new user needs, in order:
 #   1. Go toolchain (worker builds + go test)
-#   2. dagnats CLI pinned at v0.0.24 (validate/register/run)
+#   2. dagnats CLI pinned at v0.0.30 (validate/register/run)
 #   3. Docker daemon (compose stack: engine + worker)
 #   4. env files (names only in git; values are yours)
 #   5. (optional) degustia checkout → scripts/tool-pick.sh ranking
@@ -26,15 +26,15 @@ warn() { echo "  ⚠️  $1"; fail=$((fail+1)); }
 echo "== 1. Go toolchain =="
 if command -v go >/dev/null; then ok "$(go version)"; else warn "go not found — https://go.dev/dl/"; fi
 
-echo "== 2. dagnats CLI (want v0.0.24) =="
+echo "== 2. dagnats CLI (want v0.0.30) =="
 if command -v dagnats >/dev/null; then
   V="$(go version -m "$(command -v dagnats)" 2>/dev/null | awk '$1=="mod" && $2=="github.com/danmestas/dagnats" {print $3}')"
-  if [ "$V" = "v0.0.24" ]; then ok "dagnats $V at $(command -v dagnats)";
-  else warn "dagnats version ${V:-unknown}, want v0.0.24"; fi
-  echo "     install/refresh: go install github.com/danmestas/dagnats/cmd/dagnats@v0.0.24"
+  if [ "$V" = "v0.0.30" ]; then ok "dagnats $V at $(command -v dagnats)";
+  else warn "dagnats version ${V:-unknown}, want v0.0.30"; fi
+  echo "     install/refresh: go install github.com/danmestas/dagnats/cmd/dagnats@v0.0.30"
 else
   warn "dagnats CLI not found"
-  echo "     install: go install github.com/danmestas/dagnats/cmd/dagnats@v0.0.24"
+  echo "     install: go install github.com/danmestas/dagnats/cmd/dagnats@v0.0.30"
 fi
 
 echo "== 3. Docker daemon =="
