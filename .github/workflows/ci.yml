@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
+    # Release PRs only touch these; the tag is gated by the main CI run.
+    paths-ignore:
+      - CHANGELOG.md
+      - .release-please-manifest.json
 
 permissions:
   contents: read
