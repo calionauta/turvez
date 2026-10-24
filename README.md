@@ -51,8 +51,8 @@ Turvez decides *where* work belongs before writing code (`docs/script-execution.
 | 1 | `scripts/sandbox-run.sh` | One-off LLM-generated script — run isolated, throw away | zero (local docker) |
 | 2 | **Dagu** (ad-hoc CLI, not integrated) | Recurrent script/SSH/Docker that stays script-shaped | 1 binary, no DB |
 | 3 | **Windmill** (per-client migration) | Team needs generated UI, forms, integration catalog | Postgres + workers |
-| D | **degustia** (sister project, optional, PT-BR service) | Interview → tool prescription; seeds the fieldbook, ranks tool picks via `scripts/tool-pick.sh`. Requires a local checkout — without it, `tool-pick.sh` degrades to the manual hierarchy | local checkout, no network |
-| M | **FDEOps** (upstream methodology) | Discovery, scope, architecture options before building | harness-level skills |
+| D | **degustia** (sister project, optional; PT-BR + en-US) | Interview → tool prescription with global free-tool coverage; free MCP (recommend/render/validate); `scripts/tool-pick.sh` ranks the same catalog locally with no network. PT-BR is a bonus, not a gate | free MCP + local ranker |
+| M | **FDEOps** ([fdeops.io](https://www.fdeops.io/), upstream methodology, MIT) | Discovery, scope, and architecture options before building; runbook/handoff after | harness-level skills |
 
 Levels 2 and 3 replace each other per client — never operate both. Degustia and
 FDEOps are *inputs* (diagnose, decide), turvez is the *executor* (run, operate).
