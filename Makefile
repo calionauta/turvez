@@ -1,4 +1,4 @@
-.PHONY: up down worker register smoke test lint validate tidy new-ops-repo new-client validate-ops register-ops
+.PHONY: up down worker register smoke test lint validate tidy new-ops-repo new-client validate-ops register-ops hooks
 
 # Start dagnats (engine + embedded NATS + API + console) and the worker.
 up:
@@ -34,6 +34,10 @@ new-client:
 # Safe decrypt-edit-encrypt cycle for one client's secrets.
 edit-secrets:
 	./scripts/edit-secrets.sh $(CLIENT)
+
+# Install local hooks: pre-commit recipe scan + commit-msg convention check.
+hooks:
+	./scripts/install-hooks.sh
 
 # End-to-end smoke path (register + start run + print status).
 smoke:

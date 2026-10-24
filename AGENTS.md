@@ -72,6 +72,8 @@ Full reference: `docs/agent-tools.md`. After edits: `go test ./...`, `dagnats wo
   use `!` or a `BREAKING CHANGE:` footer; release-please derives the version.
 - Merging the release PR tags and publishes the GitHub Release. Do not tag by
   hand after the `v0.1.0` bootstrap.
+- Run `./scripts/install-hooks.sh` once per clone: pre-commit recipe scan and
+  the commit-msg Conventional Commits check.
 - Ops repos pin `TURVEZ_REF` to a release tag (`v0.1.0`); SHA only for an
   unreleased commit under test.
 

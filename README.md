@@ -185,6 +185,7 @@ curl -X POST localhost:8090/ops/approvals/<run-id> \
   duration strings (`"30s"`).
 - Secrets are age-encrypted from day one (`secrets/<client>/env.age`,
   `scripts/edit-secrets.sh`); plain `.env` files are local scratch only.
-  Pre-commit secret scan: `./scripts/install-hooks.sh`.
+- Local hooks (pre-commit recipe scan + commit-msg Conventional Commits):
+  `./scripts/install-hooks.sh`.
 - Versioned releases: Conventional Commits → release-please → tag +
   changelog. Ops repos pin `TURVEZ_REF=vX.Y.Z` (tag), not a moving branch.

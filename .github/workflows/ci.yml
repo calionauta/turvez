@@ -13,8 +13,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  commit-msg:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Validate commit subjects
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            git fetch --no-tags origin "$BASE_REF"
+            RANGE="FETCH_HEAD..HEAD"
+          elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            RANGE="$BEFORE..HEAD"
+          elif git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            RANGE="HEAD~1..HEAD"
+          else
+            RANGE="HEAD"
+          fi
+          ./scripts/commit-msg-lint.sh --range "$RANGE"
+
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v7
@@ -26,7 +50,7 @@ jobs:
           version: v2.14.0
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v7
