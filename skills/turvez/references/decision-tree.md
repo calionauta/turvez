@@ -5,6 +5,14 @@ clients — refuse, point to turvez-ops via docs/ops-repo.md). `TURVEZ_PIN`
 only = ops repo (private, any client OK). Then ask in order. First "yes"
 wins. Full rationale: `docs/script-execution.md`.
 
+## Q1.5 — agent loop gate
+
+Does it need an agent that loops with tools (shell, files, browser) until
+done? → **not** a recipe, **not** Dagu level 2. It is a new platform
+decision (Dagu 2.x `llm.*`/`harness.run`/agent DAGs, or a dedicated
+harness). Why: `docs/writing-recipes.md` → "Why AgentLoop/planner stay
+upstream-only".
+
 ## Level 0 — dagnats recipe (default)
 
 Q: fits the 12 handlers (`http.request`, `transform.json`, `condition`,
@@ -22,9 +30,18 @@ delete after. Never enters a recipe. Details: `docs/sandbox-policy.md`.
 
 Q: recurrent command the client already has (SSH backup, `deploy.sh`,
 `python relatorio.py`, `ffmpeg`, `kubectl`)?
-Yes → Dagu YAML next to the script, `dagu start` to test, `dagu start-all`
-for schedule + UI. Secrets in host env, never YAML. No repo changes here.
-Dagu is GPLv3: separate binary only, never copy code into this repo.
+Yes → Dagu YAML in the dags dir (source in the client's private repo):
+`dagu validate x.yaml` → `dagu start x.yaml` (test, once) →
+`dagu start-all --dags <dags-dir>` (scheduler + UI :8080).
+`--dags` belongs to `start-all`/`server`/`scheduler`, not to `dagu start`.
+Secrets in host env, never YAML. No repo changes here.
+Dagu is GPLv3 (v2.x, verified v2.22.2): separate binary only, never copy
+code into this repo; SSO/RBAC/audit are paid.
+
+Do not run Dagu for a client that already has dagnats recipes, and do not
+move an LLM/approval job into Dagu "because it is easier there" — that is
+two orchestrators for one client. Pick one (full rule:
+`docs/script-execution.md` → "Competition signal").
 
 ## Level 3 — Windmill migration (product surface)
 

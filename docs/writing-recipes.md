@@ -86,6 +86,30 @@ signal chunks ≤55m against the 1h engine ceiling
 (`internal/handlers/request_approval.go`). Upstream position is "bounded
 dynamism": every dynamic surface carries a numeric bound + validation.
 
+### Why AgentLoop/planner stay upstream-only here
+
+`agent_loop` is real and well built upstream (ADR-002): each iteration is a
+`Continue()` with a conversation checkpoint, so a crash resumes at the last
+turn instead of the first. It is not enabled in this runtime on purpose:
+
+1. **No handler can drive it.** `llm.complete` calls `Complete()`. An agent
+   loop needs a handler that calls `ctx.Continue()` and owns
+   `Checkpoint()`/`LoadCheckpoint()` — and that handler is the tool runner.
+2. **Tools are arbitrary code.** The loop's value is letting the model call
+   shell/files/HTTP. That is exactly the surface `AGENTS.md` forbids
+   ("never execute arbitrary scripts from workflow JSON").
+3. **It does not pass our gate.** `go test ./workflows/` runs jq expressions
+   against samples; a model loop is non-deterministic and has unbounded
+   cost per run. A recipe you cannot validate before registering is not a
+   recipe.
+4. **It does not port to Windmill.** It becomes a script step in
+   `docs/migrate-to-windmill.md` — migration cost with no recipe gain.
+
+**If a client genuinely needs an agent loop**, that is a new platform
+decision (`docs/script-execution.md` Q1.5) — Dagu 2.x `llm.*`/`harness.run`/
+agent DAGs, or a dedicated harness. `llm.complete` stays: one bounded call
+whose output is **data**, validated by `transform.json`/`condition`.
+
 ## dagnats v0.0.30 traps (verified against upstream source)
 
 1. **Durations accept two forms.** Integer nanoseconds (`30000000000`)

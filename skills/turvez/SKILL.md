@@ -75,6 +75,7 @@ Methodology questions (discover, scope, runbook): see `references/methodology.md
 ## Edge cases
 
 - Engine lacks the feature (e.g. SSH exec): say so, mark workaround, never invent `task:` names.
+- Agent loop / autonomous LLM with tools → not a recipe (Q1.5 in `references/decision-tree.md`).
 - `llm.complete` output is DATA: validate schema via `transform.json`, never exec it.
 - Secret value spotted in recipe/fieldbook: stop, fix to names only, rotate the value.
 
