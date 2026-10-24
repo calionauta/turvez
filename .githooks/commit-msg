@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# turvez commit-msg: chain the global hook, then enforce Conventional Commits.
+set -euo pipefail
+root="$(git rev-parse --show-toplevel)"
+global="$(git config --global --get core.hooksPath || true)"
+if [ -n "$global" ] && [ -x "$global/commit-msg" ]; then "$global/commit-msg" "$@"; fi
+lint="$root/scripts/commit-msg-lint.sh"
+[ -x "$lint" ] || exit 0
+exec "$lint" --file "$1"

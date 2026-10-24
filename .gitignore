@@ -23,6 +23,3 @@ sandbox-out/
 
 # Local agent memory (Engram) — machine-specific, never commit
 .engram/
-
-# Local git hooks (installed by scripts/install-hooks.sh)
-.githooks/

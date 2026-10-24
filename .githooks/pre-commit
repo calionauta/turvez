@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# turvez pre-commit: chain the global hook, then test the recipes.
+set -euo pipefail
+root="$(git rev-parse --show-toplevel)"
+global="$(git config --global --get core.hooksPath || true)"
+if [ -n "$global" ] && [ -x "$global/pre-commit" ]; then "$global/pre-commit" "$@"; fi
+[ -f "$root/go.mod" ] || exit 0
+cd "$root"
+go test ./workflows/ || { echo "commit blocked: workflows contract failed"; exit 1; }
