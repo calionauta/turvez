@@ -1,4 +1,4 @@
-module github.com/solo-operator/dagnats-automation-template
+module github.com/calionauta/turvez
 
 go 1.27.1
 

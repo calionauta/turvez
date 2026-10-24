@@ -19,17 +19,17 @@ Do NOT vendor FDEOps here (35 skills would swamp a lean runtime repo).
 Handoff: FDEOps `runbook` output fills `FIELDBOOK.md` §1–§5;
 `scope`/`options` decisions land in fieldbook §6.
 
-## Degustia (diagnóstico) vs este repo (execução)
+## Degustia (diagnosis) vs this repo (execution)
 
-Degustia (repo privado local, skill `cali-degustia-diagnostico`) prescreve
-ferramentas a partir de entrevista (transcript → JSON Pydantic → HTML).
-Para no relatório: não desenha arquitetura nem opera nada. Ponte sem
-mesclar repos:
+Degustia (private sibling repo, `cali-degustia-diagnostico` skill) prescribes
+tools from interviews (transcript → Pydantic JSON → HTML). It stops at the
+report: it designs no architecture and operates nothing. Bridge without
+merging repos:
 
-- Diagnóstico aponta automação (encadeamento 2.2b) + cliente contrata
-  implementação (upsell Projeto) → seed o fieldbook (ver FIELDBOOK.md:
-  dores → §1, sistemas → §3, automações → §4) e construa a recipe aqui.
-- Nunca edite o catálogo degustia a partir daqui: tem CI própria
-  (regras de recomendação + golden tests). Mudança lá (ex.: citar
-  "consultoria implementa via dagnats" no roteamento de middleware)
-  é proposta no repo deles, não commit deste.
+- Diagnosis flags automation (chaining 2.2b) + client hires implementation
+  (Projeto upsell) → seed the fieldbook (see FIELDBOOK.md: pains → §1,
+  systems → §3, automations → §4) and build the recipe here.
+- Never edit the degustia catalog from here: it has its own CI
+  (recommendation rules + golden tests). Changes there (e.g. citing
+  "consultancy implements via dagnats" in middleware routing)
+  are proposals in their repo, not commits in this one.

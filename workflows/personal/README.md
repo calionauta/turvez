@@ -1,33 +1,33 @@
-# Fieldbook: personal (você é o cliente)
+# Fieldbook: personal (you are the client)
 
-> Automações pessoais usam o mesmo pipeline das de cliente:
-> recipe em `workflows/personal/*.json`, segredos por nome, `validate` +
-> `go test` + proposta de `register` — nada roda sem sua aprovação.
+> Personal automations use the same pipeline as client ones:
+> recipe in `workflows/personal/*.json`, secrets by name, `validate` +
+> `go test` + proposed `register` — nothing runs without your approval.
 > Template: `workflows/_templates/FIELDBOOK.md`.
 
-## 1. Contexto
+## 1. Context
 
-- Dono, operador e aprovador: você.
-- `ping.json`: recipe mínima sem side-effect (só `transform.json`),
-  usada como smoke do namespace pessoal.
+- Owner, operator, and approver: you.
+- `ping.json`: minimal recipe with no side effects (only `transform.json`),
+  used as smoke for the personal namespace.
 
-## 2. Sistemas e mapa de secrets (nomes apenas)
+## 2. Systems and secret map (names only)
 
-| Sistema | Uso | Secret NAME |
+| System | Use | Secret NAME |
 |---|---|---|
-| Telegram | notify pessoal | `PERSONAL_TELEGRAM_BOT_TOKEN` + `PERSONAL_TELEGRAM_CHAT_ID` |
-| Slack | notify alternativo | `PERSONAL_SLACK_WEBHOOK_URL` |
-| LLM | `llm.complete` | `LLM_API_KEY` (default do handler) |
+| Telegram | personal notify | `PERSONAL_TELEGRAM_BOT_TOKEN` + `PERSONAL_TELEGRAM_CHAT_ID` |
+| Slack | alternative notify | `PERSONAL_SLACK_WEBHOOK_URL` |
+| LLM | `llm.complete` | `LLM_API_KEY` (handler default) |
 
-Valores em `env/personal.env` (local, gitignored) — ver `env/personal.env.example`.
+Values in `env/personal.env` (local, gitignored) — see `env/personal.env.example`.
 
-## 3. Recipes e triggers
+## 3. Recipes and triggers
 
 | Recipe | Trigger |
 |---|---|
-| `personal/ping` | manual (sem trigger — smoke) |
+| `personal/ping` | manual (no trigger — smoke) |
 
-## 4. Operação
+## 4. Operation
 
 ```bash
 ./scripts/register-workflows.sh personal
@@ -36,19 +36,19 @@ dagnats run start "personal/ping" '{"hello":"world"}' --watch
 dagnats run list --workflow=personal/
 ```
 
-## 5. Decisões
+## 5. Decisions
 
-- Namespace `personal/` em vez de pasta fora do padrão: herda tenancy,
-  testes e scripts sem exceção (`go test ./workflows/` cobre o prefixo).
+- Namespace `personal/` instead of an off-pattern folder: inherits tenancy,
+  tests, and scripts with no exceptions (`go test ./workflows/` covers the prefix).
 
-## 6. Adicionar sua primeira automação
+## 6. Adding your first automation
 
 ```bash
-cp workflows/_templates/webhook-pipeline.json workflows/personal/<nome>.json
-# troque TODO-CLIENT → personal (nome, trigger id, webhook path)
-# secrets por NOME em env/personal.env — nunca valores no JSON
-dagnats workflow validate workflows/personal/<nome>.json
+cp workflows/_templates/webhook-pipeline.json workflows/personal/<name>.json
+# replace TODO-CLIENT → personal (name, trigger id, webhook path)
+# secrets by NAME in env/personal.env — never values in JSON
+dagnats workflow validate workflows/personal/<name>.json
 go test ./workflows/
-# peça o register — nada roda sem sua aprovação (política da skill)
+# request the register — nothing runs without your approval (skill policy)
 ./scripts/register-workflows.sh personal
 ```

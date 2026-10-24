@@ -1,23 +1,32 @@
-# Consultancy Automation Runtime
+# turvez — the solo consultancy runtime for durable client automations
 
-Production-oriented template for running durable customer automations on
-**dagnats** (DAG workflows on NATS JetStream) with a single Go worker.
-The operator edits **workflow JSON recipes**; Go handlers are shared
-platform code.
+Turvez runs client work that survives failures, waits for humans, and keeps
+receipts. Recipes live in git — your agent drafts them, tests gate them, you
+approve. One folder per client, extractable to dedicated infra when they grow.
+Your own automations run free on the same engine.
+
+Built on **dagnats** (DAG workflows on NATS JetStream) with a single Go worker.
+The operator edits **workflow JSON recipes**; Go handlers are shared platform code.
 
 - Engine: dagnats `v0.0.30` (`dagnats serve`: embedded NATS + API +
   console). Compatibility notes in `ARCHITECTURE.md`.
-- Worker: one binary, eight generic handlers (HTTP, jq transform,
-  condition, map, delay, Slack, approval, LLM).
+- Worker: one binary, twelve generic handlers (HTTP, jq transform,
+  condition, map, delay, Slack/Telegram/Discord/webhook, approval, LLM, DLQ check).
 - Recipes: `workflows/<client>/*.json`, namespaced `<client>/…`.
 - Secrets: per-client env files (`env/<client>.env`) + optional
   age-encrypted files (`secrets/<client>/`). Never in JSON.
 - Tenancy: prefix conventions + extract runbook; Windmill is a
   documented escape hatch, not a dependency.
+- AI-ready: `skills/turvez/SKILL.md` routes any agent (direct → confirm →
+  build); every expression is executed by `go test`, every recipe validated.
 
 ## Quickstart
 
 ```bash
+# 0. Check prereqs (go, dagnats CLI, docker, env files, degustia ranker)
+./scripts/setup.sh
+./scripts/setup.sh --init personal   # scaffold gitignored env files
+
 # 1. Engine + worker stack
 make up            # dagnats :4222/:8080, worker pulls tasks
 
@@ -38,11 +47,14 @@ Console: http://127.0.0.1:8080/console/
 
 ## Operator loop
 
+0. **Direct first** — read `workflows/<client>/README.md` (fieldbook) and
+   decide where the work belongs (`docs/script-execution.md` Q1–Q4).
+   Personal work uses client `personal/`.
 1. **Edit JSON** — copy the closest file from `workflows/_templates/`
    into `workflows/<client>/`, keep the `<client>/` name prefix.
 2. **Validate** — `dagnats workflow validate workflows/<client>/x.json`
-   (or `make validate`; `go test ./workflows/` executes every jq
-   expression against samples).
+   (or `make validate`; `go test ./workflows/` compiles every jq
+   expression and executes samples).
 3. **Register** — `dagnats workflow register …` (embedded `triggers`
    register with it) or attach a schedule:
    `dagnats trigger create '<client>/nightly-sync' --cron='0 2 * * *'`.
@@ -57,6 +69,7 @@ Console: http://127.0.0.1:8080/console/
 | `invoice-paid-route` | fetch → transform → `skip_if` VIP/standard split |
 | `nightly-sync` | embedded cron trigger, fully static first step |
 | `approval-refund` | native `approval` gate (48h) → refund POST → receipt |
+| `personal/ping` | no-op smoke for your own namespace |
 
 Human approval from Slack/email: point the button at the ops shim
 (`internal/opshttp`, `OPS_HTTP_ADDR=127.0.0.1:8090`):
@@ -80,7 +93,7 @@ Failures page the operator three ways (see `docs/alerting.md`):
   what the engine allows here, v0.0.30 traps, custom-handler checklist.
 - `docs/handlers-reference.md` — task inputs/outputs, metadata keys.
 - `docs/agent-tools.md` — exact CLI/API for an authoring agent.
-- `docs/secrets.md` — per-client age encryption, JIT runtime, sops evaluation.
+- `docs/secrets.md` — per-client age encryption, JIT runtime.
 - `docs/alerting.md` — operator notifications: on_failure pages, DLQ watchdog, external uptime.
 - `docs/tenancy-evolution.md` — stages 1→3 without redesign.
 - `docs/isolating-a-client.md` — extract one client to its own host.
@@ -88,7 +101,7 @@ Failures page the operator three ways (see `docs/alerting.md`):
 - `docs/sandbox-policy.md` — when you need a sandbox (usually you don't) + `scripts/sandbox-run.sh`.
 - `docs/script-execution.md` — where to execute: dagnats vs one-off vs Dagu vs Windmill.
 - `workflows/_templates/FIELDBOOK.md` — per-client fieldbook template (copy to `workflows/<client>/README.md`).
-- `skills/dagnats-automation/SKILL.md` — automate-anything skill (direct → confirm → build). Symlink into your harness skills dir.
+- `skills/turvez/SKILL.md` — automate-anything skill (direct → confirm → build). Symlink into your harness skills dir.
 - `workflows/personal/` — your own automations as client `personal/` (same pipeline, you approve).
 - `ARCHITECTURE.md` — diagram, data flow, decisions.
 - `AGENTS.md` — agent quick rules (this file's essentials).

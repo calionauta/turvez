@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/danmestas/dagnats/worker"
-	"github.com/solo-operator/dagnats-automation-template/internal/secret"
+	"github.com/calionauta/turvez/internal/secret"
 )
 
 // HTTPRequestInput is the task payload for the "http.request" handler.

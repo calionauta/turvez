@@ -39,9 +39,9 @@ if [ -z "${DEGUSTIA_SKILL_DIR:-}" ] || [ ! -f "$RANKER" ]; then
   cat >&2 <<'EOF'
 tool-pick: degustia checkout not found (DEGUSTIA_SKILL_DIR unset or missing
 scripts/rank_candidates.py). Manual fallback, same hierarchy:
-  1. o que o cliente já tem e cobre a dor (configurar/integrar);
-  2. opção gratuita que cubra requisitos + volume;
-  3. paga só com lacuna documentada; capacidades na web, nunca chute.
+  1. what the client already has that covers the pain (configure/integrate);
+  2. a free option covering requirements + volume;
+  3. paid only with a documented gap; verify capabilities on the web, never guess.
 Clone degustia e exporte DEGUSTIA_SKILL_DIR para o ranking automático.
 EOF
   exit 2

@@ -54,7 +54,7 @@ Full reference: `docs/agent-tools.md`. After edits: `go test ./...`, `dagnats wo
 ## Stack
 
 - Go 1.27 (`go.mod`), dagnats v0.0.24 (pinned), NATS JetStream embedded, worker `distroless/static`.
-- Skill: `skills/dagnats-automation/SKILL.md` (+ `references/` detail files) — direct → confirm → build.
+- Skill: `skills/turvez/SKILL.md` (+ `references/` detail files) — direct → confirm → build.
 
 ## Don'ts
 

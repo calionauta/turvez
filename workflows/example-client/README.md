@@ -1,42 +1,42 @@
 # Fieldbook: example-client
 
-> Exemplo preenchido do template `workflows/_templates/FIELDBOOK.md`.
-> Nomes de secrets sim, valores nunca.
+> Worked example of the `workflows/_templates/FIELDBOOK.md` template.
+> Secret names yes, values never.
 
-## 1. Contexto
+## 1. Context
 
-- Cliente fictício para validar o runtime.
-- Recipes: `hubspot-lead-to-slack` (webhook → HubSpot → Slack), `invoice-paid-route` (split VIP/standard), `nightly-sync` (cron 02:00 UTC), `approval-refund` (gate humano 48h).
-- Fora de escopo: scripts arbitrários, SSH, deploy — ver `docs/script-execution.md`.
+- Fictional client to validate the runtime.
+- Recipes: `hubspot-lead-to-slack` (webhook → HubSpot → Slack), `invoice-paid-route` (VIP/standard split), `nightly-sync` (cron 02:00 UTC), `approval-refund` (48h human gate).
+- Out of scope: arbitrary scripts, SSH, deploys — see `docs/script-execution.md`.
 
-## 2. Contatos e decisão
+## 2. Contacts and decisions
 
-| Papel | Quem | Canal |
+| Role | Who | Channel |
 |---|---|---|
-| Dono no cliente | — (exemplo) | — |
-| Operador | — | `OPS_SLACK_WEBHOOK_URL` |
-| Nós (FDE) | solo-operator | console `:8080` |
+| Owner at client | — (example) | — |
+| Operator | — | `OPS_SLACK_WEBHOOK_URL` |
+| Us (FDE) | operator (you) | console `:8080` |
 
-## 3. Sistemas e mapa de secrets (nomes apenas)
+## 3. Systems and secret map (names only)
 
-| Sistema | Uso | Secret NAME |
+| System | Use | Secret NAME |
 |---|---|---|
 | HubSpot | GET contacts | `ACME_HUBSPOT_TOKEN` |
 | Slack | notify | `ACME_SLACK_WEBHOOK_URL` |
 | Billing | refund/invoice | `ACME_BILLING_TOKEN`, `ACME_REFUND_API_TOKEN` |
 | Warehouse | nightly push | `ACME_WAREHOUSE_TOKEN` |
 
-Valores em `env/example-client.env` (local, gitignored) — ver `env/example-client.env.example`.
+Values in `env/example-client.env` (local, gitignored) — see `env/example-client.env.example`.
 
-## 4. Recipes e triggers
+## 4. Recipes and triggers
 
 | Recipe | Trigger | Id |
 |---|---|---|
 | `example-client/hubspot-lead-to-slack` | webhook `/hooks/example-client/lead` | `example-client-lead-webhook` |
 | `example-client/nightly-sync` | cron `0 2 * * * UTC` (embedded) | `example-client-nightly-sync-cron` |
-| `example-client/approval-refund` | manual + `approval` nativo | — |
+| `example-client/approval-refund` | manual + native `approval` | — |
 
-## 5. Operação
+## 5. Operation
 
 ```bash
 ./scripts/register-workflows.sh example-client
@@ -45,13 +45,13 @@ dagnats run list --workflow=example-client/
 ./scripts/smoke-test.sh
 ```
 
-## 6. Decisões
+## 6. Decisions
 
-- Refund usa `type: approval` nativo (digna de 48h, sem ocupar worker) em vez de `request.approval` por chunks.
-- Split VIP usa `skip_if` (top-level) em vez de `condition` — comparação simples, sem task extra.
-- Nenhum handler custom: tudo coube em `http.request` + `transform.json` + `skip_if` + `map`.
-- Reutilizável: (nada ainda — quando um padrão repetir, vira template em `_templates/` ou proposta de handler; productize é o que o próximo cliente ganha de graça).
+- Refund uses native `type: approval` (durable 48h, no worker slot) instead of chunked `request.approval`.
+- VIP split uses `skip_if` (top-level) instead of `condition` — simple comparison, no extra task.
+- No custom handler: everything fit in `http.request` + `transform.json` + `skip_if` + `map`.
+- Reusable: (nothing yet — when a pattern repeats, it becomes a `_templates/` template or a handler proposal; productize is what the next client gets for free).
 
-## 7. Extrair
+## 7. Extract
 
-Ver `docs/isolating-a-client.md` — copiar esta pasta + `env.age`, registrar só este prefixo.
+See `docs/isolating-a-client.md` — copy this folder + `env.age`, register only this prefix.

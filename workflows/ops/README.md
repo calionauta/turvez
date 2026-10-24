@@ -7,13 +7,13 @@
 
 | Recipe | Trigger | Id |
 |---|---|---|
-| `ops/dlq-watchdog` | cron a cada 5 min | `ops-dlq-watchdog-cron` |
+| `ops/dlq-watchdog` | cron every 5 min | `ops-dlq-watchdog-cron` |
 
-## Operação
+## Operation
 
 ```bash
 ./scripts/register-workflows.sh ops
 dagnats run list --workflow=ops/
 ```
 
-Detalhes em `docs/alerting.md` (camada 2: DLQ watchdog).
+Details in `docs/alerting.md` (layer 2: DLQ watchdog).

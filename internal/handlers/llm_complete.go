@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/danmestas/dagnats/worker"
-	"github.com/solo-operator/dagnats-automation-template/internal/secret"
+	"github.com/calionauta/turvez/internal/secret"
 )
 
 // LLMMessage is one OpenAI-compatible chat message.

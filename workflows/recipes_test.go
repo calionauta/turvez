@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/solo-operator/dagnats-automation-template/internal/handlers"
+	"github.com/calionauta/turvez/internal/handlers"
 )
 
 var knownTasks = map[string]bool{

@@ -1,9 +1,9 @@
 ---
-name: dagnats-automation
-description: Decide where an automation belongs (dagnats recipe vs sandbox one-off vs Dagu vs Windmill), then build it with fieldbook, validate, tests, and approval-gated register. Use when the user asks to automate anything — personal or client.
+name: turvez
+description: Decide where an automation belongs (turvez recipe vs sandbox one-off vs Dagu vs Windmill), then build it with fieldbook, validate, tests, and approval-gated register. Use when the user asks to automate anything — personal or client.
 ---
 
-# dagnats-automation
+# turvez
 
 Repo: consultancy automation runtime (dagnats + 1 Go worker, 12 generic tasks).
 You direct, then build. Read `AGENTS.md` first (normative), route via `llms.txt`.
@@ -34,7 +34,7 @@ Methodology questions (discover, scope, runbook): see `references/methodology.md
 
 ### Route a HubSpot request
 
-**Input:** "deal qualified → avisa #comercial, cria página Notion; >10k pede aprovação"
+**Input:** "deal qualified → notify #sales, create Notion page; >10k needs approval"
 **Output:** level 0 — recipe with native `approval` step; propose validate + register.
 
 ### Route a backup script
@@ -51,4 +51,4 @@ Methodology questions (discover, scope, runbook): see `references/methodology.md
 ## Test cases
 
 Should activate: "automatiza X pra mim", "cria recipe pro cliente acme", "onde rodo esse script?".
-Should NOT activate: "otimiza essa query SQL" (general coding), "o que é dagnats?" (just answer, point to docs).
+Should NOT activate: "optimize this SQL query" (general coding), "what is dagnats?" (just answer, point to docs).

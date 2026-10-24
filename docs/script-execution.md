@@ -1,52 +1,52 @@
-# Onde executar? dagnats vs one-off vs Dagu vs Windmill
+# Where to execute? dagnats vs one-off vs Dagu vs Windmill
 
-Resposta curta: **dagnats é o default**. Todo o resto é exceção, e a
-exceção tem dono. Esta página é a árvore de decisão para o dia-a-dia;
-`docs/migrate-to-windmill.md` continua sendo o plano de migração.
+Short answer: **dagnats is the default**. Everything else is an exception,
+and the exception has an owner. This page is the day-to-day decision tree;
+`docs/migrate-to-windmill.md` remains the migration plan.
 
-## Os 4 níveis (do mais barato ao mais caro de operar)
+## The 4 levels (cheapest to most expensive to operate)
 
-| # | Quando | Ferramenta | Custo operacional |
+| # | When | Tool | Operating cost |
 |---|---|---|---|
-| 0 | SaaS glue, cron, approval humano, retries, DLQ | **dagnats** (este repo) | 1 stack, você já opera |
-| 1 | Script one-off / teste de código gerado por LLM | `scripts/sandbox-run.sh` | zero — docker local, joga fora depois |
-| 2 | Script/SSH/Docker **recorrente** que continua com cara de script | **Dagu** (CLI local, sem integrar ao repo) | 1 binário, sem DB, sem Postgres |
-| 3 | Recorrente + precisa UI gerada, apps internos, catálogo de integrações | **Windmill** (migração por cliente) | Postgres + server + workers |
+| 0 | SaaS glue, cron, human approval, retries, DLQ | **dagnats** (this repo) | 1 stack, already operated |
+| 1 | One-off script / LLM-generated code test | `scripts/sandbox-run.sh` | zero — local docker, throw away after |
+| 2 | **Recurrent** script/SSH/Docker that stays script-shaped | **Dagu** (ad-hoc CLI, not integrated into the repo) | 1 binary, no DB, no Postgres |
+| 3 | Recurrent + needs generated UI, internal apps, integration catalog | **Windmill** (per-client migration) | Postgres + server + workers |
 
-Níveis 2 e 3 **substituem um ao outro** na parte de orquestração —
-não opere os dois em produção para o mesmo cliente. Ver comparação
-oficial: `https://dagu.sh/dagu-vs-windmill`.
+Levels 2 and 3 **replace each other** for orchestration —
+never operate both in production for the same client. Official comparison:
+`https://dagu.sh/dagu-vs-windmill`.
 
-## Árvore de decisão (pergunte nesta ordem)
+## Decision tree (ask in order)
 
-**Q1. Dá para expressar com os 12 handlers?**
+**Q1. Can it be expressed with the 12 handlers?**
 `http.request`, `transform.json`, `condition`, `map`, `delay`,
 `notify.*`, `request.approval`, `llm.complete`, `dlq.check`
-(ver `docs/handlers-reference.md`).
-Sim → nível 0. Escreva a recipe, `validate` + `go test ./workflows/`.
-Ex.: HubSpot deal → Slack → Notion; invoice VIP split; refund com approval.
+(see `docs/handlers-reference.md`).
+Yes → level 0. Write the recipe, `validate` + `go test ./workflows/`.
+Ex.: HubSpot deal → Slack → Notion; invoice VIP split; refund with approval.
 
-**Q2. É código novo que roda uma vez?** (parser que a LLM gerou, migração
-de CSV, teste de API do cliente)
-Sim → nível 1. Leia o script, copie para dentro do repo (o sandbox só
-monta o repo em `/work:ro`), rode isolado, jogue fora:
+**Q2. Is it new code that runs once?** (LLM-generated parser, CSV cleanup,
+client API probe)
+Yes → level 1. Read the script, copy it inside the repo (the sandbox only
+mounts the repo at `/work:ro`), run isolated, throw away:
 
 ```bash
 cp /tmp/migra.py ./scratch-migra.py
 ./scripts/sandbox-run.sh --allow-net=off ./scratch-migra.py
 ```
 
-Detalhes em `docs/sandbox-policy.md`. Se o script precisar de secrets,
-passe `--secret-env` explicitamente — nunca exporte no shell do dia-a-dia.
+Details in `docs/sandbox-policy.md`. If the script needs secrets, pass
+`--secret-env` explicitly — never export them in the day-to-day shell.
 
-**Q3. É comando que o cliente já tem e vai repetir?** (backup via SSH,
-`deploy.sh`, `python relatorio.py`, `ffmpeg`, `dbt`, `kubectl`)
-Sim, e continua com cara de script → nível 2, Dagu ad-hoc:
+**Q3. Is it a command the client already has and will repeat?** (SSH backup,
+`deploy.sh`, `python report.py`, `ffmpeg`, `dbt`, `kubectl`)
+Yes, and still script-shaped → level 2, ad-hoc Dagu:
 
 ```bash
-# instala uma vez (binário único, sem DB)
+# install once (single binary, no DB)
 curl -fsSL https://raw.githubusercontent.com/dagucloud/dagu/main/scripts/installer.sh | bash
-# workflow YAML ao lado do script do cliente, versionado junto
+# YAML workflow next to the client script, versioned together
 cat > /tmp/backup-acme.yaml <<'EOF'
 schedule: "0 3 * * *"
 steps:
@@ -54,46 +54,46 @@ steps:
     run: ssh deploy@acme.internal /opt/backup.sh
     retry_policy: {limit: 3, interval_sec: 30}
 EOF
-dagu start --dags /tmp /tmp/backup-acme.yaml   # teste
-dagu start-all --dags ~/.dagu/dags             # agenda + UI :8080
+dagu start --dags /tmp /tmp/backup-acme.yaml   # test
+dagu start-all --dags ~/.dagu/dags             # schedule + UI :8080
 ```
 
-Regras: um YAML por job, logs na UI do Dagu, secrets no env do host
-(nunca no YAML), sem integração com este repo. Dagu é GPLv3 — usar o
-binário separado é seguro; não copie código dele para cá.
+Rules: one YAML per job, logs in the Dagu UI, secrets in host env
+(never in YAML), no integration with this repo. Dagu is GPLv3 — separate
+binary only, never copy code into this repo.
 
-**Q4. Virou produto interno do cliente?** (precisa formulário web para
-a equipe, catálogo de integrações, approvals com UI, apps low-code)
-Sim → nível 3, Windmill, **por cliente** (ver
+**Q4. Did it become the client's internal product?** (needs web form for
+the team, integration catalog, approvals with UI, low-code apps)
+Yes → level 3, Windmill, **per client** (see
 `docs/migrate-to-windmill.md` + `docs/isolating-a-client.md`):
-repoint webhooks, rode em paralelo até dar verde, desligue o dagnats
-para aquele cliente.
+repoint webhooks, run in parallel until green, turn off dagnats
+for that client.
 
-## Quando NÃO usar Dagu
+## When NOT to use Dagu
 
-- Para o que dagnats já faz (Q1 sim): dois motores = 2x monitoramento,
-  2x segredos, 2x DLQ. Não pague esse preço por redundância.
-- Como biblioteca dentro do worker Go (licença GPLv3 + acoplamento).
-  Dagu é processo separado ou nada.
-- Como substituto do `sandbox-run.sh` para one-offs: subir um scheduler
-  para rodar um script uma vez é overkill.
+- For what dagnats already does (Q1 yes): two engines = 2x monitoring,
+  2x secrets, 2x DLQ. Don't pay that price for redundancy.
+- As a library inside the Go worker (GPLv3 license + coupling).
+  Dagu is a separate process or nothing.
+- As a replacement for `sandbox-run.sh` for one-offs: standing up a
+  scheduler to run a script once is overkill.
 
-## Exemplos da consultoria
+## Consultancy examples
 
-| Pedido | Nível | Por quê |
+| Request | Level | Why |
 |---|---|---|
-| Deal qualified → Slack + Notion, approval >10k | 0 dagnats | SaaS glue + gate humano multi-dia |
-| Nightly sync HubSpot → warehouse | 0 dagnats | cron + retries + DLQ |
-| Parser Python que a LLM gerou para limpar CSV do cliente | 1 sandbox-run | roda uma vez, depois vira `transform.json` ou morre |
-| Backup SSH semanal em 3 servidores do cliente | 2 Dagu | comando recorrente, Dagu nasceu para isso |
-| Deploy `git pull + docker compose up` do cliente | 2 Dagu | SSH + retry + log na UI |
-| Equipe do cliente quer botão "gerar relatório" com formulário | 3 Windmill | UI gerada + recursos, fora do escopo do dagnats e do Dagu simples |
+| Qualified deal → Slack + Notion, approval >10k | 0 dagnats | SaaS glue + multi-day human gate |
+| Nightly HubSpot → warehouse sync | 0 dagnats | cron + retries + DLQ |
+| LLM-generated Python parser to clean client CSV | 1 sandbox-run | runs once, then becomes `transform.json` or dies |
+| Weekly SSH backup on 3 client servers | 2 Dagu | recurrent command, what Dagu was born for |
+| Deploy `git pull + docker compose up` for the client | 2 Dagu | SSH + retry + log in the UI |
+| Client team wants a "generate report" button with form | 3 Windmill | generated UI + catalog, outside dagnats and plain Dagu scope |
 
-## Veredito registrado
+## Recorded verdict
 
-Dagu **é** alternativa à parte de orquestração do Windmill
-(schedule + retry + log + UI de runs), com a vantagem de não pedir
-Postgres. Não é alternativa ao dagnats neste repo (durabilidade NATS +
-approvals multi-dia + 12 handlers estáveis). Manter os três documentados
-e só operar um por cliente: dagnats default, Dagu ad-hoc, Windmill por
-migração.
+Dagu **is** an alternative to Windmill's orchestration part
+(scheduling + retries + logs + run UI), with the advantage of not requiring
+Postgres. It is not an alternative to dagnats in this repo (NATS durability +
+multi-day approvals + 12 stable handlers). Keep all three documented and
+operate only one per client: dagnats default, Dagu ad-hoc, Windmill by
+migration.

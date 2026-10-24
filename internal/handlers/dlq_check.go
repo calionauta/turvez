@@ -8,7 +8,7 @@ import (
 	"github.com/danmestas/dagnats/worker"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	"github.com/solo-operator/dagnats-automation-template/internal/secret"
+	"github.com/calionauta/turvez/internal/secret"
 )
 
 // DLQCheckInput is the task payload for the "dlq.check" handler: read the

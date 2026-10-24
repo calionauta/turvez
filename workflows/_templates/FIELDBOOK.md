@@ -1,68 +1,68 @@
 # Fieldbook: TODO-CLIENT
 
-> Copie para `workflows/TODO-CLIENT/README.md` ao abrir o cliente.
-> Git é source of truth; KV é deploy target (mesma regra das recipes).
-> Nomes de secrets sim, valores nunca (`go test ./workflows/` quebra se vazar).
-> Seed de diagnóstico degustia (se houver Encorpado): `dores_mapeadas` → §1;
-> sistemas citados → §3 (só NOMES); automações do encadeamento 2.2b →
-> recipes candidatas na §4. Direção oposta vale também: fieldbook + transcript
-> novo alimentam o próximo diagnóstico.
+> Copy to `workflows/TODO-CLIENT/README.md` when opening the client.
+> Git is source of truth; KV is deploy target (same rule as recipes).
+> Secret names yes, values never (`go test ./workflows/` fails if one leaks).
+> Diagnosis seed from degustia (if an Encorpado exists): `dores_mapeadas` → §1;
+> systems mentioned → §3 (NAMES only); automations from chaining 2.2b →
+> candidate recipes in §4. The reverse works too: fieldbook + fresh transcript
+> feed the next diagnosis.
 
-## 1. Contexto (5 linhas)
+## 1. Context (5 lines)
 
-- O que o cliente faz:
-- O que automatizamos aqui (1 frase por recipe):
-- Fora de escopo (o que NÃO fazemos):
+- What the client does:
+- What we automate here (1 sentence per recipe):
+- Out of scope (what we do NOT do):
 
-## 2. Contatos e decisão
+## 2. Contacts and decisions
 
-| Papel | Quem | Canal |
+| Role | Who | Channel |
 |---|---|---|
-| Dono no cliente (aprova) | | |
-| Operador dia-a-dia | | |
-| Nós (FDE) | | |
+| Owner at client (approves) | | |
+| Day-to-day operator | | |
+| Us (FDE) | | |
 
-Como decidem: (ex. Slack #comercial, SLA 4h úteis)
+How they decide: (e.g. Slack #sales, 4h business-hours SLA)
 
-## 3. Sistemas e mapa de secrets (nomes apenas)
+## 3. Systems and secret map (names only)
 
-| Sistema | Uso | Secret NAME | Dono do valor |
+| System | Use | Secret NAME | Value owner |
 |---|---|---|---|
-| HubSpot | deals stage=qualified | `TODO_HUBSPOT_TOKEN` | cliente via 1Password |
-| Slack #comercial | notify | `TODO_SLACK_WEBHOOK_URL` | nós via age |
+| HubSpot | deals stage=qualified | `TODO_HUBSPOT_TOKEN` | client via 1Password |
+| Slack #sales | notify | `TODO_SLACK_WEBHOOK_URL` | us via age |
 
-Regra: valor só em `env/TODO-CLIENT.env` (local) ou `secrets/TODO-CLIENT/env.age`.
+Rule: value only in `env/TODO-CLIENT.env` (local) or `secrets/TODO-CLIENT/env.age`.
 
-## 4. Recipes e triggers
+## 4. Recipes and triggers
 
-| Recipe | Trigger | Id do trigger |
+| Recipe | Trigger | Trigger id |
 |---|---|---|
 | `TODO-CLIENT/hubspot-qualified-to-slack` | webhook `/hooks/TODO-CLIENT/lead` | `TODO-CLIENT-lead-webhook` |
 | `TODO-CLIENT/nightly-sync` | cron `0 2 * * * UTC` | `TODO-CLIENT-nightly-sync-cron` |
 
-Convenções: workflow `<client>/…`, trigger `<client>-…`, webhook contém `<client>`.
+Conventions: workflow `<client>/…`, trigger `<client>-…`, webhook contains `<client>`.
 
-## 5. Operação (copy-paste)
+## 5. Operation (copy-paste)
 
 ```bash
 CLIENT=TODO-CLIENT
 dagnats workflow validate workflows/$CLIENT/*.json
 ./scripts/register-workflows.sh $CLIENT
-dagnats run start "$CLIENT/<wf>" '{"lead_id":"teste-1"}' --watch
+dagnats run start "$CLIENT/<wf>" '{"lead_id":"test-1"}' --watch
 dagnats run list --workflow=$CLIENT/
 dagnats dlq list --run=<run-id> && dagnats dlq replay --run=<run-id>
-dagnats trigger disable <client>-<id>  # rollback: enable de volta
+dagnats trigger disable <client>-<id>  # rollback: enable back
 ```
 
-Alertas: `on_failure` → notify (camada 1) + `ops/dlq-watchdog` (camada 2) + probe externa `GET /health` (camada 3). Ver `docs/alerting.md`.
+Alerts: `on_failure` → notify (layer 1) + `ops/dlq-watchdog` (layer 2) + external `GET /health` probe (layer 3). See `docs/alerting.md`.
 
-## 6. Decisões (log, 1 linha cada)
+## 6. Decisions (log, 1 line each)
 
-- 2026-10-24: threshold aprovação = 10000 porque… (quem pediu)
-- …: handler novo? não — coube em `transform.json` + `skip_if`
-- …: o que virou reutilizável? (template novo em `_templates/`? padrão que
-  vira handler? — productize: o que este cliente ensinou que o próximo ganha de graça)
+- 2026-10-24: approval threshold = 10000 because… (who asked)
+- …: new handler? no — `transform.json` + `skip_if` covered it
+- …: what became reusable? (new template in `_templates/`? pattern that
+  becomes a handler? — productize: what this client taught that the next one gets for free)
 
-## 7. Extrair (stage 3, se precisar)
+## 7. Extract (stage 3, if needed)
 
-Ver `docs/isolating-a-client.md`. Resumo: copiar `workflows/TODO-CLIENT/` + `env.age`, `register` no host novo, repoint webhooks, `disable` no antigo.
+See `docs/isolating-a-client.md`. Summary: copy `workflows/TODO-CLIENT/` + `env.age`, `register` on the new host, repoint webhooks, `disable` on the old one.

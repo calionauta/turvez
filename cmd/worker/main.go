@@ -19,9 +19,9 @@ import (
 	"github.com/danmestas/dagnats/worker"
 	"github.com/nats-io/nats.go"
 
-	"github.com/solo-operator/dagnats-automation-template/internal/handlers"
-	"github.com/solo-operator/dagnats-automation-template/internal/opshttp"
-	"github.com/solo-operator/dagnats-automation-template/internal/secret"
+	"github.com/calionauta/turvez/internal/handlers"
+	"github.com/calionauta/turvez/internal/opshttp"
+	"github.com/calionauta/turvez/internal/secret"
 )
 
 func main() {
