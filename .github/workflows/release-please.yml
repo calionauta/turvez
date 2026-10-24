@@ -1,0 +1,26 @@
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      # Opens/updates the release PR. Merging it tags and publishes the
+      # GitHub Release. No auto-merge: a GITHUB_TOKEN push does not
+      # trigger workflows, so the tag could be skipped.
+      - uses: googleapis/release-please-action@v5
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
