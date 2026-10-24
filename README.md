@@ -51,7 +51,7 @@ Turvez decides *where* work belongs before writing code (`docs/script-execution.
 | 1 | `scripts/sandbox-run.sh` | One-off LLM-generated script — run isolated, throw away | zero (local docker) |
 | 2 | **Dagu** (ad-hoc CLI, not integrated) | Recurrent script/SSH/Docker that stays script-shaped | 1 binary, no DB |
 | 3 | **Windmill** (per-client migration) | Team needs generated UI, forms, integration catalog | Postgres + workers |
-| D | **degustia** ([degustia.com.br](https://degustia.com.br), separate project, optional) | Interview → tool prescription; seeds the fieldbook, ranks tool picks via `scripts/tool-pick.sh` | local checkout, no network |
+| D | **degustia** (sister project, optional, PT-BR service) | Interview → tool prescription; seeds the fieldbook, ranks tool picks via `scripts/tool-pick.sh`. Requires a local checkout — without it, `tool-pick.sh` degrades to the manual hierarchy | local checkout, no network |
 | M | **FDEOps** (upstream methodology) | Discovery, scope, architecture options before building | harness-level skills |
 
 Levels 2 and 3 replace each other per client — never operate both. Degustia and
