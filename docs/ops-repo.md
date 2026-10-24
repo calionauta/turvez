@@ -20,7 +20,7 @@ template → refuse, point to `turvez-ops` + `new-client.sh`.
 
 ```text
 turvez-ops/
-  TURVEZ_PIN                  # TURVEZ_REF=<sha> + DAGNATS_VERSION=v0.0.30
+  TURVEZ_PIN                  # TURVEZ_REF=<tag|sha> + DAGNATS_VERSION=v0.0.30
   AGENTS.md                   # ops rules (validate from template checkout)
   .github/workflows/contract.yml  # CI: template tests @TURVEZ_PIN vs this repo
   workflows/<client>/README.md + *.json
@@ -30,6 +30,23 @@ turvez-ops/
   secrets/<client>/env.age + .recipients # ciphertext (git add -f) + age pubkeys
   docker-compose.override.yml # CLIENT_ID, age mounts
 ```
+
+## Pinning
+
+`TURVEZ_REF` accepts an annotated release tag (`v0.1.0`) or a full SHA.
+Prefer the tag: it is immutable once pushed, readable in incident notes, and
+gives `sync-template.sh` a release range to compare. Use a SHA only for an
+unreleased commit you deliberately want to test.
+
+```bash
+git fetch --tags                 # sync-template resolves the tag locally
+# TURVEZ_PIN
+TURVEZ_REF=v0.1.0
+DAGNATS_VERSION=v0.0.30
+```
+
+Bump only after reading the release notes and running the ops contract tests
+(`make validate-ops TURVEZ_OPS_DIR=…`).
 
 ## Lifecycle
 
@@ -57,7 +74,7 @@ git add -f secrets/acme/env.age && git commit
 
 # 6. Drift check (never auto-merge, run from $TURVEZ_CHECKOUT):
 ./scripts/sync-template.sh   # with TURVEZ_CHECKOUT=$TURVEZ_CHECKOUT TURVEZ_OPS_DIR=$PWD
-# bump TURVEZ_PIN manually after review
+# bump TURVEZ_REF to the new release tag after review
 ```
 
 ## Tenancy map
