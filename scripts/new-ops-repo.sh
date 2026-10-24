@@ -37,8 +37,8 @@ TEMPLATE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 [ -f "$TEMPLATE_DIR/go.mod" ] || { echo "run from the turvez template checkout" >&2; exit 1; }
 [ -e "$DEST" ] && { echo "already exists: $DEST" >&2; exit 1; }
 
-REF="$(git -C "$TEMPLATE_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")"
-DAGNATS_V="v0.0.30"
+REF="$(git -C "$TEMPLATE_DIR" describe --tags --exact-match 2>/dev/null || git -C "$TEMPLATE_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")"
+DAGNATS_V="$(cd "$TEMPLATE_DIR" && go list -m -f '{{.Version}}' github.com/danmestas/dagnats 2>/dev/null || echo "v0.0.30")"
 
 mkdir -p "$DEST/workflows/personal" "$DEST/workflows/ops" "$DEST/env" "$DEST/secrets"
 

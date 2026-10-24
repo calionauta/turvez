@@ -7,6 +7,7 @@
 #
 # Never auto-merges. Prints: pin vs HEAD, new _templates files, new handler
 # task names the ops recipes don't know yet. Human decides what to adopt.
+# The pin may be a release tag (v0.1.0) or a full SHA; both resolve to a commit.
 set -euo pipefail
 
 TEMPLATE_DIR="${TURVEZ_CHECKOUT:?set TURVEZ_CHECKOUT to the turvez template clone}"
@@ -15,11 +16,18 @@ PIN_FILE="$OPS_DIR/TURVEZ_PIN"
 
 PINNED="$(awk -F= '/^TURVEZ_REF=/{print $2}' "$PIN_FILE" 2>/dev/null || echo "unknown")"
 HEAD="$(git -C "$TEMPLATE_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")"
+HEAD_SHA="$(git -C "$TEMPLATE_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")"
+PINNED_SHA="$(git -C "$TEMPLATE_DIR" rev-parse --verify --quiet "${PINNED}^{commit}" 2>/dev/null || echo "unknown")"
 echo "== pin =="
 echo "  TURVEZ_PIN: $PINNED"
 echo "  template HEAD: $HEAD"
-[ "$PINNED" = "$HEAD" ] || [ "$PINNED" = "$(git -C "$TEMPLATE_DIR" rev-parse HEAD 2>/dev/null)" ] \
-  && echo "  ✅ in sync" || echo "  ⚠️  drift — review changelog, test, then bump TURVEZ_PIN manually"
+if [ "$PINNED_SHA" = "unknown" ]; then
+  echo "  ⚠️  cannot resolve pin — run: git -C $TEMPLATE_DIR fetch --tags"
+elif [ "$PINNED_SHA" = "$HEAD_SHA" ]; then
+  echo "  ✅ in sync"
+else
+  echo "  ⚠️  drift — review the release notes, test, then bump TURVEZ_REF manually"
+fi
 
 echo
 echo "== templates (new skeletons you may want) =="
