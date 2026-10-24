@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/danmestas/dagnats/worker"
 	"github.com/calionauta/turvez/internal/secret"
+	"github.com/danmestas/dagnats/worker"
 )
 
 // HTTPRequestInput is the task payload for the "http.request" handler.

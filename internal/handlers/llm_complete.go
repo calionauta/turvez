@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/danmestas/dagnats/worker"
 	"github.com/calionauta/turvez/internal/secret"
+	"github.com/danmestas/dagnats/worker"
 )
 
 // LLMMessage is one OpenAI-compatible chat message.

@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/calionauta/turvez/internal/secret"
 	"github.com/danmestas/dagnats/worker"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	"github.com/calionauta/turvez/internal/secret"
 )
 
 // DLQCheckInput is the task payload for the "dlq.check" handler: read the

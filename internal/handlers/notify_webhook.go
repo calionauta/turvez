@@ -8,8 +8,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/danmestas/dagnats/worker"
 	"github.com/calionauta/turvez/internal/secret"
+	"github.com/danmestas/dagnats/worker"
 )
 
 // NotifyWebhookInput is the task payload for the "notify.webhook" handler:
