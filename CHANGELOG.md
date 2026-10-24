@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/calionauta/turvez/compare/v0.1.1...v0.1.2) (2026-10-24)
+
+
+### Features
+
+* guard the pre-1.0 policy and harden CI ([5d7d25e](https://github.com/calionauta/turvez/commit/5d7d25eaf1221418e5fe046d47390b270b897929))
+
 ## [0.1.1](https://github.com/calionauta/turvez/compare/v0.1.0...v0.1.1) (2026-10-24)
 
 
