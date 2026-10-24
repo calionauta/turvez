@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/calionauta/turvez/compare/v0.1.0...v0.1.1) (2026-10-24)
+
+
+### Features
+
+* enforce Conventional Commits locally and in CI ([3d731db](https://github.com/calionauta/turvez/commit/3d731dbdcd2353d0da60b36e4e05749e56a1324c))
+
 ## 0.1.0 (2026-10-24)
 
 ### Features
