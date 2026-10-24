@@ -224,6 +224,61 @@ func TestRecipeStructure(t *testing.T) {
 	}
 }
 
+// TestClientFieldbooks enforces the fieldbook-per-client structure: every
+// client folder (except _templates, which holds the template itself) must
+// have a README.md copied from workflows/_templates/FIELDBOOK.md.
+func TestClientFieldbooks(t *testing.T) {
+	dirs, err := filepath.Glob("*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := 0
+	for _, d := range dirs {
+		fi, err := os.Stat(d)
+		if err != nil || !fi.IsDir() || d == "_templates" {
+			continue
+		}
+		found++
+		readme := filepath.Join(d, "README.md")
+		raw, err := os.ReadFile(readme)
+		if err != nil {
+			t.Errorf("%s: missing README.md (copy workflows/_templates/FIELDBOOK.md)", d)
+			continue
+		}
+		if !strings.Contains(string(raw), "Fieldbook:") {
+			t.Errorf("%s/README.md: must start from the FIELDBOOK template (missing 'Fieldbook:' header)", d)
+		}
+	}
+	if found == 0 {
+		t.Fatal("no client folders found")
+	}
+}
+
+// TestRecipeExpressionsCompile guarantees every transform.json expression
+// embedded in ANY recipe at least parses+compiles. Sample-based eval tests
+// (TestRecipeExpressions) only cover curated recipes; this catches the
+// common LLM failure mode — a syntactically broken jq expression in a new
+// client recipe — without needing per-recipe fixtures.
+func TestRecipeExpressionsCompile(t *testing.T) {
+	checked := 0
+	for path, wf := range loadRecipes(t) {
+		for _, s := range wf.Steps {
+			expr := s.Metadata["expression"]
+			if s.Task != "transform.json" || expr == "" {
+				continue
+			}
+			checked++
+			if err := handlers.CompileExpression(expr); err != nil {
+				t.Errorf("%s step %q: %v", path, s.ID, err)
+			}
+		}
+		t.Logf("%s: expressions compile", path)
+	}
+	if checked == 0 {
+		t.Fatal("no transform.json expressions found — check the glob")
+	}
+}
+
 func depExistsLater(steps []stepDef, id string) bool {
 	for _, s := range steps {
 		if s.ID == id {

@@ -1,0 +1,19 @@
+# Fieldbook: ops (platform namespace, not a client)
+
+> `ops/` holds platform automation (DLQ watchdog, etc.). No client secrets
+> here — only `OPS_*` names. Per-client work lives in `workflows/<client>/`.
+
+## Recipes
+
+| Recipe | Trigger | Id |
+|---|---|---|
+| `ops/dlq-watchdog` | cron a cada 5 min | `ops-dlq-watchdog-cron` |
+
+## Operação
+
+```bash
+./scripts/register-workflows.sh ops
+dagnats run list --workflow=ops/
+```
+
+Detalhes em `docs/alerting.md` (camada 2: DLQ watchdog).

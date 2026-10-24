@@ -85,6 +85,11 @@ Failures page the operator three ways (see `docs/alerting.md`):
 - `docs/tenancy-evolution.md` — stages 1→3 without redesign.
 - `docs/isolating-a-client.md` — extract one client to its own host.
 - `docs/migrate-to-windmill.md` — Windmill escape hatch (docs only).
+- `docs/sandbox-policy.md` — when you need a sandbox (usually you don't) + `scripts/sandbox-run.sh`.
+- `docs/script-execution.md` — where to execute: dagnats vs one-off vs Dagu vs Windmill.
+- `workflows/_templates/FIELDBOOK.md` — per-client fieldbook template (copy to `workflows/<client>/README.md`).
+- `skills/dagnats-automation/SKILL.md` — automate-anything skill (direct → confirm → build). Symlink into your harness skills dir.
+- `workflows/personal/` — your own automations as client `personal/` (same pipeline, you approve).
 - `ARCHITECTURE.md` — diagram, data flow, decisions.
 - `AGENTS.md` — agent quick rules (this file's essentials).
 

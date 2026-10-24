@@ -18,6 +18,12 @@
 - Secrets: docs/secrets.md (names in JSON, values in env/age only)
 - Alerts: docs/alerting.md (on_failure, DLQ watchdog, external probe)
 - Tenancy/extract: docs/tenancy-evolution.md, docs/isolating-a-client.md
+- New client fieldbook: workflows/_templates/FIELDBOOK.md (copy to workflows/<client>/README.md)
+- Personal automations: client `personal/` (same pipeline, you are the approver)
+- Automate-anything skill: skills/dagnats-automation/SKILL.md (direct → confirm → build; link into your harness skills dir)
+- Client intake (interview + degustia tool picks): skills/dagnats-automation/references/client-intake.md
+- Sandbox decision: docs/sandbox-policy.md (3 questions) + scripts/sandbox-run.sh for one-offs
+- Where to execute (dagnats vs Dagu vs Windmill): docs/script-execution.md (decision tree)
 - Windmill escape hatch: docs/migrate-to-windmill.md (docs only)
 
 ## Invariants (do not relearn these)

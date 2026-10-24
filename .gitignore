@@ -17,3 +17,9 @@ env/*.env
 .idea/
 .vscode/
 *.swp
+
+# Local sandbox outputs (scripts/sandbox-run.sh) — never commit
+sandbox-out/
+
+# Local agent memory (Engram) — machine-specific, never commit
+.engram/

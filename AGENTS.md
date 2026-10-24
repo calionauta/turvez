@@ -6,6 +6,7 @@
 - `internal/handlers/` — 12 generic tasks (stable names recipes depend on).
 - `internal/secret/` — env + age loader. `internal/opshttp/` — approval shim.
 - `workflows/<client>/*.json` — THE automation code. `workflows/_templates/` — skeletons.
+- `workflows/<client>/README.md` — per-client fieldbook (copy from `workflows/_templates/FIELDBOOK.md`).
 - `env/<client>.env.example` — secret names (commit); `env/<client>.env` — values (never).
 - `secrets/<client>/*.env.age` — ciphertext OK in git. `docs/` — expanded refs.
 
@@ -29,6 +30,9 @@
   surfaces: `docs/writing-recipes.md#what-the-engine-allows-in-this-runtime`.
 - Windmill: no dependency; keep recipes in portable step types; flag any new
   Go handler as "Windmill migration cost" (see `docs/migrate-to-windmill.md`).
+- Sandbox/where-to-run: recipes need no external sandbox (`validate` + `go test`);
+  one-off scripts via `scripts/sandbox-run.sh`; recurrent script-shaped jobs via
+  Dagu ad-hoc, Windmill by migration (see `docs/sandbox-policy.md`, `docs/script-execution.md`).
 
 ## Commands
 
@@ -46,3 +50,16 @@ curl -X POST $OPS/ops/approvals/<run> -H "Authorization: Bearer $TOK" -d '{"appr
 
 REST: `POST /workflows|/runs|/runs/{id}/cancel|/runs/{id}/signal/{n}|/runs/{id}/approval/{s}?action=approve|reject&token=…`.
 Full reference: `docs/agent-tools.md`. After edits: `go test ./...`, `dagnats workflow validate`.
+
+## Stack
+
+- Go 1.27 (`go.mod`), dagnats v0.0.24 (pinned), NATS JetStream embedded, worker `distroless/static`.
+- Skill: `skills/dagnats-automation/SKILL.md` (+ `references/` detail files) — direct → confirm → build.
+
+## Don'ts
+
+- Never execute arbitrary scripts from workflow JSON — recipes use only the 12 registered tasks.
+- Never paste secret values into JSON, docs, chat, or prompts — names only (`go test ./workflows/` guards this).
+- Never edit definitions only in dagnats KV/console without committing to git first.
+- Never invent handler `task` names or protocol fields — registry is `internal/handlers/handlers.go`.
+- Never run `register`, `run start/cancel`, or `trigger disable/delete` unasked — propose the exact command and wait.

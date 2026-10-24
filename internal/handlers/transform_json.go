@@ -20,6 +20,25 @@ type TransformOutput struct {
 	Result any `json:"result"`
 }
 
+// CompileExpression parses and compiles a jq expression without running
+// it. Used by tests (and any future validate tooling) to guarantee every
+// expression embedded in a recipe is at least syntactically valid —
+// eval-time behavior still needs sample coverage in TestRecipeExpressions.
+func CompileExpression(expression string) error {
+	if expression == "" {
+		return fmt.Errorf("transform.json: expression is required")
+	}
+	query, err := gojq.Parse(expression)
+	if err != nil {
+		return fmt.Errorf("transform.json: invalid expression: %w", err)
+	}
+	_, err = gojq.Compile(query)
+	if err != nil {
+		return fmt.Errorf("transform.json: cannot compile expression: %w", err)
+	}
+	return nil
+}
+
 // ApplyJQLight compiles expression once and collects all outputs. A single
 // output is unwrapped; multiple outputs become an array.
 func ApplyJQLight(input any, expression string) (any, error) {

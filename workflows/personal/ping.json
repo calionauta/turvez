@@ -1,0 +1,16 @@
+{
+  "name": "personal/ping",
+  "version": "1.0.0",
+  "steps": [
+    {
+      "id": "ping",
+      "task": "transform.json",
+      "type": "normal",
+      "timeout": 30000000000,
+      "metadata": {
+        "expression": "((.data // .) | {pong: true, echo: .})"
+      }
+    }
+  ],
+  "triggers": []
+}
