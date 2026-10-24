@@ -90,11 +90,14 @@ or editing turns weekly (concrete triggers documented, not before).
 ## Quickstart
 
 ```bash
-# 0. Check prereqs (go, dagnats CLI, docker, env files, degustia ranker)
+# 0. Skill first (one command, works from any directory):
+npx skills add calionauta/turvez --skill turvez -g   # global; drop -g for project-level
+
+# 1. Check prereqs (go, dagnats CLI, docker, env files, degustia ranker)
 ./scripts/setup.sh
 ./scripts/setup.sh --init personal   # scaffold gitignored env files
 
-# 1. Engine + worker stack
+# 2. Engine + worker stack
 make up            # dagnats :4222/:8080, worker pulls tasks
 
 # …or locally (needs dagnats serve in another terminal):
@@ -103,10 +106,10 @@ dagnats serve &
 cp .env.example .env   # fill real values
 make worker
 
-# 2. Register the example recipes
+# 3. Register the example recipes
 make register
 
-# 3. Smoke: start a run, print status/events
+# 4. Smoke: start a run, print status/events
 make smoke
 ```
 
@@ -173,3 +176,6 @@ curl -X POST localhost:8090/ops/approvals/<run-id> \
   values in env/age files only.
 - Durations in JSON are integer nanoseconds (`30000000000` = 30s) or Go
   duration strings (`"30s"`).
+- Secrets are age-encrypted from day one (`secrets/<client>/env.age`,
+  `scripts/edit-secrets.sh`); plain `.env` files are local scratch only.
+  Pre-commit secret scan: `./scripts/install-hooks.sh`.
