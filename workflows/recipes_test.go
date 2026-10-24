@@ -66,15 +66,28 @@ type triggerDef struct {
 
 // recipeFiles lists every client recipe. _templates holds TODO-CLIENT
 // placeholders (validated by `make validate`, not by these tests).
+//
+// WORKFLOWS_DIR override: points at another checkout's workflows dir
+// (e.g. ../turvez-ops/workflows) so the template's contract tests can
+// validate a private ops repo without copying Go code. Empty = "." (this
+// package's dir, the template default).
+func workflowsRoot() string {
+	if v := os.Getenv("WORKFLOWS_DIR"); v != "" {
+		return v
+	}
+	return "."
+}
+
 func recipeFiles(t *testing.T) []string {
 	t.Helper()
-	dirs, err := filepath.Glob("*")
+	root := workflowsRoot()
+	dirs, err := filepath.Glob(filepath.Join(root, "*"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	var files []string
 	for _, d := range dirs {
-		if d == "_templates" {
+		if filepath.Base(d) == "_templates" {
 			continue
 		}
 		if fi, err := os.Stat(d); err != nil || !fi.IsDir() {
@@ -105,7 +118,11 @@ func loadRecipes(t *testing.T) map[string]workflowFile {
 		if err := json.Unmarshal(raw, &wf); err != nil {
 			t.Fatalf("%s: %v", f, err)
 		}
-		out[f] = wf
+		// Stable key: <client>/<file>.json regardless of WORKFLOWS_DIR
+		// (absolute or relative). Keeps curated expression tests working
+		// against a private ops checkout.
+		key := filepath.Join(filepath.Base(filepath.Dir(f)), filepath.Base(f))
+		out[key] = wf
 	}
 	return out
 }
@@ -130,7 +147,12 @@ func TestRecipeStructure(t *testing.T) {
 		}
 	}
 	for path, wf := range loadRecipes(t) {
-		client := filepath.Dir(path) // workflows/<client-id>/*.json
+		client := filepath.Dir(path) // <client-id>/file.json (Base-normalized in loadRecipes)
+		// filepath.Dir on "client/file" returns "client"; on absolute paths
+		// fall back to Base to survive WORKFLOWS_DIR overrides.
+		if strings.Contains(client, string(os.PathSeparator)) {
+			client = filepath.Base(client)
+		}
 		t.Run(path, func(t *testing.T) {
 			if wf.Name == "" || wf.Version == "" {
 				t.Fatal("name and version are required")
@@ -228,21 +250,30 @@ func TestRecipeStructure(t *testing.T) {
 // client folder (except _templates, which holds the template itself) must
 // have a README.md copied from workflows/_templates/FIELDBOOK.md.
 func TestClientFieldbooks(t *testing.T) {
-	dirs, err := filepath.Glob("*")
+	dirs, err := filepath.Glob(filepath.Join(workflowsRoot(), "*"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	found := 0
+	// Hint points at the template checkout when validating an ops repo.
+	templateHint := "workflows/_templates/FIELDBOOK.md"
+	if os.Getenv("WORKFLOWS_DIR") != "" {
+		if tc := os.Getenv("TURVEZ_CHECKOUT"); tc != "" {
+			templateHint = tc + "/workflows/_templates/FIELDBOOK.md"
+		} else {
+			templateHint = "<turvez-template>/workflows/_templates/FIELDBOOK.md (set TURVEZ_CHECKOUT)"
+		}
+	}
 	for _, d := range dirs {
 		fi, err := os.Stat(d)
-		if err != nil || !fi.IsDir() || d == "_templates" {
+		if err != nil || !fi.IsDir() || filepath.Base(d) == "_templates" {
 			continue
 		}
 		found++
 		readme := filepath.Join(d, "README.md")
 		raw, err := os.ReadFile(readme)
 		if err != nil {
-			t.Errorf("%s: missing README.md (copy workflows/_templates/FIELDBOOK.md)", d)
+			t.Errorf("%s: missing README.md (copy %s)", d, templateHint)
 			continue
 		}
 		if !strings.Contains(string(raw), "Fieldbook:") {
@@ -251,6 +282,34 @@ func TestClientFieldbooks(t *testing.T) {
 	}
 	if found == 0 {
 		t.Fatal("no client folders found")
+	}
+}
+
+// TestNoRealClientsInTemplate keeps this public repo template-only.
+// Real customers live in a private turvez-ops checkout (see docs/ops-repo.md).
+// Allowlist: _templates, example-client, ops, personal. Anything else fails
+// with a move-to-ops message. Skipped when WORKFLOWS_DIR points at an ops
+// repo (there, any client folder is legitimate).
+func TestNoRealClientsInTemplate(t *testing.T) {
+	if os.Getenv("WORKFLOWS_DIR") != "" {
+		t.Skip("ops repo under test: any client folder is allowed")
+	}
+	allowed := map[string]bool{
+		"_templates": true, "example-client": true, "ops": true, "personal": true,
+	}
+	dirs, err := filepath.Glob(filepath.Join(workflowsRoot(), "*"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range dirs {
+		fi, err := os.Stat(d)
+		if err != nil || !fi.IsDir() {
+			continue
+		}
+		base := filepath.Base(d)
+		if !allowed[base] {
+			t.Errorf("real client %q in template repo — move to turvez-ops (docs/ops-repo.md); template keeps only _templates/example-client/ops/personal", base)
+		}
 	}
 }
 
@@ -367,9 +426,19 @@ func exprOf(wf workflowFile, stepID string) string {
 
 func TestRecipeExpressions(t *testing.T) {
 	all := loadRecipes(t)
+	require := func(tt *testing.T, key string) workflowFile {
+		tt.Helper()
+		wf, ok := all[key]
+		if !ok {
+			// Curated fixtures live only in the template. When WORKFLOWS_DIR
+			// points at a private ops repo, that recipe legitimately absents.
+			tt.Skipf("fixture %q absent (ops repo under test?)", key)
+		}
+		return wf
+	}
 
 	t.Run("hubspot-lead-to-slack", func(t *testing.T) {
-		wf := all["example-client/hubspot-lead-to-slack.json"]
+		wf := require(t, "example-client/hubspot-lead-to-slack.json")
 		// Manual run input and trigger-envelope input must both work.
 		for _, runInput := range []any{
 			map[string]any{"lead_id": "123"},
@@ -393,7 +462,7 @@ func TestRecipeExpressions(t *testing.T) {
 	})
 
 	t.Run("invoice-paid-route", func(t *testing.T) {
-		wf := all["example-client/invoice-paid-route.json"]
+		wf := require(t, "example-client/invoice-paid-route.json")
 		hi := eval(t, exprOf(wf, "shape"), map[string]any{
 			"json": map[string]any{"total": 20000.0, "customer": "Acme"},
 		}).(map[string]any)
@@ -418,7 +487,7 @@ func TestRecipeExpressions(t *testing.T) {
 	})
 
 	t.Run("nightly-sync", func(t *testing.T) {
-		wf := all["example-client/nightly-sync.json"]
+		wf := require(t, "example-client/nightly-sync.json")
 		fetch := eval(t, exprOf(wf, "build-fetch"), nil)
 		if fetch.(map[string]any)["method"] != "GET" {
 			t.Fatalf("fetch payload: %#v", fetch)
@@ -436,7 +505,7 @@ func TestRecipeExpressions(t *testing.T) {
 	})
 
 	t.Run("approval-refund", func(t *testing.T) {
-		wf := all["example-client/approval-refund.json"]
+		wf := require(t, "example-client/approval-refund.json")
 		review := eval(t, exprOf(wf, "build-review"), map[string]any{
 			"order_id": "ord_1", "amount": 42.5, "reason": "dup",
 		}).(map[string]any)
@@ -454,7 +523,7 @@ func TestRecipeExpressions(t *testing.T) {
 	})
 
 	t.Run("ops-dlq-watchdog", func(t *testing.T) {
-		wf := all["ops/dlq-watchdog.json"]
+		wf := require(t, "ops/dlq-watchdog.json")
 		alert := eval(t, exprOf(wf, "build-alert"), map[string]any{
 			"stream": "DEAD_LETTERS", "depth": 3.0, "threshold": 0, "alert": true,
 		}).(map[string]any)

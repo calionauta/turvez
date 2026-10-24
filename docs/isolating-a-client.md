@@ -38,9 +38,13 @@ go install github.com/danmestas/dagnats/cmd/dagnats@v0.0.30
 dagnats serve &
 # or: docker compose up dagnats   (Dockerfile.dagnats pins the version)
 
-# 2. This repo + worker with ONLY this client's secrets
-git clone <this-template> && cd <this-template>
-git checkout <same-sha-as-old-server>
+# 2. Worker repo + ONLY this client's secrets.
+#    Stage 1–2 (shared turvez-ops): clone the private ops repo at the pinned ref.
+#    Never clone the public template for client data — it carries no real clients
+#    (see docs/ops-repo.md).
+git clone <turvez-ops-private-url> && cd <turvez-ops-dir>
+git checkout $(awk -F= '/^TURVEZ_REF=/{print $2}' TURVEZ_PIN) 2>/dev/null || git checkout <same-sha-as-old-server>
+export TURVEZ_CHECKOUT=<path-to-turvez-template-clone> TURVEZ_OPS_DIR=$PWD
 cp env/$CLIENT.env.example env/$CLIENT.env   # fill real values (gitignored)
 # or decrypt: age --decrypt -i ~/.secrets/consultancy.age.key \
 #   -o /tmp/$CLIENT.env secrets/$CLIENT/env.age

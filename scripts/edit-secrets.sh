@@ -20,15 +20,18 @@ if [ "${1:-}" = "--re-encrypt" ]; then RECRYPT=1; shift; fi
 CLIENT="${1:?Usage: edit-secrets.sh [--re-encrypt] <client-id>}"
 [[ "$CLIENT" =~ ^[a-z0-9][a-z0-9-]*$ ]] || { echo "bad client id: $CLIENT" >&2; exit 1; }
 
+# Ops repos: TURVEZ_OPS_DIR points at the private checkout. Default = cwd.
+ROOT="${TURVEZ_OPS_DIR:-.}"
+
 command -v age >/dev/null || { echo "age binary not found" >&2; exit 1; }
 command -v age-keygen >/dev/null || { echo "age-keygen binary not found" >&2; exit 1; }
 
 IDENTITY="${AGE_IDENTITY_FILE:-$HOME/.secrets/consultancy.age.key}"
 [ -f "$IDENTITY" ] || { echo "identity not found: $IDENTITY" >&2; exit 1; }
 
-SECRETS_DIR="secrets/$CLIENT"
+SECRETS_DIR="$ROOT/secrets/$CLIENT"
 AGE_FILE="$SECRETS_DIR/env.age"
-EXAMPLE="env/$CLIENT.env.example"
+EXAMPLE="$ROOT/env/$CLIENT.env.example"
 RECIPIENTS_FILE="$SECRETS_DIR/.recipients"
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/edit-secrets.XXXXXX")"

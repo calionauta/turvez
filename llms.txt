@@ -5,9 +5,11 @@
 
 ## Start here (every task)
 
-- AGENTS.md — layout, rules, traps, commands (normative)
+- AGENTS.md — layout, rules, traps, commands (normative). Q0: repo type first
+  (`go.mod` = template public, `TURVEZ_PIN` = ops private).
 - ARCHITECTURE.md — diagram, data flow, decisions
 - README.md — quickstart, operator loop, examples
+- docs/ops-repo.md — template vs ops split, lifecycle, tenancy map
 
 ## By task
 

@@ -1,7 +1,8 @@
 # Fieldbook: TODO-CLIENT
 
-> Copy to `workflows/TODO-CLIENT/README.md` when opening the client.
-> Git is source of truth; KV is deploy target (same rule as recipes).
+> Copy to `turvez-ops/workflows/TODO-CLIENT/README.md` when opening the client
+> (private ops repo — never in the public template). Git is source of truth;
+> KV is deploy target (same rule as recipes).
 > Secret names yes, values never (`go test ./workflows/` fails if one leaks).
 > Diagnosis seed from degustia (if an Encorpado exists): `dores_mapeadas` → §1;
 > systems mentioned → §3 (NAMES only); automations from chaining 2.2b →

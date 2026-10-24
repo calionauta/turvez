@@ -1,5 +1,14 @@
 # AGENTS.md — consultancy automation runtime (Go + dagnats v0.0.30)
 
+## Repo type (Q0 — check before anything else)
+
+- `go.mod` only = **template** (this repo, public). Real clients forbidden here
+  (`go test` fails them) — they live in private `turvez-ops` (`docs/ops-repo.md`).
+- `TURVEZ_PIN` only = **ops repo** (private, data-only). Validate from the
+  template checkout: `OPS=$PWD; cd $TURVEZ_CHECKOUT && WORKFLOWS_DIR=$OPS/workflows go test ./workflows/`.
+- Env: `TURVEZ_CHECKOUT` (template clone), `TURVEZ_OPS_DIR` (ops root),
+  `WORKFLOWS_DIR` (override for tests/register).
+
 ## Layout
 
 - `cmd/worker/` — single worker binary (registers handlers, pulls NATS tasks).
@@ -8,7 +17,8 @@
 - `workflows/<client>/*.json` — THE automation code. `workflows/_templates/` — skeletons.
 - `workflows/<client>/README.md` — per-client fieldbook (copy from `workflows/_templates/FIELDBOOK.md`).
 - `env/<client>.env.example` — secret names (commit); `env/<client>.env` — values (never).
-- `secrets/<client>/*.env.age` — ciphertext OK in git. `docs/` — expanded refs.
+- `secrets/<client>/*.env.age` — ciphertext OK in git **in ops repos only**. `docs/` — expanded refs.
+- Template keeps only `_templates/example-client/ops/personal` (see `docs/ops-repo.md`).
 
 ## Rules
 

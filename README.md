@@ -60,6 +60,10 @@ FDEOps are *inputs* (diagnose, decide), turvez is the *executor* (run, operate).
 
 ## Per-client structure and fieldbooks
 
+> Public template keeps only `_templates/`, `example-client/`, `ops/`,
+> `personal/` (fixtures). Real clients live in a private `turvez-ops` repo —
+> see `docs/ops-repo.md` (scaffold: `./scripts/new-ops-repo.sh ../turvez-ops`).
+
 Everything a client needs lives in one folder plus one env template:
 
 ```text
@@ -156,6 +160,7 @@ curl -X POST localhost:8090/ops/approvals/<run-id> \
   what the engine allows here, v0.0.30 behaviors, custom-handler checklist.
 - `docs/handlers-reference.md` — task inputs/outputs, metadata keys.
 - `docs/agent-tools.md` — exact CLI/API for an authoring agent.
+- `docs/ops-repo.md` — template (public) vs ops (private `turvez-ops`) split, lifecycle, tenancy.
 - `docs/secrets.md` — per-client age encryption, JIT runtime.
 - `docs/alerting.md` — operator notifications: on_failure pages, DLQ watchdog, external uptime.
 - `docs/tenancy-evolution.md` — stages 1→3 without redesign.

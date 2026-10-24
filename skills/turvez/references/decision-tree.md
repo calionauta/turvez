@@ -1,6 +1,9 @@
 # Decision tree: where does this automation belong?
 
-Ask in order. First "yes" wins. Full rationale: `docs/script-execution.md`.
+Q0 first: which repo am I in? `go.mod` only = template (public, no real
+clients — refuse, point to turvez-ops via docs/ops-repo.md). `TURVEZ_PIN`
+only = ops repo (private, any client OK). Then ask in order. First "yes"
+wins. Full rationale: `docs/script-execution.md`.
 
 ## Level 0 — dagnats recipe (default)
 

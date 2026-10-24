@@ -1,4 +1,4 @@
-.PHONY: up down worker register smoke test lint validate tidy
+.PHONY: up down worker register smoke test lint validate tidy new-ops-repo new-client validate-ops register-ops
 
 # Start dagnats (engine + embedded NATS + API + console) and the worker.
 up:
@@ -14,6 +14,22 @@ worker:
 # Validate then register example workflows (all clients, or one).
 register:
 	./scripts/register-workflows.sh $(CLIENT)
+
+# Ops repo (private data): validate/register against WORKFLOWS_DIR.
+#   make validate-ops TURVEZ_OPS_DIR=../turvez-ops
+validate-ops:
+	: "${TURVEZ_OPS_DIR:?set TURVEZ_OPS_DIR to the private ops checkout}"
+	WORKFLOWS_DIR=${TURVEZ_OPS_DIR}/workflows go test ./workflows/ -timeout 300s
+
+register-ops:
+	: "${TURVEZ_OPS_DIR:?set TURVEZ_OPS_DIR to the private ops checkout}"
+	WORKFLOWS_DIR=${TURVEZ_OPS_DIR}/workflows ./scripts/register-workflows.sh $(CLIENT)
+
+new-ops-repo:
+	./scripts/new-ops-repo.sh $(DEST)
+
+new-client:
+	./scripts/new-client.sh $(CLIENT)
 
 # Safe decrypt-edit-encrypt cycle for one client's secrets.
 edit-secrets:

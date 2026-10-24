@@ -7,11 +7,14 @@
 #                                     # (gitignored, never overwrites existing)
 #
 # What a new user needs, in order:
+#   0. Repo type (template public vs ops private)
 #   1. Go toolchain (worker builds + go test)
 #   2. dagnats CLI pinned at v0.0.30 (validate/register/run)
 #   3. Docker daemon (compose stack: engine + worker)
-#   4. env files (names only in git; values are yours)
-#   5. (optional) degustia checkout → scripts/tool-pick.sh ranking
+#   4. env files, required (names only in git; values are yours)
+#   5. degustia ranker, OPTIONAL (tool-pick.sh degrades without it)
+#   6. Ops tooling: age (required, secrets flow), python3 (required, register
+#      namespace check), gh (optional, only for new-ops-repo.sh --github-private)
 set -euo pipefail
 
 INIT=0
@@ -19,9 +22,17 @@ CLIENT="${2:-personal}"
 if [ "${1:-}" = "--init" ]; then INIT=1; fi
 [ "${1:-}" = "--init" ] && [ -n "${2:-}" ] && CLIENT="$2"
 
-pass=0; fail=0
+pass=0; fail=0; notes=0
 ok()   { echo "  ✅ $1"; pass=$((pass+1)); }
 warn() { echo "  ⚠️  $1"; fail=$((fail+1)); }
+note() { echo "  ℹ️  $1 (optional — setup still passes)"; notes=$((notes+1)); }
+
+echo "== 0. repo type (template vs ops) =="
+if [ -f "TURVEZ_PIN" ] && [ ! -f "go.mod" ]; then ok "ops repo (data-only; engine pinned via TURVEZ_PIN)";
+elif [ -f "go.mod" ] && [ ! -f "TURVEZ_PIN" ]; then ok "template repo (public; real clients live in turvez-ops — docs/ops-repo.md)";
+elif [ -f "TURVEZ_PIN" ] && [ -f "go.mod" ]; then warn "both TURVEZ_PIN and go.mod present — ambiguous checkout";
+else warn "unknown checkout (neither go.mod nor TURVEZ_PIN)"; fi
+if [ -n "${WORKFLOWS_DIR:-${TURVEZ_OPS_DIR:+$TURVEZ_OPS_DIR/workflows}}" ]; then ok "WORKFLOWS_DIR override: ${WORKFLOWS_DIR:-$TURVEZ_OPS_DIR/workflows}"; fi
 
 echo "== 1. Go toolchain =="
 if command -v go >/dev/null; then ok "$(go version)"; else warn "go not found — https://go.dev/dl/"; fi
@@ -48,26 +59,46 @@ check_env() {
   elif [ -f "$example" ]; then warn "$target missing — cp $example $target";
   else warn "no $example template"; fi
 }
-check_env ".env.example" ".env"
+if [ -f "TURVEZ_PIN" ] && [ ! -f "go.mod" ]; then
+  : # ops repo: no root .env.example by design (per-client env/<client>.env only)
+else
+  check_env ".env.example" ".env"
+fi
 check_env "env/$CLIENT.env.example" "env/$CLIENT.env"
 
 echo "== 5. degustia ranker (optional, for scripts/tool-pick.sh) =="
 RANKER="${DEGUSTIA_SKILL_DIR:-}/scripts/rank_candidates.py"
 if [ -n "${DEGUSTIA_SKILL_DIR:-}" ] && [ -f "$RANKER" ]; then ok "ranker at $RANKER";
-else warn "DEGUSTIA_SKILL_DIR unset or missing ranker — tool-pick.sh degrades to manual hierarchy"; fi
+else note "DEGUSTIA_SKILL_DIR unset or missing ranker — tool-pick.sh degrades to manual hierarchy"; fi
+
+echo "== 6. ops tooling =="
+if command -v age >/dev/null && command -v age-keygen >/dev/null; then ok "age + age-keygen ($(command -v age))";
+else warn "age not found — edit-secrets.sh needs it (brew install age)"; fi
+if command -v python3 >/dev/null; then ok "python3 ($(command -v python3))";
+else warn "python3 not found — register-workflows.sh needs it for the namespace check"; fi
+if command -v gh >/dev/null; then ok "gh ($(command -v gh)) — for new-ops-repo.sh --github-private";
+else note "gh not found — only needed to push a new ops repo (https://cli.github.com/)"; fi
 
 echo
 echo "== next =="
-echo "  make up                      # engine :8080/:4222 + worker (docker)"
-echo "  # …or locally: dagnats serve &  make worker"
-echo "  ./scripts/setup.sh --init $CLIENT   # scaffold env files"
-echo "  ./scripts/install-hooks.sh       # pre-commit secret scan (opt-in, local)"
-echo "  make register CLIENT=$CLIENT && make smoke"
-echo "  dagnats run start \"$CLIENT/ping\" '{\"hello\":\"world\"}' --watch"
+if [ -f "TURVEZ_PIN" ] && [ ! -f "go.mod" ]; then
+  echo "  # ops repo: validate/register from the pinned template checkout"
+  echo "  OPS=\$PWD; cd \$TURVEZ_CHECKOUT && WORKFLOWS_DIR=\$OPS/workflows go test ./workflows/"
+  echo "  # or: make validate-ops TURVEZ_OPS_DIR=\$PWD   (from \$TURVEZ_CHECKOUT)"
+  echo "  OPS=\$PWD; cd \$TURVEZ_CHECKOUT && WORKFLOWS_DIR=\$OPS/workflows ./scripts/register-workflows.sh $CLIENT"
+else
+  echo "  make up                      # engine :8080/:4222 + worker (docker)"
+  echo "  # …or locally: dagnats serve &  make worker"
+  echo "  ./scripts/setup.sh --init $CLIENT   # scaffold env files"
+  echo "  ./scripts/install-hooks.sh       # pre-commit secret scan (opt-in, local)"
+  echo "  ./scripts/new-ops-repo.sh ../turvez-ops  # private data repo (real clients live there)"
+  echo "  make register CLIENT=$CLIENT && make smoke"
+  echo "  dagnats run start \"$CLIENT/ping\" '{\"hello\":\"world\"}' --watch"
+fi
 echo
 echo "== optional companions (informed, never installed automatically) =="
 echo "  FDEOps methodology (discover/scope/runbook): npx skills add suboss87/fdeops --skill fde"
 echo "  degustia MCP, free (recommend/render/validate): https://degustia-mcp.calionauta.com/mcp"
 echo "  turvez skill for your harness: npx skills add calionauta/turvez --skill turvez -g"
-[ "$fail" -eq 0 ] || { echo; echo "$fail check(s) need attention (see ⚠️  above)"; exit 1; }
-echo; echo "setup OK ($pass checks passed)"
+[ "$fail" -eq 0 ] || { echo; echo "$fail required check(s) need attention (see ⚠️  above)"; exit 1; }
+echo; echo "setup OK ($pass checks passed${notes:+, $notes optional note(s)})"

@@ -12,6 +12,10 @@
 set -euo pipefail
 
 CLIENT="${1:-${CLIENT_ID:-}}"
+# Data-only ops repos: WORKFLOWS_DIR (or TURVEZ_OPS_DIR/workflows) points at
+# the private checkout. Default = this repo's workflows/ (template mode).
+WORKFLOWS_DIR="${WORKFLOWS_DIR:-${TURVEZ_OPS_DIR:+$TURVEZ_OPS_DIR/workflows}}"
+WORKFLOWS_DIR="${WORKFLOWS_DIR:-workflows}"
 
 command -v dagnats >/dev/null || {
   echo "dagnats CLI not found. Install: go install github.com/danmestas/dagnats/cmd/dagnats@v0.0.30" >&2
@@ -23,18 +27,18 @@ command -v python3 >/dev/null || {
 }
 
 if [ -n "$CLIENT" ]; then
-  DIRS=("workflows/$CLIENT")
-  [ -d "workflows/$CLIENT" ] || { echo "unknown client: workflows/$CLIENT" >&2; exit 1; }
+  DIRS=("$WORKFLOWS_DIR/$CLIENT")
+  [ -d "$WORKFLOWS_DIR/$CLIENT" ] || { echo "unknown client: $WORKFLOWS_DIR/$CLIENT" >&2; exit 1; }
 else
-  DIRS=(workflows/*/)
+  DIRS=("$WORKFLOWS_DIR"/*/)
 fi
 
 fail=0
 for dir in "${DIRS[@]}"; do
   # Skip the templates dir (TODO-CLIENT placeholders, not registerable).
-  case "$dir" in workflows/_templates/*) continue;; esac
+  case "$dir" in */_templates/*) continue;; esac
   expected="$(basename "$dir")"
-  for f in "$dir"/*.json; do
+  for f in "${dir%/}"/*.json; do
     [ -e "$f" ] || continue
     echo "== $f"
     dagnats workflow validate "$f"
