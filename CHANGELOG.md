@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/calionauta/turvez/compare/v0.1.0...v0.1.1) (2026-10-24)
+
+
+### Documentation
+
+* pin ops repos to release tags ([2ccde75](https://github.com/calionauta/turvez/commit/2ccde75e15368985ccea32ed9fae06e8cf46989d))
+
 ## 0.1.0 (2026-10-24)
 
 ### Features
