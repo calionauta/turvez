@@ -63,5 +63,10 @@ echo "  # …or locally: dagnats serve &  make worker"
 echo "  ./scripts/setup.sh --init $CLIENT   # scaffold env files"
 echo "  make register CLIENT=$CLIENT && make smoke"
 echo "  dagnats run start \"$CLIENT/ping\" '{\"hello\":\"world\"}' --watch"
+echo
+echo "== optional companions (informed, never installed automatically) =="
+echo "  FDEOps methodology (discover/scope/runbook): npx skills add suboss87/fdeops --skill fde"
+echo "  degustia MCP, free (recommend/render/validate): https://degustia-mcp.calionauta.com/mcp"
+echo "  turvez skill for your harness: symlink skills/turvez into your agent's skills dir"
 [ "$fail" -eq 0 ] || { echo; echo "$fail check(s) need attention (see ⚠️  above)"; exit 1; }
 echo; echo "setup OK ($pass checks passed)"

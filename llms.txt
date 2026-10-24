@@ -18,6 +18,7 @@
 - Secrets: docs/secrets.md (names in JSON, values in env/age only)
 - Alerts: docs/alerting.md (on_failure, DLQ watchdog, external probe)
 - Tenancy/extract: docs/tenancy-evolution.md, docs/isolating-a-client.md
+- Fresh checkout / install: scripts/setup.sh (check-only; --init scaffolds env), README Quickstart
 - New client fieldbook: workflows/_templates/FIELDBOOK.md (copy to workflows/<client>/README.md)
 - Personal automations: client `personal/` (same pipeline, you are the approver)
 - Automate-anything skill: skills/turvez/SKILL.md (direct → confirm → build; link into your harness skills dir)
