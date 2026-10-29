@@ -23,22 +23,41 @@ import sys
 from pathlib import Path
 
 
+TEXT_CANDIDATES = ("text", "message", "msg", "body", "content", "log", "line")
+
+
+def pick(row: dict, field: str) -> str:
+    """Use the requested field, else the first common log field present."""
+    if field in row:
+        return str(row[field])
+    for candidate in TEXT_CANDIDATES:
+        if candidate in row:
+            return str(row[candidate])
+    return ""
+
+
 def rows(path: Path, text_field: str, id_field: str | None):
+    if path.suffix in (".txt", ".log"):
+        for number, line in enumerate(path.read_text().splitlines(), 1):
+            if line.strip():
+                yield line, str(number)
+        return
     if path.suffix == ".csv":
         with path.open(newline="") as fh:
-            for row in csv.DictReader(fh):
-                yield row.get(text_field, ""), row.get(id_field or "", "")
+            reader = csv.DictReader(fh)
+            for number, row in enumerate(reader, 1):
+                yield pick(row, text_field), row.get(id_field or "", str(number))
         return
     if path.suffix in (".jsonl", ".ndjson"):
-        for line in path.read_text().splitlines():
+        for number, line in enumerate(path.read_text().splitlines(), 1):
             if line.strip():
                 doc = json.loads(line)
-                yield str(doc.get(text_field, "")), str(doc.get(id_field or "", ""))
+                yield pick(doc, text_field), str(doc.get(id_field or "", number))
         return
     doc = json.loads(path.read_text())
     items = doc.get("items", doc) if isinstance(doc, dict) else doc
-    for item in items:
-        yield str(item.get(text_field, "")), str(item.get(id_field or "", ""))
+    for number, item in enumerate(items, 1):
+        yield pick(item, text_field), str(item.get(id_field or "", number))
 
 
 def main() -> int:
@@ -51,8 +70,8 @@ def main() -> int:
 
 no label is generated. fill expected_category in the CSV, then run
 promptfooconfig.logs.yaml. see skills/turvez/references/eval-loop.md.""")
-    ap.add_argument("--input", required=True, help="logs file (.jsonl, .json, .csv)")
-    ap.add_argument("--text-field", default="text", help="field/column holding the input text")
+    ap.add_argument("--input", required=True, help="logs file (.jsonl, .json, .csv, .txt, .log)")
+    ap.add_argument("--text-field", default="text", help="field/column with the text; falls back to message/msg/body/content/log")
     ap.add_argument("--id-field", default=None, help="optional id field for traceability")
     ap.add_argument("--out", required=True, help="client eval dir (writes cases/logs.csv)")
     ap.add_argument("--split", default="dev", help="metadata split (dev|holdout)")

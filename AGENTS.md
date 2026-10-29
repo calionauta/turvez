@@ -59,7 +59,7 @@ curl -X POST $OPS/ops/approvals/<run> -H "Authorization: Bearer $TOK" -d '{"appr
 ```
 
 REST: `POST /workflows|/runs|/runs/{id}/cancel|/runs/{id}/signal/{n}|/runs/{id}/approval/{s}?action=approve|reject&token=…`.
-First run + traps: `docs/first-run.md`. Client deployment model (embedded vs
+First run + traps: `docs/first-run.md`. Flows and formats: `docs/workflows.md`. Client deployment model (embedded vs
 managed vs multi-tenant, gateway placement): `docs/deployment-profiles.md`.
 Full CLI/API reference: `docs/agent-tools.md`. After edits: `go test ./...`, `dagnats workflow validate`.
 
