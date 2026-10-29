@@ -80,7 +80,7 @@ git add -f secrets/acme/env.age && git commit
 
 ## Tenancy map
 
-- Stage 1–2: one `turvez-ops` for all clients (folder + `<client>/` prefix + env).
+- Stage 1–2: one `turvez-ops` for all clients (folder + `<client>.<wf>` names + env).
 - Stage 3: `turvez-<client>` per isolated client — same scaffold, `CLIENT_ID`
   set, triggers re-created, old triggers disabled (see `isolating-a-client.md`).
 - Second operator: they send their age pubkey, you append to
@@ -93,4 +93,4 @@ git add -f secrets/acme/env.age && git commit
 Fieldbooks with real contacts/systems, recipes with real business logic,
 `env.age` with real ciphertext — even encrypted, the metadata (client names,
 secret names, systems) leaks. Template keeps only `_templates/`,
-`example-client/`, `ops/`, `personal/ping` as fixtures.
+`example-client/`, `ops/`, `personal.ping` as fixtures.

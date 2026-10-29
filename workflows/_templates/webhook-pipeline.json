@@ -1,5 +1,5 @@
 {
-  "name": "TODO-CLIENT/webhook-pipeline",
+  "name": "TODO-CLIENT.webhook-pipeline",
   "version": "1.0.0",
   "steps": [
     {

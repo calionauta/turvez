@@ -7,7 +7,7 @@
 
 | Recipe | Trigger | Id |
 |---|---|---|
-| `ops/dlq-watchdog` | cron every 5 min | `ops-dlq-watchdog-cron` |
+| `ops.dlq-watchdog` | cron every 5 min | `ops-dlq-watchdog-cron` |
 
 ## Operation
 

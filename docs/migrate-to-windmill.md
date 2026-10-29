@@ -41,11 +41,11 @@ historical run logs — only definitions, triggers, and secret *names*.
 
 ## Example: lead pipeline rewritten (illustrative TypeScript)
 
-Source: `workflows/example-client/hubspot-lead-to-slack.json`
+Source: `workflows/example-client.hubspot-lead-to-slack.json`
 (build-fetch → fetch-lead → build-notify → notify).
 
 ```typescript
-// Windmill flow "example-client/hubspot-lead-to-slack", 4 script steps.
+// Windmill flow "example-client.hubspot-lead-to-slack", 4 script steps.
 // Secrets (wmill resources): ACME_HUBSPOT_TOKEN, ACME_SLACK_WEBHOOK_URL.
 
 type LeadInput = { lead_id: string } | { data: { lead_id: string } };

@@ -10,7 +10,7 @@
 # Usage: ./scripts/smoke-test.sh
 set -euo pipefail
 
-WF="example-client/hubspot-lead-to-slack"
+WF="example-client.hubspot-lead-to-slack"  # name shape comes from naming.json
 
 ./scripts/register-workflows.sh example-client
 

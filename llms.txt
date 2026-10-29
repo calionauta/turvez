@@ -38,6 +38,9 @@
 
 - Automation code = workflow JSON in `workflows/<client>/`; git is source
   of truth, dagnats KV is a deployment target.
+- Workflow names are `<client><separator><wf>`; the separator and the name
+  regex live in `naming.json` (single source of truth). Change them there,
+  then `scripts/rename-workflows.sh --apply`.
 - Durations in JSON accept integer nanoseconds or Go duration strings
   (`"30s"`); `$schema` is accepted but optional.
 - New Go handler = last resort + tests + human review; no script exec.

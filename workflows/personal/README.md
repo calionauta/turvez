@@ -25,14 +25,14 @@ Values in `env/personal.env` (local, gitignored) — see `env/personal.env.examp
 
 | Recipe | Trigger |
 |---|---|
-| `personal/ping` | manual (no trigger — smoke) |
+| `personal.ping` | manual (no trigger — smoke) |
 
 ## 4. Operation
 
 ```bash
 ./scripts/register-workflows.sh personal
 dagnats workflow validate workflows/personal/ping.json
-dagnats run start "personal/ping" '{"hello":"world"}' --watch
+dagnats run start "personal.ping" '{"hello":"world"}' --watch
 dagnats run list --workflow=personal/
 ```
 

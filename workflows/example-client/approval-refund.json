@@ -1,5 +1,5 @@
 {
-  "name": "example-client/approval-refund",
+  "name": "example-client.approval-refund",
   "version": "1.0.0",
   "aux_steps": {
     "notify-rejected": true

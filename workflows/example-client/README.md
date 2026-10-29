@@ -32,7 +32,7 @@ Values in `env/example-client.env` (local, gitignored) — see `env/example-clie
 
 | Recipe | Trigger | Id |
 |---|---|---|
-| `example-client/hubspot-lead-to-slack` | webhook `/hooks/example-client/lead` | `example-client-lead-webhook` |
+| `example-client.hubspot-lead-to-slack` | webhook `/hooks/example-client/lead` | `example-client-lead-webhook` |
 | `example-client/nightly-sync` | cron `0 2 * * * UTC` (embedded) | `example-client-nightly-sync-cron` |
 | `example-client/approval-refund` | manual + native `approval` | — |
 
@@ -40,7 +40,7 @@ Values in `env/example-client.env` (local, gitignored) — see `env/example-clie
 
 ```bash
 ./scripts/register-workflows.sh example-client
-dagnats run start "example-client/hubspot-lead-to-slack" '{"lead_id":"cutover-1"}' --watch
+dagnats run start "example-client.hubspot-lead-to-slack" '{"lead_id":"cutover-1"}' --watch
 dagnats run list --workflow=example-client/
 ./scripts/smoke-test.sh
 ```

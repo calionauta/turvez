@@ -41,7 +41,9 @@ Rule: value only in `env/TODO-CLIENT.env` (local) or `secrets/TODO-CLIENT/env.ag
 | `TODO-CLIENT/hubspot-qualified-to-slack` | webhook `/hooks/TODO-CLIENT/lead` | `TODO-CLIENT-lead-webhook` |
 | `TODO-CLIENT/nightly-sync` | cron `0 2 * * * UTC` | `TODO-CLIENT-nightly-sync-cron` |
 
-Conventions: workflow `<client>/…`, trigger `<client>-…`, webhook contains `<client>`.
+Conventions: workflow `<client>.<wf>`, trigger `<client>-…`, webhook contains `<client>`.
+The separator lives in `naming.json` at the template root; change it there, then run
+`scripts/rename-workflows.sh --apply`.
 
 ## 5. Operation (copy-paste)
 
@@ -55,7 +57,7 @@ dagnats dlq list --run=<run-id> && dagnats dlq replay --run=<run-id>
 dagnats trigger disable <client>-<id>  # rollback: enable back
 ```
 
-Alerts: `on_failure` → notify (layer 1) + `ops/dlq-watchdog` (layer 2) + external `GET /health` probe (layer 3). See `docs/alerting.md`.
+Alerts: `on_failure` → notify (layer 1) + `ops.dlq-watchdog` (layer 2) + external `GET /health` probe (layer 3). See `docs/alerting.md`.
 
 ## 6. Decisions (log, 1 line each)
 

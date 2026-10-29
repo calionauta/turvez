@@ -1,5 +1,5 @@
 {
-  "name": "example-client/hubspot-lead-to-slack",
+  "name": "example-client.hubspot-lead-to-slack",
   "version": "1.0.0",
   "steps": [
     {

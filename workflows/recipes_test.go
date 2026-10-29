@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -127,6 +128,32 @@ func loadRecipes(t *testing.T) map[string]workflowFile {
 	return out
 }
 
+// namingConfig is the single source of truth for how workflow names and
+// trigger ids are shaped. It lives at the repo root (naming.json) so a
+// convention change is one edit plus scripts/rename-workflows.sh.
+type namingConfig struct {
+	WorkflowNameRegex       string `json:"workflow_name_regex"`
+	ClientWorkflowSeparator string `json:"client_workflow_separator"`
+	TriggerIDSeparator      string `json:"trigger_id_separator"`
+}
+
+func loadNaming(t *testing.T) (namingConfig, *regexp.Regexp) {
+	t.Helper()
+	raw, err := os.ReadFile("../naming.json")
+	if err != nil {
+		t.Fatalf("naming.json: %v", err)
+	}
+	var cfg namingConfig
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		t.Fatalf("naming.json: %v", err)
+	}
+	re, err := regexp.Compile(cfg.WorkflowNameRegex)
+	if err != nil {
+		t.Fatalf("naming.json workflow_name_regex: %v", err)
+	}
+	return cfg, re
+}
+
 func TestRecipeStructure(t *testing.T) {
 	// The same loop also rejects embedded credential values: JSON carries
 	// secret NAMES only. ($schema is accepted since dagnats v0.0.26 and is
@@ -154,20 +181,28 @@ func TestRecipeStructure(t *testing.T) {
 			client = filepath.Base(client)
 		}
 		t.Run(path, func(t *testing.T) {
+			nm, nameRe := loadNaming(t)
 			if wf.Name == "" || wf.Version == "" {
 				t.Fatal("name and version are required")
 			}
 			// Tenancy: folder, workflow name, and trigger ids/paths
-			// share the <client-id> prefix. No shared names.
-			if !strings.HasPrefix(wf.Name, client+"/") {
-				t.Fatalf("name %q must start with %q/ (folder prefix)", wf.Name, client)
+			// share the <client-id> prefix. No shared names. The separator
+			// and the full name shape come from naming.json.
+			if !strings.HasPrefix(wf.Name, client+nm.ClientWorkflowSeparator) {
+				t.Fatalf("name %q must start with %q%s (folder prefix)",
+					wf.Name, client, nm.ClientWorkflowSeparator)
+			}
+			if !nameRe.MatchString(wf.Name) {
+				t.Fatalf("name %q does not match %q (naming.json)",
+					wf.Name, nm.WorkflowNameRegex)
 			}
 			for _, tr := range wf.Triggers {
 				if tr.ID == "" {
 					t.Fatal("trigger with empty id")
 				}
-				if !strings.HasPrefix(tr.ID, client+"-") {
-					t.Fatalf("trigger id %q must start with %q-", tr.ID, client)
+				if !strings.HasPrefix(tr.ID, client+nm.TriggerIDSeparator) {
+					t.Fatalf("trigger id %q must start with %q%s",
+						tr.ID, client, nm.TriggerIDSeparator)
 				}
 				if tr.Webhook != nil && !strings.Contains(tr.Webhook.Path, client) {
 					t.Fatalf("webhook path %q must contain %q", tr.Webhook.Path, client)

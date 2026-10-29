@@ -15,7 +15,7 @@ in KV is lost on cutover.
 ## Anatomy of a run
 
 1. A run starts with an **input**. Manual starts pass it directly:
-   `dagnats run start example-client/hubspot-lead-to-slack '{"lead_id":"123"}'`.
+   `dagnats run start example-client.hubspot-lead-to-slack '{"lead_id":"123"}'`.
    Trigger-fired runs (webhook, cron, NATS subject) receive a
    **TriggerEnvelope**: `{"trigger":"…","source":"…","workflow_id":"…",
    "timestamp":"…","data":{…}}` — your payload lives under `data`.

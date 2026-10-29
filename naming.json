@@ -1,0 +1,6 @@
+{
+  "comment": "Single source of truth for workflow naming. Change client_workflow_separator and workflow_name_regex together, then run scripts/rename-workflows.sh to migrate existing recipes. The console detail route (dagnats v0.0.32) only serves names without '/', so '.' is the default.",
+  "client_workflow_separator": ".",
+  "workflow_name_regex": "^[a-z0-9][a-z0-9-]*\\.[a-z0-9][a-z0-9-]+$",
+  "trigger_id_separator": "-"
+}

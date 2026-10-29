@@ -1,5 +1,5 @@
 {
-  "name": "example-client/invoice-paid-route",
+  "name": "example-client.invoice-paid-route",
   "version": "1.0.0",
   "steps": [
     {

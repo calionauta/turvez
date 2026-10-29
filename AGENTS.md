@@ -26,7 +26,7 @@
   unexpressible via recipe + generic tasks; needs typed I/O, env secrets,
   timeouts, table tests, human review. Never arbitrary script exec from JSON.
 - Secrets by NAME in JSON (`"auth_secret": "ACME_X"`); values only in env/age.
-- Tenancy: names `<client>/…`, trigger ids `<client>-…`, webhook paths contain
+- Tenancy: names `<client>.<wf>` (separator in `naming.json`), trigger ids `<client>-…`, webhook paths contain
   `<client>` (`ops/` reserved for platform). No shared names. Register per client.
 - Alerts: every production recipe gets `on_failure` → notify; `ops/dlq-watchdog`
   covers silent DLQ buildup; external probe on `GET /health` covers total death.

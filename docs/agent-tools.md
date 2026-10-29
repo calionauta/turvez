@@ -108,7 +108,7 @@ then replay); 5xx/timeouts retry with backoff first.
    dagnats recipe vs sandbox one-off vs Dagu ad-hoc vs Windmill migration).
    If it is not a dagnats recipe, stop here and say which level + why.
 1. Read the client's folder + the closest `_templates/` recipe.
-2. Copy → rename with `<client>/` prefix → edit → `workflow validate`.
+2. Copy → name it `<client><separator><wf>` (separator in `naming.json`) → edit → `workflow validate`.
 3. `go test ./workflows/` if expressions changed (add sample coverage).
 4. Propose `register` + trigger commands; do not run them unasked.
    Same for `run start` / `run cancel` / `trigger disable`: side effects and

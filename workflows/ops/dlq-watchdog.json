@@ -1,5 +1,5 @@
 {
-  "name": "ops/dlq-watchdog",
+  "name": "ops.dlq-watchdog",
   "version": "1.0.0",
   "steps": [
     {
@@ -27,7 +27,7 @@
         "value": false
       },
       "metadata": {
-        "expression": "{webhook_secret: \"OPS_SLACK_WEBHOOK_URL\", payload: {text: (\"DLQ depth \" + (.depth | tostring) + \" on \" + .stream), depth: .depth, stream: .stream, client: \"ops\", workflow: \"ops/dlq-watchdog\"}}"
+        "expression": "{webhook_secret: \"OPS_SLACK_WEBHOOK_URL\", payload: {text: (\"DLQ depth \" + (.depth | tostring) + \" on \" + .stream), depth: .depth, stream: .stream, client: \"ops\", workflow: \"ops.dlq-watchdog\"}}"
       }
     },
     {

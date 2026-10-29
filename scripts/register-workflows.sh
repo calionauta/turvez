@@ -7,10 +7,13 @@
 #   CLIENT_ID=acme ./scripts/register-workflows.sh
 #
 # Tenancy rule (stage 2): every workflow name must start with
-# "<client-id>/" matching its folder. Registration aborts otherwise —
-# a misnamespaced recipe never reaches the shared engine.
+# "<client-id><separator>" matching its folder. The separator comes from
+# naming.json at the template root. Registration aborts otherwise, so a
+# misnamespaced recipe never reaches the shared engine.
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SEP="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["client_workflow_separator"])' "$ROOT/naming.json")"
 CLIENT="${1:-${CLIENT_ID:-}}"
 # Data-only ops repos: WORKFLOWS_DIR (or TURVEZ_OPS_DIR/workflows) points at
 # the private checkout. Default = this repo's workflows/ (template mode).
@@ -44,9 +47,9 @@ for dir in "${DIRS[@]}"; do
     dagnats workflow validate "$f"
     name="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["name"])' "$f")"
     case "$name" in
-      "$expected"/*) ;;
+      "$expected$SEP"*) ;;
       *)
-        echo "TENANCY VIOLATION: $f names workflow '$name', want '$expected/…'" >&2
+        echo "TENANCY VIOLATION: $f names workflow '$name', want '$expected$SEP…'" >&2
         fail=1
         continue
         ;;

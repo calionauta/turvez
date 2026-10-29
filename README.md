@@ -150,7 +150,7 @@ Full walkthrough with the traps: `docs/first-run.md`.
 | `invoice-paid-route` | fetch → transform → `skip_if` VIP/standard split |
 | `nightly-sync` | embedded cron trigger, fully static first step |
 | `approval-refund` | native `approval` gate (48h) → refund POST → receipt |
-| `personal/ping` | no-op smoke for your own namespace |
+| `personal.ping` | no-op smoke for your own namespace |
 
 Human approval from Slack/email: point the button at the ops shim
 (`internal/opshttp`, `OPS_HTTP_ADDR=127.0.0.1:8090`):

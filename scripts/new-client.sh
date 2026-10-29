@@ -23,6 +23,7 @@ else
 fi
 
 TEMPLATE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+SEP="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["client_workflow_separator"])' "$TEMPLATE_DIR/naming.json")"
 ALLOW="^(_templates|example-client|ops|personal)$"
 
 if [ ! -f "$ROOT/TURVEZ_PIN" ] && [ -f "$ROOT/go.mod" ]; then
@@ -56,7 +57,8 @@ sed "s/TODO-CLIENT/$CLIENT/g; s/TODO_HUBSPOT_TOKEN/${UPPER}_HUBSPOT_TOKEN/g; s/T
 # Starter recipe: copy cron-job skeleton with client prefix (keep basename so
 # recipe name matches file: acme/cron-job in cron-job.json).
 if [ -f "$TEMPLATE_DIR/workflows/_templates/cron-job.json" ]; then
-  sed "s/TODO-CLIENT/$CLIENT/g" "$TEMPLATE_DIR/workflows/_templates/cron-job.json" > "$WF/cron-job.json"
+  sed "s|TODO-CLIENT/|$CLIENT$SEP|g; s/TODO-CLIENT/$CLIENT/g" \
+    "$TEMPLATE_DIR/workflows/_templates/cron-job.json" > "$WF/cron-job.json"
 fi
 
 # Env template (names only).
@@ -78,4 +80,4 @@ echo "next:"
 echo "  \$EDITOR $WF/README.md   # fill §1-3 (context, contacts, systems)"
 echo "  dagnats workflow validate $WF/*.json"
 echo "  cd $TEMPLATE_DIR && WORKFLOWS_DIR=$ROOT/workflows go test ./workflows/"
-echo "  evals: $EV  (generate cases: scripts/select-cases.py --dagnats --out $EV/cases)"
+echo "  evals: $EV  (generate cases: scripts/select-cases.py --dagnats --out $EV/cases; label: scripts/label-cases.py --dir $EV)"

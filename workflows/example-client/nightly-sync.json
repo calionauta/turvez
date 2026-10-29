@@ -1,5 +1,5 @@
 {
-  "name": "example-client/nightly-sync",
+  "name": "example-client.nightly-sync",
   "version": "1.0.0",
   "steps": [
     {
