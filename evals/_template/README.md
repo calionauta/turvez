@@ -57,6 +57,28 @@ One command for the whole loop:
 python3 scripts/eval-loop.py --dir .
 ```
 
+## Judge (only for rubric)
+
+Deterministic assertions (`is-json`, label) cost nothing. `llm-rubric` needs a
+grader model; `eval-loop.py` passes it with `--grader`:
+
+```json
+"judge": { "provider": "openrouter:typesafe/jev-router" }
+```
+
+Any promptfoo provider works (OpenRouter, OpenAI-compatible gateway, local).
+Set `rubric` only when no deterministic check is possible.
+
+## Logs only
+
+No production output means no suggestion. Import inputs, then label by hand:
+
+```bash
+python3 scripts/import-logs.py --input logs.jsonl --text-field message --out .
+# fill expected_category in cases/logs.csv
+npx promptfoo eval -c promptfooconfig.logs.yaml
+```
+
 ## Labeling cases
 
 Each case carries `metadata.hash`, a stable id derived from system prompt,

@@ -1,0 +1,31 @@
+# Logs-only eval: inputs imported from logs, labels filled by a human.
+# Use this when there is no production model output to suggest a label.
+description: TODO-CLIENT logs eval
+
+prompts:
+  - file://prompts/classify.json
+
+providers:
+  - id: openai:chat:REPLACE_MODEL
+    config:
+      apiBaseUrl: http://127.0.0.1:8081/v1
+      apiKeyRequired: false
+      useDefaultApiKey: false
+      temperature: 0
+      max_tokens: 1200
+
+defaultTest:
+  assert:
+    - type: is-json
+      value:
+        type: object
+        required: [category, urgency]
+        properties:
+          category:
+            enum: [billing, technical, other]
+          urgency:
+            enum: [low, high]
+    - type: javascript
+      value: "JSON.parse(output).category === '{{expected_category}}'"
+
+tests: file://cases/logs.csv

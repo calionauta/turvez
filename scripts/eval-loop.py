@@ -44,13 +44,20 @@ def label_cases(root: Path) -> None:
     run([sys.executable, str(SCRIPTS / "label-cases.py"), "--dir", str(root)])
 
 
-def run_eval(root: Path) -> None:
-    run([
+def run_eval(root: Path, cfg: dict) -> None:
+    cmd = [
         "npx", "-y", "promptfoo@latest", "eval",
         "-c", "promptfooconfig.yaml",
         "--no-cache",
         "-o", "results.json",
-    ], cwd=root)
+    ]
+    judge = (cfg.get("judge") or {}).get("provider")
+    if cfg.get("rubric") and judge:
+        cmd += ["--grader", judge]
+    elif cfg.get("rubric") and not judge:
+        print("warning: rubric is enabled but judge.provider is empty; "
+              "promptfoo will use its default grader", flush=True)
+    run(cmd, cwd=root)
 
 
 def summarize(root: Path, cfg: dict, strict: bool) -> int:
@@ -141,7 +148,7 @@ see skills/turvez/references/eval-loop.md.""")
             print("eval: skipped")
             return 0
 
-    run_eval(root)
+    run_eval(root, cfg)
     return summarize(root, cfg, args.strict)
 
 

@@ -55,6 +55,21 @@ hash, so the same ticket in two runs is labeled once.
 
 Use `--blind` for a sample, to avoid rubber-stamping production.
 
+## 3b. Logs only (no production output)
+
+When the client has only logs, there is no output to suggest a label. Import
+the inputs and label by hand:
+
+```bash
+python3 scripts/import-logs.py --input logs.jsonl --text-field message --out evals/<client>
+# fill expected_category in cases/logs.csv
+npx promptfoo eval -c promptfooconfig.logs.yaml
+```
+
+The import dedupes by text and never invents a label. Use `--split holdout`
+for the rows you will not tune on. This path bypasses `select-cases.py`, which
+is tied to dagnats runs.
+
 ## 4. Add curated cases (optional)
 
 Hand-written cases live in `evals/<client>/cases/curated.yaml` (rich asserts)

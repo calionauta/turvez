@@ -72,7 +72,7 @@ if [ -n "${DEGUSTIA_SKILL_DIR:-}" ] && [ -f "$RANKER" ]; then ok "ranker at $RAN
 else note "DEGUSTIA_SKILL_DIR unset or missing ranker — tool-pick.sh degrades to manual hierarchy"; fi
 
 echo "== 6. eval tooling (optional) =="
-if command -v npx >/dev/null; then ok "npx $(npx --version 2>/dev/null) — promptfoo via npx (make eval / eval-view)"; else note "npx not found — eval loop (make eval) will not run"; fi
+if command -v npx >/dev/null; then ok "npx $(npx --version 2>/dev/null) — promptfoo via npx (make eval-loop / eval-client-view)"; else note "npx not found — eval loop (make eval-loop) will not run"; fi
 
 echo "== 7. ops tooling =="
 if command -v age >/dev/null && command -v age-keygen >/dev/null; then ok "age + age-keygen ($(command -v age))";

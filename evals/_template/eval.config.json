@@ -26,5 +26,8 @@
       "high"
     ]
   },
-  "rubric": ""
+  "rubric": "",
+  "judge": {
+    "provider": ""
+  }
 }
