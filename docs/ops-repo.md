@@ -24,6 +24,7 @@ turvez-ops/
   AGENTS.md                   # ops rules (validate from template checkout)
   .github/workflows/contract.yml  # CI: template tests @TURVEZ_PIN vs this repo
   workflows/<client>/README.md + *.json
+  evals/<client>/                # promptfooconfig + generated cases
   workflows/personal/ + workflows/ops/   # seeded from template, watchdog included
   env/<client>.env.example    # NAMES only (commit)
   env/<client>.env            # values (never commit)

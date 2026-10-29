@@ -103,6 +103,8 @@ npx skills add calionauta/turvez --skill turvez -g   # global; drop -g for proje
 ./scripts/setup.sh --init personal   # scaffold gitignored env files
 
 # 2. Engine + worker stack
+#    If 8080/4222 are taken, export DAGNATS_HTTP_PORT / DAGNATS_NATS_PORT first.
+#    Console needs DAGNATS_CONSOLE_PASSWORD when bound to 0.0.0.0 (container).
 make up            # dagnats :4222/:8080, worker pulls tasks
 
 # …or locally (needs dagnats serve in another terminal):
@@ -118,7 +120,11 @@ make register
 make smoke
 ```
 
-Console: http://127.0.0.1:8080/console/
+Console: `http://127.0.0.1:${DAGNATS_HTTP_PORT:-8080}/console/` (HTTP basic
+auth; the password comes from the `DAGNATS_CONSOLE_PASSWORD` env var).
+Per-client eval: `make eval-client CLIENT=<id> TURVEZ_OPS_DIR=../turvez-ops`;
+UI: `make eval-client-view …` → http://localhost:15500.
+Full walkthrough with the traps: `docs/first-run.md`.
 
 ## Operator loop
 
@@ -155,6 +161,8 @@ curl -X POST localhost:8090/ops/approvals/<run-id> \
 ```
 
 ## Docs
+
+- `docs/first-run.md` — verified install → client → run → observe → eval, with traps
 
 - `docs/writing-recipes.md` — recipe anatomy, engine-vs-handler table,
   what the engine allows here, v0.0.30 behaviors, custom-handler checklist.

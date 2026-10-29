@@ -71,7 +71,10 @@ RANKER="${DEGUSTIA_SKILL_DIR:-}/scripts/rank_candidates.py"
 if [ -n "${DEGUSTIA_SKILL_DIR:-}" ] && [ -f "$RANKER" ]; then ok "ranker at $RANKER";
 else note "DEGUSTIA_SKILL_DIR unset or missing ranker — tool-pick.sh degrades to manual hierarchy"; fi
 
-echo "== 6. ops tooling =="
+echo "== 6. eval tooling (optional) =="
+if command -v npx >/dev/null; then ok "npx $(npx --version 2>/dev/null) — promptfoo via npx (make eval / eval-view)"; else note "npx not found — eval loop (make eval) will not run"; fi
+
+echo "== 7. ops tooling =="
 if command -v age >/dev/null && command -v age-keygen >/dev/null; then ok "age + age-keygen ($(command -v age))";
 else warn "age not found — edit-secrets.sh needs it (brew install age)"; fi
 if command -v python3 >/dev/null; then ok "python3 ($(command -v python3))";
@@ -95,6 +98,12 @@ else
   echo "  make register CLIENT=$CLIENT && make smoke"
   echo "  dagnats run start \"$CLIENT/ping\" '{\"hello\":\"world\"}' --watch"
 fi
+echo
+echo "== UI =="
+echo "  Console:   http://127.0.0.1:\${DAGNATS_HTTP_PORT:-8080}/console/  (needs DAGNATS_CONSOLE_PASSWORD in a container)"
+echo "  Eval UI:   make eval-view  ->  http://localhost:15500"
+echo "  Trap:      if 8080/4222 are already taken, the CLI reads another server and runs stay queued."
+echo "             Export DAGNATS_HTTP_PORT / DAGNATS_NATS_PORT / DAGNATS_NATS_URL before running."
 echo
 echo "== optional companions (informed, never installed automatically) =="
 echo "  FDEOps methodology (discover/scope/runbook): npx skills add suboss87/fdeops --skill fde"

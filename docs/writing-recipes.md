@@ -131,6 +131,16 @@ The handler reference (`docs/handlers-reference.md`) lists the metadata
 keys per task. Secret *names* go in metadata or input
 (`"auth_secret": "ACME_HUBSPOT_TOKEN"`); values never appear in JSON.
 
+**Every metadata value is a string.** `metadata` is `map[string]string`:
+numbers become `"timeout_ms": "15000"` and objects become JSON-encoded
+strings, e.g. `"headers": "{\"Accept\":\"application/json\"}"`. A real
+object or number fails validation (`cannot unmarshal object into ...`).
+
+**Persist what you call.** Build the LLM prompt in a `transform.json` step
+and pass `messages` downstream (see `docs/observability.md`): the prompt
+becomes a step output, so a failed call is still replayable and the run
+records prompt + response.
+
 ## Engine primitives — prefer these over worker handlers
 
 | Need | Engine feature | Worker fallback |

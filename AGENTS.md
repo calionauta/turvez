@@ -59,12 +59,28 @@ curl -X POST $OPS/ops/approvals/<run> -H "Authorization: Bearer $TOK" -d '{"appr
 ```
 
 REST: `POST /workflows|/runs|/runs/{id}/cancel|/runs/{id}/signal/{n}|/runs/{id}/approval/{s}?action=approve|reject&token=…`.
-Full reference: `docs/agent-tools.md`. After edits: `go test ./...`, `dagnats workflow validate`.
+First run + traps: `docs/first-run.md`. Client deployment model (embedded vs
+managed vs multi-tenant, gateway placement): `docs/deployment-profiles.md`.
+Full CLI/API reference: `docs/agent-tools.md`. After edits: `go test ./...`, `dagnats workflow validate`.
+
+**CLI target:** the CLI is NATS-first — it reads `DAGNATS_NATS_URL`
+(default `nats://127.0.0.1:4222`). `DAGNATS_API_URL` is only the worker's
+approval shim; setting it does not move the CLI. Compose publishes
+`${DAGNATS_HTTP_PORT:-8080}` / `${DAGNATS_NATS_PORT:-4222}`; if a port is
+already forwarded by something else, the CLI silently reads a different
+server (symptom: runs stay `queued`, `workers list` empty).
 
 ## Stack
 
 - Go 1.27 (`go.mod`), dagnats v0.0.30 (pinned), NATS JetStream embedded, worker `distroless/static`.
 - Skill: `skills/turvez/SKILL.md` (+ `references/` detail files) — direct → confirm → build.
+
+## Observability
+
+Every model call is an `llm.complete` step (GoAI is the handler's transport,
+not a second entry point); the prompt is built in a prior step so it is
+persisted; quality gates are `condition` steps over the output schema; the
+run KV has no TTL. Full rules and the storage map: `docs/observability.md`.
 
 ## Commits and releases
 

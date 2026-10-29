@@ -5,6 +5,22 @@ CLI/API surface an automation-authoring agent should use. The agent edits
 review (see `docs/writing-recipes.md` checklist). All commands support
 `--json` for machine-readable output — prefer it.
 
+## Which endpoint does the CLI talk to?
+
+The CLI is **NATS-first**: `run`, `workflow`, `trigger`, `dlq`, `trace` read
+and write JetStream directly. Point it with:
+
+```bash
+DAGNATS_NATS_URL=nats://host:4222      # default 127.0.0.1:4222
+```
+
+`DAGNATS_API_URL` (used by `docker-compose.yml` for the worker) is **only**
+the worker's approval shim — setting it does not move the CLI. If the CLI
+shows runs that never leave `queued` and `workers list` is empty, you are
+almost certainly reading a different NATS than the worker (a forwarded port
+is the usual cause). Compose publishes `${DAGNATS_HTTP_PORT:-8080}` and
+`${DAGNATS_NATS_PORT:-4222}`.
+
 ## Workflows
 
 ```bash

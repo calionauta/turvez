@@ -16,6 +16,11 @@
 - Write/edit a recipe: docs/writing-recipes.md (anatomy, engine-vs-handler
   table, what the engine allows here, traps, handler checklist)
 - Task inputs/outputs: docs/handlers-reference.md (never invent task names)
+- Observability/data rules: docs/observability.md (what is stored, prompt
+  persistence, schema gates, retention, no gateway content logging)
+- Client deployment model: docs/deployment-profiles.md (embedded vs managed
+  vs multi-tenant, gateway placement, ownership)
+- First run, in order, with the known traps: docs/first-run.md
 - CLI/API for authoring: docs/agent-tools.md (prefer `--json`)
 - Secrets: docs/secrets.md (names in JSON, values in env/age only)
 - Alerts: docs/alerting.md (on_failure, DLQ watchdog, external probe)
