@@ -152,13 +152,35 @@ For tokenized multi-day gates with approve/reject links, prefer engine
 ## llm.complete
 
 POST to an OpenAI-compatible `/chat/completions`. Key from secret name
-(default `LLM_API_KEY`).
+(default `LLM_API_KEY`). Transport is GoAI (`provider/openai`), pinned to
+the chat-completions dialect — GoAI v0.10 defaults to `/v1/responses`,
+which most gateways do not implement. Internal retries are disabled: the
+engine owns retry/backoff. `4xx` (except 429) and context overflow fail
+non-retryably; `429`/`5xx` and transport errors stay retryable.
+
+`base_url` is **required** — there is no silent fallback to
+`api.openai.com`. Resolution order: task input → step metadata `base_url`
+→ env `LLM_BASE_URL`; if none is set the task fails non-retryably. A
+direct provider call bypasses the client's gateway, and with it the
+cost/latency/error log: point every deployment at a gateway (Bifrost or
+equivalent) and let the recipe name only the model.
 
 ```json
 {"model": "gpt-4o-mini", "messages": [{"role": "user", "content": "…"}],
- "api_key_secret": "LLM_API_KEY", "base_url": "https://api.openai.com/v1",
+ "api_key_secret": "LLM_API_KEY", "base_url": "http://bifrost:8081/v1",
  "max_tokens": 1024, "temperature": 0.2, "timeout_ms": 120000}
 ```
 
 Output: `{"content": "…", "usage": {...}, "model": "…"}`.
 Metadata keys: `model, api_key_secret, base_url`.
+
+**Reasoning models:** `max_tokens` covers reasoning *and* the answer. Too
+small a budget returns `content: ""` with a successful status (measured
+with `opencode-go/iceman-contributor-free`: 100 tokens → empty, 400 →
+complete JSON). Give classifier/reasoning models headroom, and assert on
+the output schema rather than trusting "status = success".
+
+**Observability:** the run snapshot persists step *outputs*. Build the
+prompt in a `transform.json` step (as `messages`) instead of inlining it
+in the metadata — the prompt then becomes that step's output, so a
+failed call is still replayable and every run records prompt + response.

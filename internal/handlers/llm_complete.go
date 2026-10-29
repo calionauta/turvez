@@ -1,16 +1,18 @@
 package handlers
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/calionauta/turvez/internal/secret"
 	"github.com/danmestas/dagnats/worker"
+	"github.com/zendev-sh/goai"
+	"github.com/zendev-sh/goai/provider"
+	"github.com/zendev-sh/goai/provider/openai"
 )
 
 // LLMMessage is one OpenAI-compatible chat message.
@@ -37,7 +39,11 @@ type LLMCompleteOutput struct {
 	Model   string         `json:"model,omitempty"`
 }
 
-// CallLLM POSTs to {baseURL}/chat/completions. Pure (testable) core.
+// CallLLM performs one bounded chat completion through a provider client.
+//
+// Transport is GoAI (provider quirks, retries, streaming live there); the
+// engine keeps ownership of retry/backoff, so MaxRetries is pinned to 0 — two
+// retry loops on one 429 multiply attempts and burn the step budget.
 func CallLLM(ctx context.Context, client *http.Client, in LLMCompleteInput) (LLMCompleteOutput, error) {
 	var out LLMCompleteOutput
 	if len(in.Messages) == 0 {
@@ -53,62 +59,110 @@ func CallLLM(ctx context.Context, client *http.Client, in LLMCompleteInput) (LLM
 	}
 	base := strings.TrimRight(in.BaseURL, "/")
 	if base == "" {
-		base = "https://api.openai.com/v1"
+		// No silent default to api.openai.com: a direct provider call skips the
+		// client's gateway, so there is no cost/latency/error log to observe.
+		return out, worker.NewNonRetryableError(fmt.Errorf(
+			"llm.complete: base_url is required (recipe metadata, or LLM_BASE_URL) — " +
+				"point it at the client's OpenAI-compatible gateway, e.g. http://host:8081/v1"))
 	}
-	body := map[string]any{"model": in.Model, "messages": in.Messages}
+
+	model := openai.Chat(in.Model,
+		openai.WithAPIKey(apiKey),
+		openai.WithBaseURL(base),
+		openai.WithHTTPClient(client),
+	)
+	opts := []goai.Option{
+		goai.WithMessages(toProviderMessages(in.Messages)...),
+		goai.WithMaxRetries(0),
+		// GoAI v0.10 defaults every model to /v1/responses. OpenAI-compatible
+		// gateways (Bifrost, LiteLLM, most proxies) are built around
+		// /v1/chat/completions, so pin the dialect this handler has always used.
+		goai.WithProviderOptions(map[string]any{"useResponsesAPI": false}),
+	}
 	if in.MaxTokens > 0 {
-		body["max_tokens"] = in.MaxTokens
+		opts = append(opts, goai.WithMaxOutputTokens(in.MaxTokens))
 	}
 	if in.Temperature != nil {
-		body["temperature"] = *in.Temperature
+		opts = append(opts, goai.WithTemperature(*in.Temperature))
 	}
-	payload, err := json.Marshal(body)
+	if in.TimeoutMs > 0 {
+		opts = append(opts, goai.WithTimeout(time.Duration(in.TimeoutMs)*time.Millisecond))
+	}
+
+	res, err := goai.GenerateText(ctx, model, opts...)
 	if err != nil {
-		return out, fmt.Errorf("llm.complete: encode request: %w", err)
+		return out, classifyLLMError(err)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/chat/completions", bytes.NewReader(payload))
-	if err != nil {
-		return out, fmt.Errorf("llm.complete: build request: %w", err)
+	// An empty completion is never useful here (no tools in this contract) and
+	// is the signature of a reasoning model that spent max_tokens thinking.
+	// Failing loudly beats persisting a "successful" blank step output.
+	if strings.TrimSpace(res.Text) == "" {
+		return out, worker.NewNonRetryableError(fmt.Errorf(
+			"llm.complete: empty completion (finish=%s, reasoning_tokens=%d) — "+
+				"raise max_tokens; reasoning models spend the budget before the answer",
+			res.FinishReason, res.TotalUsage.ReasoningTokens))
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-	resp, err := client.Do(req)
-	if err != nil {
-		return out, fmt.Errorf("llm.complete: post: %w", err)
+
+	out.Content = res.Text
+	out.Model = res.Response.Model
+	if out.Model == "" {
+		out.Model = in.Model
 	}
-	defer resp.Body.Close() //nolint:errcheck // close error after full read is unactionable
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
-	if err != nil {
-		return out, fmt.Errorf("llm.complete: read body: %w", err)
+	u := res.TotalUsage
+	out.Usage = map[string]any{
+		"prompt_tokens":     u.InputTokens,
+		"completion_tokens": u.OutputTokens,
+		"total_tokens":      u.TotalTokens,
 	}
-	if resp.StatusCode == 429 || resp.StatusCode >= 500 {
-		return out, fmt.Errorf("llm.complete: provider %d (retryable)", resp.StatusCode)
+	if u.ReasoningTokens > 0 {
+		out.Usage["reasoning_tokens"] = u.ReasoningTokens
 	}
-	if resp.StatusCode >= 400 {
-		return out, worker.NewNonRetryableError(fmt.Errorf("llm.complete: provider %d: %s", resp.StatusCode, truncate(string(raw), 300)))
+	if res.FinishReason != "" {
+		out.Usage["finish_reason"] = string(res.FinishReason)
 	}
-	var parsed struct {
-		Model   string `json:"model"`
-		Choices []struct {
-			Message struct {
-				Content string `json:"content"`
-			} `json:"message"`
-		} `json:"choices"`
-		Usage map[string]any `json:"usage"`
-	}
-	if err := json.Unmarshal(raw, &parsed); err != nil {
-		return out, fmt.Errorf("llm.complete: invalid provider JSON: %w", err)
-	}
-	if len(parsed.Choices) == 0 {
-		return out, fmt.Errorf("llm.complete: provider returned no choices")
-	}
-	out.Content = parsed.Choices[0].Message.Content
-	out.Usage = parsed.Usage
-	out.Model = parsed.Model
 	return out, nil
 }
 
-// resolveLLM fills static recipe fields from step metadata.
+// toProviderMessages maps the recipe's flat messages to GoAI parts.
+func toProviderMessages(msgs []LLMMessage) []provider.Message {
+	out := make([]provider.Message, 0, len(msgs))
+	for _, m := range msgs {
+		role := provider.RoleUser
+		switch m.Role {
+		case "system":
+			role = provider.RoleSystem
+		case "assistant":
+			role = provider.RoleAssistant
+		}
+		out = append(out, provider.Message{
+			Role:    role,
+			Content: []provider.Part{{Type: provider.PartText, Text: m.Content}},
+		})
+	}
+	return out
+}
+
+// classifyLLMError preserves the handler's retry contract: rate limits and
+// 5xx stay retryable, everything else is permanent. GoAI returns a typed
+// APIError, so this is a status-code decision instead of string matching.
+func classifyLLMError(err error) error {
+	var apiErr *goai.APIError
+	if errors.As(err, &apiErr) {
+		msg := truncate(apiErr.Message, 300)
+		if apiErr.StatusCode == 429 || apiErr.StatusCode >= 500 {
+			return fmt.Errorf("llm.complete: provider %d (retryable): %s", apiErr.StatusCode, msg)
+		}
+		return worker.NewNonRetryableError(fmt.Errorf("llm.complete: provider %d: %s", apiErr.StatusCode, msg))
+	}
+	if goai.IsOverflow(err.Error()) {
+		return worker.NewNonRetryableError(fmt.Errorf("llm.complete: context overflow: %s", truncate(err.Error(), 300)))
+	}
+	return fmt.Errorf("llm.complete: %w", err)
+}
+
+// resolveLLM fills static recipe fields from step metadata. base_url falls
+// back to LLM_BASE_URL so one gateway can be configured per deployment
+// without repeating the URL in every step.
 func resolveLLM(in LLMCompleteInput, md map[string]string) LLMCompleteInput {
 	if in.Model == "" {
 		in.Model = md["model"]
@@ -118,6 +172,9 @@ func resolveLLM(in LLMCompleteInput, md map[string]string) LLMCompleteInput {
 	}
 	if in.BaseURL == "" {
 		in.BaseURL = md["base_url"]
+	}
+	if in.BaseURL == "" {
+		in.BaseURL = secret.Optional("LLM_BASE_URL", "")
 	}
 	return in
 }
