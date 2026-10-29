@@ -71,6 +71,46 @@ flowchart LR
 
 Details and gateway placement: `docs/deployment-profiles.md`.
 
+## 5. Operator flow: from request to production
+
+What the operator does, what the agent does, and where to check.
+
+```mermaid
+sequenceDiagram
+    actor O as Operator
+    participant A as Agent + turvez skill
+    participant R as Ops repo
+    participant D as dagnats
+    participant U as Console / CLI
+
+    O->>A: "automate X for client acme"
+    A->>A: Q0 repo type + decision tree
+    A->>O: intake questions: systems, trigger, approval, secret names
+    O->>A: answers
+    A->>R: recipe + fieldbook + env example
+    A->>O: "validate + register?"
+    O->>A: approve
+    A->>D: register + trigger
+    D-->>U: runs, events, DLQ
+    O->>U: check run, alert, DLQ
+    A->>O: "want the eval loop for this client?"
+    O->>A: approve cases and eval
+```
+
+| Step | Operator | Agent | Where to check |
+|---|---|---|---|
+| 1. Ask | describes the integration in natural language | loads `turvez` skill, Q0, decision tree | the agent's answer |
+| 2. Intake | answers systems, trigger, approval rule, secret **names**, alert channel | asks, then writes the fieldbook | `workflows/<client>/README.md` |
+| 3. Build | reviews the recipe | writes JSON, runs `validate` + `go test` | repo diff |
+| 4. Secrets | puts values in `env/<client>.env` or age | never writes values | `env/`, `secrets/` |
+| 5. Go live | approves `register` + `trigger` | runs them | `/console/workflows/<client>.<wf>` |
+| 6. Operate | checks runs, DLQ, alerts | explains failures | console, `dagnats run list`, Slack/Telegram |
+| 7. Eval | labels cases, approves the eval | generates cases, runs promptfoo | `results.json`, `:15500` |
+
+The operator never has to memorize commands. They ask for the outcome; the
+skill drives the sequence. The two hard rules are **approve side effects** and
+**provide secret values only through env/age**.
+
 ## Formats: pick by role, not by taste
 
 | Role | Format | Why |
