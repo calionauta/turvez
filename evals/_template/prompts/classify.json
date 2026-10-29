@@ -1,0 +1,10 @@
+[
+  {
+    "role": "system",
+    "content": "Classify the support ticket. Reply with JSON only, no prose: {\"category\":\"billing|technical|other\",\"urgency\":\"low|high\"}"
+  },
+  {
+    "role": "user",
+    "content": "{{text}}"
+  }
+]

@@ -1,4 +1,4 @@
-.PHONY: up down worker register smoke test lint validate tidy new-ops-repo new-client validate-ops register-ops hooks guard-version
+.PHONY: up down worker register smoke test lint validate tidy new-ops-repo new-client validate-ops register-ops hooks guard-version eval-client eval-client-view doctor
 
 # Start dagnats (engine + embedded NATS + API + console) and the worker.
 up:
@@ -34,6 +34,19 @@ new-client:
 # Safe decrypt-edit-encrypt cycle for one client's secrets.
 edit-secrets:
 	./scripts/edit-secrets.sh $(CLIENT)
+
+# Per-client eval (cases generated from that client's run history).
+eval-client:
+	: "${TURVEZ_OPS_DIR:?set TURVEZ_OPS_DIR}"; : "${CLIENT:?set CLIENT}"
+	cd "$(TURVEZ_OPS_DIR)/evals/$(CLIENT)" && npx -y promptfoo@latest eval -c promptfooconfig.yaml --no-cache -o results.json
+
+eval-client-view:
+	: "${TURVEZ_OPS_DIR:?set TURVEZ_OPS_DIR}"; : "${CLIENT:?set CLIENT}"
+	cd "$(TURVEZ_OPS_DIR)/evals/$(CLIENT)" && npx -y promptfoo@latest view -n -p 15500
+
+# Wiring health: ports, NATS target, workers, stuck runs, console, eval tooling.
+doctor:
+	./scripts/doctor.sh
 
 # Install local hooks: pre-commit recipe scan + commit-msg convention check.
 hooks:

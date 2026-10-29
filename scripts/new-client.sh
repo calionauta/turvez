@@ -39,6 +39,15 @@ WF="$ROOT/workflows/$CLIENT"
 [ -e "$WF" ] && { echo "already exists: $WF" >&2; exit 1; }
 mkdir -p "$WF" "$ROOT/env" "$ROOT/secrets/$CLIENT"
 
+# Eval scaffold: cases are generated from run history (see evals/_template).
+EV="$ROOT/evals/$CLIENT"
+mkdir -p "$EV"
+if [ -d "$TEMPLATE_DIR/evals/_template" ]; then
+  cp -R "$TEMPLATE_DIR/evals/_template/." "$EV/"
+  sed "s/TODO-CLIENT/$CLIENT/g" "$EV/promptfooconfig.yaml" > "$EV/promptfooconfig.yaml.tmp" \
+    && mv "$EV/promptfooconfig.yaml.tmp" "$EV/promptfooconfig.yaml"
+fi
+
 # Fieldbook from template (placeholder swap; portable upper-case for macOS bash 3.2).
 UPPER="$(echo "$CLIENT" | tr 'a-z' 'A-Z')"
 sed "s/TODO-CLIENT/$CLIENT/g; s/TODO_HUBSPOT_TOKEN/${UPPER}_HUBSPOT_TOKEN/g; s/TODO_SLACK_WEBHOOK_URL/${UPPER}_SLACK_WEBHOOK_URL/g" \
@@ -69,3 +78,4 @@ echo "next:"
 echo "  \$EDITOR $WF/README.md   # fill §1-3 (context, contacts, systems)"
 echo "  dagnats workflow validate $WF/*.json"
 echo "  cd $TEMPLATE_DIR && WORKFLOWS_DIR=$ROOT/workflows go test ./workflows/"
+echo "  evals: $EV  (generate cases: scripts/select-cases.py --dagnats --out $EV/cases)"

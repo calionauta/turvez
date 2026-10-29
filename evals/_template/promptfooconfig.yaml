@@ -1,0 +1,28 @@
+# Client eval (generated from run history, replayed through the gateway)
+
+description: TODO-CLIENT eval
+
+prompts:
+  - file://prompts/classify.json
+
+providers:
+  - id: openai:chat:REPLACE_MODEL
+    config:
+      apiBaseUrl: http://127.0.0.1:8081/v1   # the client's gateway
+      apiKeyRequired: false
+      useDefaultApiKey: false
+      temperature: 0
+      max_tokens: 1200                        # must mirror the recipe
+      headers:
+        x-eval-run: TODO-CLIENT               # tag eval traffic in the gateway log
+
+defaultTest:
+  options:
+    provider:                                  # grader does NOT inherit the provider
+      id: openai:chat:REPLACE_MODEL
+      config:
+        apiBaseUrl: http://127.0.0.1:8081/v1
+        apiKeyRequired: false
+        useDefaultApiKey: false
+
+tests: file://cases/cases.json

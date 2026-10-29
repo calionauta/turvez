@@ -1,0 +1,29 @@
+[
+  {
+    "description": "example case — replace with generated cases",
+    "vars": {
+      "text": "I was charged twice for the same invoice this month."
+    },
+    "assert": [
+      {
+        "type": "is-json",
+        "value": {
+          "type": "object",
+          "required": ["category", "urgency"],
+          "properties": {
+            "category": { "enum": ["billing", "technical", "other"] },
+            "urgency": { "enum": ["low", "high"] }
+          }
+        }
+      },
+      {
+        "type": "llm-rubric",
+        "value": "Ticket: {{text}}\n\nThe JSON category must match the ticket's actual intent (billing, technical or other) and the urgency must be defensible."
+      }
+    ],
+    "metadata": {
+      "run_id": "example",
+      "expected_category": "billing"
+    }
+  }
+]
