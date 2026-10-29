@@ -1,0 +1,4 @@
+text,expected_category,__expected,__metadata:split
+"I was charged twice for the same invoice.","billing","javascript: JSON.parse(output).category === '{{expected_category}}'","dev"
+"App crashes on login after the update.","technical","javascript: JSON.parse(output).category === '{{expected_category}}'","dev"
+"The report export is slow but works.","other","javascript: JSON.parse(output).category === '{{expected_category}}'","holdout"

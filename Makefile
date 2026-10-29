@@ -1,4 +1,4 @@
-.PHONY: up down worker register smoke test lint validate tidy new-ops-repo new-client validate-ops register-ops hooks guard-version eval-client eval-client-view doctor
+.PHONY: up down worker register smoke test lint validate tidy new-ops-repo new-client validate-ops register-ops hooks guard-version eval-client eval-client-view eval-loop doctor
 
 # Start dagnats (engine + embedded NATS + API + console) and the worker.
 up:
@@ -43,6 +43,11 @@ eval-client:
 eval-client-view:
 	: "${TURVEZ_OPS_DIR:?set TURVEZ_OPS_DIR}"; : "${CLIENT:?set CLIENT}"
 	cd "$(TURVEZ_OPS_DIR)/evals/$(CLIENT)" && npx -y promptfoo@latest view -n -p 15500
+
+# One command: ingest run history, label, evaluate, summarize.
+eval-loop:
+	: "${TURVEZ_OPS_DIR:?set TURVEZ_OPS_DIR}"; : "${CLIENT:?set CLIENT}"
+	python3 scripts/eval-loop.py --dir "$(TURVEZ_OPS_DIR)/evals/$(CLIENT)" --include-ok 3
 
 # Wiring health: ports, NATS target, workers, stuck runs, console, eval tooling.
 doctor:

@@ -1,0 +1,6 @@
+{
+  "0123456789abcdef": {
+    "expected_category": "billing",
+    "note": "why this label is right; keep it short"
+  }
+}

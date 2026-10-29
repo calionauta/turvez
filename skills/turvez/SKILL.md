@@ -55,10 +55,36 @@ Methodology questions (discover, scope, runbook): see `references/methodology.md
 1. Read `workflows/<client>/README.md` + closest `workflows/_templates/*.json`.
    Fieldbook thin or tool choice open? → `references/client-intake.md`
    (≤2 fact questions; local degustia ranker for tool picks).
-2. Copy → `<client>/` prefix → envelope-tolerant first step `((.data // .) | …)`.
+2. Copy → name `<client><separator><wf>` (separator in `naming.json`) → envelope-tolerant first step `((.data // .) | …)`.
 3. `dagnats workflow validate` + `go test ./workflows/`.
 4. Propose `register` + triggers. Never run unasked.
 5. Traps: durations ns or Go strings; `$schema` accepted (optional); `on_failure`→`aux_steps`, no `depends_on` (`docs/writing-recipes.md`).
+6. Offer the eval loop at handoff. `new-client.sh` already scaffolds
+   `evals/<client>/`; ask whether to generate cases now and whether to run
+   the eval. Generating cases is read-only; running costs judge tokens, so it
+   needs an explicit yes.
+
+## Eval loop (after the automation runs)
+
+Full sequence, flags and troubleshooting: `references/eval-loop.md`.
+
+1. **Read-only first.** `dagnats run list --workflow=<client>.` and
+   `run inspect` show what actually ran. Never start runs to “get data” —
+   ask, because runs have side effects.
+2. **Generate cases.** `python3 scripts/select-cases.py --dagnats --out
+   evals/<client>/cases --include-ok 3`. It picks failures, retries, gate
+   rejections and malformed output, dedupes by hash, and writes
+   `selection.json`. Read-only.
+3. **Show the numbers, then ask.** “N runs → M cases, reasons X/Y. Run the
+   eval? It costs judge tokens.” Do not run the eval unasked.
+4. **Run.** `make eval-client CLIENT=<client> TURVEZ_OPS_DIR=…`. Report per
+   assertion: `is-json` (contract), rubric (quality), label (accuracy).
+5. **Label a sample.** `python3 scripts/label-cases.py --dir evals/<client>`.
+   It shows the text and production's answer; enter accepts, b/t/o overrides,
+   s skips. Labels are keyed by `metadata.hash` and survive regeneration.
+   Ask before editing labels.
+6. **Never commit raw cases** unless the recipe redacted before persisting
+   (`docs/observability.md`).
 
 ## Examples
 

@@ -1,0 +1,30 @@
+{
+  "prompt_step": "build-prompt",
+  "result_step": "triage",
+  "gate_step": "gate",
+  "text_var": "text",
+  "text_role": "user",
+  "fields": [
+    {
+      "name": "category",
+      "var": "expected_category",
+      "values": [
+        "billing",
+        "technical",
+        "other"
+      ],
+      "keys": {
+        "b": "billing",
+        "t": "technical",
+        "o": "other"
+      }
+    }
+  ],
+  "schema_extra": {
+    "urgency": [
+      "low",
+      "high"
+    ]
+  },
+  "rubric": ""
+}

@@ -25,4 +25,7 @@ defaultTest:
         apiKeyRequired: false
         useDefaultApiKey: false
 
-tests: file://cases/cases.json
+tests:
+  - file://cases/cases.json       # generated from run history, do not hand-edit
+  - file://cases/curated.yaml     # hand-written cases, YAML
+

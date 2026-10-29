@@ -1,0 +1,30 @@
+# Hand-written cases live here. Generated cases go to cases.json.
+# YAML is for humans, JSON is for machine output; promptfoo accepts both.
+#
+# A golden case = input (vars) + expected outcome (assert). Keep the expected
+# value in vars so the assertion can reference it, and tag the split so the
+# holdout set can be filtered at run time.
+- description: "curated: duplicate invoice charge"
+  vars:
+    text: "I was charged twice for the same invoice this month."
+    expected_category: billing
+  assert:
+    - type: is-json
+      value:
+        type: object
+        required: [category, urgency]
+        properties:
+          category:
+            enum: [billing, technical, other]
+          urgency:
+            enum: [low, high]
+    - type: javascript
+      value: "JSON.parse(output).category === '{{expected_category}}'"
+    - type: llm-rubric
+      value: |
+        Ticket: {{text}}
+
+        The JSON category must be billing and the urgency must be defensible.
+  metadata:
+    split: dev
+    source: curated

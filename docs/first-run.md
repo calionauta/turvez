@@ -69,7 +69,7 @@ WORKFLOWS_DIR=../turvez-ops/workflows go test ./workflows/
 ```bash
 docker compose cp ../turvez-ops/workflows/acme/<wf>.json dagnats:/tmp/wf.json
 docker compose exec -T dagnats dagnats workflow register /tmp/wf.json
-docker compose exec -T dagnats dagnats run start acme/<wf> '{}' --json
+docker compose exec -T dagnats dagnats run start acme.<wf> '{}' --json
 ```
 
 (From the host, `dagnats workflow register` works too once
@@ -78,7 +78,7 @@ docker compose exec -T dagnats dagnats run start acme/<wf> '{}' --json
 ## 7. Observe
 
 ```bash
-dagnats run list --workflow=acme/
+dagnats run list --workflow=acme.
 dagnats run inspect <id> --json
 dagnats run events <id>
 dagnats trace <id>
@@ -94,11 +94,11 @@ jq -r '.run.steps["build-prompt"].output' run.json | base64 -d | jq .
 Console: `http://127.0.0.1:${DAGNATS_HTTP_PORT}/console/` — HTTP basic auth,
 **any username**; the password comes from `DAGNATS_CONSOLE_PASSWORD`.
 
-Known upstream limit (dagnats v0.0.30): the console's workflow-detail link
-`/console/workflows/<client>/<wf>` returns **404** when the name contains `/`
-(`dispatchWorkflows` splits on the first slash and treats the rest as an
-action). Workaround: open the run instead — `/console/runs?id=<run-id>` — or
-use the CLI (`dagnats run list --workflow=<client>/`).
+Console routes: upstream (dagnats v0.0.30–v0.0.32, issue danmestas/dagnats#835)
+the workflow-detail route returns **404** when the name contains `/`. This repo
+names workflows `<client>.<wf>` (`naming.json`), so
+`/console/workflows/acme.support-ticket` works. If a detail page 404s, check the
+separator in `naming.json`; the run page `/console/runs?id=<run-id>` always works.
 
 ## 8. Eval
 
@@ -108,6 +108,7 @@ Per client (`evals/<client>/` in the ops repo, scaffolded by `new-client.sh`):
 DAGNATS_NATS_URL=... python3 scripts/select-cases.py --dagnats --out evals/acme/cases --include-ok 3
 make eval-client CLIENT=acme TURVEZ_OPS_DIR=../turvez-ops
 make eval-client-view CLIENT=acme TURVEZ_OPS_DIR=../turvez-ops
+# agent procedure: skills/turvez/references/eval-loop.md
 ```
 
 Eval params must mirror production (`max_tokens`); a reasoning model with too
