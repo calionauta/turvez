@@ -9,8 +9,10 @@ services:
       context: .
       dockerfile: Dockerfile.dagnats
     ports:
-      - "4222:4222"
-      - "8080:8080"
+      # Host ports are overridable: 8080/4222 are common SSH-tunnel targets,
+      # and a collision silently points the CLI at the wrong server.
+      - "${DAGNATS_NATS_PORT:-4222}:4222"
+      - "${DAGNATS_HTTP_PORT:-8080}:8080"
     environment:
       # Loopback is the upstream default (server/nats.go binds 127.0.0.1 in
       # standalone mode); containers need external binds, hence 0.0.0.0 here.
@@ -22,6 +24,9 @@ services:
       # Replace with a real remote when adopting a leaf topology.
       DAGNATS_LEAF_REMOTES: nats://127.0.0.1:14229
       DAGNATS_DATA_DIR: /data
+      # Console is bound to 0.0.0.0 in a container: without one of these it
+      # refuses to serve (console_disabled). Password = HTTP basic auth.
+      DAGNATS_CONSOLE_PASSWORD: ${DAGNATS_CONSOLE_PASSWORD:-}
     volumes:
       - dagnats-data:/data
     healthcheck:
