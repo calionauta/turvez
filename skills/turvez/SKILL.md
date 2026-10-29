@@ -7,6 +7,7 @@ description: Decide where an automation belongs (turvez recipe vs sandbox one-of
 
 Repo: consultancy automation runtime (dagnats + 1 Go worker, 12 generic tasks).
 You direct, then build. Read `AGENTS.md` first (normative), route via `llms.txt`.
+Flows as diagrams: `docs/workflows.md`. First run and traps: `docs/first-run.md`.
 
 ## Q0 — repo type (before anything else)
 
@@ -41,6 +42,28 @@ Any "automate X" request — personal (`personal/`) or client (`<client>/`).
 Direct FIRST via `references/decision-tree.md`; build here only if level 0.
 Methodology questions (discover, scope, runbook): see `references/methodology.md`.
 
+## Tooling map
+
+| Script / target | When |
+|---|---|
+| `scripts/setup.sh [--init]` | first checkout, env files |
+| `scripts/doctor.sh` / `make doctor` | ports, NATS target, workers, stuck runs, console |
+| `scripts/new-ops-repo.sh`, `scripts/new-client.sh` | ops repo and client scaffold (confirm first) |
+| `scripts/register-workflows.sh` | validate + register (confirm first) |
+| `scripts/sandbox-run.sh` | one-off script, level 1 (no recipe) |
+| `scripts/edit-secrets.sh` | decrypt, edit, re-encrypt one client's age file |
+| `scripts/rename-workflows.sh --apply` | after changing `naming.json` |
+| `scripts/select-cases.py` | dagnats runs -> `cases/cases.json` + `selection.json` |
+| `scripts/import-logs.py` | logs (JSONL/CSV/text) -> `cases/logs.csv` for human labels |
+| `scripts/label-cases.py` | `--setup`, `--blind`; labels keyed by input hash |
+| `scripts/eval-loop.py` | ingest + label + eval + summary (`--skip-label`, `--skip-eval`, `--yes`, `--strict`) |
+| `make eval-client` / `eval-client-view` / `eval-loop` | run / UI :15500 / full loop |
+
+Eval options live in `evals/<client>/eval.config.json`: step names, label
+fields and values, `schema_extra`, `rubric` (empty = deterministic only) and
+`judge.provider` (passed as `--grader`). Cases are deterministic first;
+rubric only when no label is possible.
+
 ## Confirm policy (no exceptions)
 
 - `register`, `run start/cancel`, `trigger disable/delete`, sandbox `--secret-env`: show exact command, wait.
@@ -68,21 +91,25 @@ Methodology questions (discover, scope, runbook): see `references/methodology.md
 
 Full sequence, flags and troubleshooting: `references/eval-loop.md`.
 
-1. **Read-only first.** `dagnats run list --workflow=<client>.` and
-   `run inspect` show what actually ran. Never start runs to “get data” —
+1. **Read-only first.** `DAGNATS_NATS_URL=... dagnats run list --workflow=<client>.`
+   and `run inspect` show what actually ran. Never start runs to “get data” —
    ask, because runs have side effects.
 2. **Generate cases.** `python3 scripts/select-cases.py --dagnats --out
    evals/<client>/cases --include-ok 3`. It picks failures, retries, gate
    rejections and malformed output, dedupes by hash, and writes
-   `selection.json`. Read-only.
+   `selection.json`. Read-only. Logs only, with no run history:
+   `python3 scripts/import-logs.py --input logs.jsonl --out evals/<client>`.
 3. **Show the numbers, then ask.** “N runs → M cases, reasons X/Y. Run the
    eval? It costs judge tokens.” Do not run the eval unasked.
-4. **Run.** `make eval-client CLIENT=<client> TURVEZ_OPS_DIR=…`. Report per
-   assertion: `is-json` (contract), rubric (quality), label (accuracy).
-5. **Label a sample.** `python3 scripts/label-cases.py --dir evals/<client>`.
-   It shows the text and production's answer; enter accepts, b/t/o overrides,
-   s skips. Labels are keyed by `metadata.hash` and survive regeneration.
-   Ask before editing labels.
+4. **Run.** `make eval-loop CLIENT=<client> TURVEZ_OPS_DIR=…` does ingest,
+   label, eval and summary in one command; `make eval-client` runs only the
+   eval; `make eval-client-view` serves the UI at :15500. Report per assertion:
+   `is-json` (contract), rubric (quality), label (accuracy).
+5. **Label.** First run `label-cases.py --dir evals/<client> --setup` to
+   declare fields and values. Then label: enter accepts, unique prefixes or
+   1..N pick, any other text is a new value, `skip`/`quit` exit. `--blind`
+   hides production suggestions for an unbiased sample. Labels key on the
+   input hash and survive regeneration. Ask before editing labels.
 6. **Never commit raw cases** unless the recipe redacted before persisting
    (`docs/observability.md`).
 
@@ -95,7 +122,7 @@ Full sequence, flags and troubleshooting: `references/eval-loop.md`.
 
 ### Route a backup script
 
-**Input:** "backup via SSH toda noite nos 3 servidores do cliente"
+**Input:** "backup via SSH every night on the client's three servers"
 **Output:** level 2 Dagu ad-hoc (`run: ssh …` + retry), NOT a dagnats handler; no repo changes.
 
 ## Edge cases
@@ -107,5 +134,5 @@ Full sequence, flags and troubleshooting: `references/eval-loop.md`.
 
 ## Test cases
 
-Should activate: "automatiza X pra mim", "cria recipe pro cliente acme", "onde rodo esse script?".
+Should activate: "automate X for me", "create a recipe for client acme", "where do I run this script?".
 Should NOT activate: "optimize this SQL query" (general coding), "what is dagnats?" (just answer, point to docs).
