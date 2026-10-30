@@ -48,9 +48,9 @@
 
 ```bash
 dagnats workflow validate <file> && dagnats workflow register <file>
-dagnats run start <client>/<wf> '<json>' --watch | --json
+dagnats run start <client>.<wf> '<json>' --watch | --json
 dagnats run status|events|output|inspect <run-id> [--last]
-dagnats run list --workflow=<client>/   dagnats run cancel <run-id>
+dagnats run list [--workflow=<client>.<wf>]   dagnats run cancel <run-id>
 dagnats run signal <run-id> approval '{"approved":true}'
 dagnats trigger create <wf> --cron="0 2 * * *" [--tz=UTC] | --webhook=/hooks/<client>/x | --subject="s"
 dagnats trigger test "<expr>" --count=3   dagnats trigger list|enable|disable|delete <id>

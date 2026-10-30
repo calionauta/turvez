@@ -78,7 +78,7 @@ docker compose exec -T dagnats dagnats run start acme.<wf> '{}' --json
 ## 7. Observe
 
 ```bash
-dagnats run list --workflow=acme.
+dagnats run list --workflow=acme.support-ticket
 dagnats run inspect <id> --json
 dagnats run events <id>
 dagnats trace <id>

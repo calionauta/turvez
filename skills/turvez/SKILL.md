@@ -91,7 +91,7 @@ rubric only when no label is possible.
 
 Full sequence, flags and troubleshooting: `references/eval-loop.md`.
 
-1. **Read-only first.** `DAGNATS_NATS_URL=... dagnats run list --workflow=<client>.`
+1. **Read-only first.** `DAGNATS_NATS_URL=... dagnats run list --workflow=<client>.<wf>`
    and `run inspect` show what actually ran. Never start runs to “get data” —
    ask, because runs have side effects.
 2. **Generate cases.** `python3 scripts/select-cases.py --dagnats --out

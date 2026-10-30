@@ -74,7 +74,7 @@ dagnats run events $RUN_ID | head -20
 #    Webhook test (path from the recipe's triggers array):
 curl -X POST http://127.0.0.1:8080/hooks/$CLIENT/lead \
   -H 'Content-Type: application/json' -d '{"lead_id":"cutover-webhook"}'
-dagnats run list --workflow=$CLIENT/   # new run appears
+dagnats run list --workflow=$CLIENT.<wf>   # new run appears (exact name)
 
 # ---------- On the OLD server ----------
 # 6. Disable ONLY this client's triggers (others untouched).

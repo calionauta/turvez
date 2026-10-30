@@ -47,7 +47,7 @@ dagnats run status <run-id> [--json] [--last]
 dagnats run events <run-id> [--full] [--type=T] [--step=S]
 dagnats run output <run-id> [--last]                  # final output
 dagnats run inspect <run-id>                          # status + errors + DLQ
-dagnats run list [--workflow=PREFIX] [--status=running]
+dagnats run list [--workflow=EXACT] [--status=running]   # exact name, no prefix
 dagnats run cancel <run-id>
 ```
 

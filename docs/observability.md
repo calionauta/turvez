@@ -48,7 +48,7 @@ deleted on ack.
 
 ```bash
 export DAGNATS_NATS_URL=nats://127.0.0.1:4222     # the CLI is NATS-first
-dagnats run list --workflow=acme/                 # ids + status
+dagnats run list --workflow=acme.support-ticket    # ids + status (exact name)
 dagnats run inspect <run-id> --json               # steps, attempts, outputs (base64)
 dagnats run events <run-id>                       # lifecycle + step payloads
 dagnats trace <run-id>                            # OTel span tree

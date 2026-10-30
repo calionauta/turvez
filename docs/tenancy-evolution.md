@@ -34,7 +34,7 @@ Already wired in this repo:
   `CLIENT_ID` set). Votes for client A can never approve client B's
   runs — the token check happens before any dagnats call.
 - Operate per client via prefix filters:
-  `dagnats run list --workflow=acme/`,
+  `dagnats run list --workflow=acme.<wf>`,
   `dagnats trigger list` (grep `acme-`).
 
 ## Stage 3 — physical multi-tenant (one stack per client)
