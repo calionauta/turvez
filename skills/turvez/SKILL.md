@@ -66,7 +66,7 @@ rubric only when no label is possible.
 
 ## Confirm policy (no exceptions)
 
-- `register`, `run start/cancel`, `trigger disable/delete`, sandbox `--secret-env`: show exact command, wait.
+- `register`, `run start/cancel`, `trigger create/update/enable/disable/delete`, sandbox `--secret-env`: show exact command, wait.
 - Repo-creating ops: `new-ops-repo.sh`, `new-client.sh`, `gh repo create`
   (any push): show exact command, wait. Recipe edits inside an existing
   client stay in the build loop below — no per-write confirm.
@@ -86,6 +86,23 @@ rubric only when no label is possible.
    `evals/<client>/`; ask whether to generate cases now and whether to run
    the eval. Generating cases is read-only; running costs judge tokens, so it
    needs an explicit yes.
+
+## Triggers
+
+A trigger starts a run without a human typing `run start`. One kind per
+trigger:
+
+- webhook: `dagnats trigger create <client>.<wf> --webhook=/hooks/<client>/<event> [--secret=…]`
+- cron: `--cron="0 9 * * 1-5" --tz=America/Sao_Paulo [--backfill]` (5 fields,
+  UTC default; `dagnats trigger test "expr" --count=3` previews)
+- NATS subject: `--subject=<subject>`
+
+Webhook is `POST` only, 1 MB, answers `200 ok` asynchronously, and puts the body
+in `.data`. With a secret, the caller signs the raw body with
+`X-Signature-256: sha256=<hex>`. A disabled trigger answers `200 ok` and does
+nothing. Propose `create`/`update`/`enable`/`disable`/`delete` and wait;
+`list`, `history` and `test` are read-only. Details:
+`references/triggers.md`.
 
 ## Eval loop (after the automation runs)
 
