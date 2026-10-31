@@ -102,7 +102,7 @@ in `.data`. With a secret, the caller signs the raw body with
 `X-Signature-256: sha256=<hex>`. A disabled trigger answers `200 ok` and does
 nothing. Propose `create`/`update`/`enable`/`disable`/`delete` and wait;
 `list`, `history` and `test` are read-only. Details:
-`references/triggers.md`.
+`references/triggers.md`. OAuth/API keys for many APIs: `references/auth-layers.md`.
 
 ## Eval loop (after the automation runs)
 
