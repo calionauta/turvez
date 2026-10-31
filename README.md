@@ -165,6 +165,7 @@ curl -X POST localhost:8090/ops/approvals/<run-id> \
 ## Docs
 
 - `docs/workflows.md` — Mermaid diagrams: repo choice, automation, eval loop, formats
+- `docs/client-spine.md` — one repo, any engine (dagnats/Windmill/Dagu), shared or dedicated
 - `docs/first-run.md` — verified install → client → run → observe → eval, with traps
 
 - `docs/writing-recipes.md` — recipe anatomy, engine-vs-handler table,

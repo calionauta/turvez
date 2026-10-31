@@ -22,6 +22,7 @@
   vs multi-tenant, gateway placement, ownership)
 - First run, in order, with the known traps: docs/first-run.md
 - Flows as diagrams plus the format map: docs/workflows.md
+- Client spine, engine-agnostic layout and migrations: docs/client-spine.md
 - CLI/API for authoring: docs/agent-tools.md (prefer `--json`)
 - Secrets: docs/secrets.md (names in JSON, values in env/age only)
 - Alerts: docs/alerting.md (on_failure, DLQ watchdog, external probe)
