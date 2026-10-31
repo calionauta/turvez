@@ -209,9 +209,36 @@ func recipeRefs(t *testing.T) []recipeRef {
 		}
 	}
 	if len(refs) == 0 {
-		t.Fatal("no client recipes found")
+		// A checkout whose clients all run a non-dagnats engine has no recipes
+		// to check, and that is a legitimate, supported state: Windmill is the
+		// default engine (docs/client-spine.md, phase 4). Only a checkout that
+		// has a dagnats client with an empty automation/dagnats/ is malformed.
+		if !hasDagnatsClient(t) {
+			return nil
+		}
+		t.Fatal("no client recipes found, but a client declares engine: dagnats")
 	}
 	return refs
+}
+
+// hasDagnatsClient reports whether any client folder claims the dagnats engine.
+// It reads client.yaml directly so the recipe tests agree with
+// TestClientManifests instead of guessing from directory names.
+func hasDagnatsClient(t *testing.T) bool {
+	t.Helper()
+	for _, dir := range clientFolders(t) {
+		raw, err := os.ReadFile(filepath.Join(dir, "client.yaml"))
+		if err != nil {
+			// Phase-1 folders have no manifest; their flat *.json files are
+			// already picked up by recipeRefs, so an empty scan here means the
+			// folder genuinely holds no recipes.
+			continue
+		}
+		if parseManifest(raw)["engine"] == "dagnats" {
+			return true
+		}
+	}
+	return false
 }
 
 // isUnder reports whether dir is a direct child of root (both relative or
@@ -495,6 +522,11 @@ func TestRecipeExpressionsCompile(t *testing.T) {
 		t.Logf("%s: expressions compile", path)
 	}
 	if checked == 0 {
+		// Same rule as recipeRefs: a checkout with no dagnats recipes has
+		// nothing to compile, and that is valid on a Windmill-only repo.
+		if !hasDagnatsClient(t) {
+			t.Skip("no dagnats recipes in this checkout")
+		}
 		t.Fatal("no transform.json expressions found — check the glob")
 	}
 }
