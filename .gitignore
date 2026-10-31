@@ -18,6 +18,10 @@ env/*.env
 .vscode/
 *.swp
 
+# Python bytecode (the eval scripts are run directly, never installed)
+__pycache__/
+*.pyc
+
 # Local sandbox outputs (scripts/sandbox-run.sh) — never commit
 sandbox-out/
 
