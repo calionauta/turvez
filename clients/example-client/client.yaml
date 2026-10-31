@@ -1,0 +1,10 @@
+# Worked example of clients/_template/client.yaml. Kept on dagnats on purpose:
+# it exercises the legacy engine that the contract test still supports.
+client: example-client
+engine: dagnats       # legacy engine, by design in this fixture
+runtime: shared
+target:
+  nats_url: nats://127.0.0.1:4222
+  api_url: http://127.0.0.1:8080
+data_class: normal
+owner: operator@example.com

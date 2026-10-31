@@ -63,7 +63,7 @@
 
 ```bash
 # every checkout, both engines
-make validate            # dagnats recipes, every client
+make validate            # every engine with source (dagnats + windmill)
 go test ./...            # structure, tenancy, jq expressions, secrets guard
 ./scripts/check-windmill.sh   # windmill lint gate (no worker needed)
 

@@ -75,7 +75,10 @@ Validate from the template checkout (go needs its module context):
 ## Layout
 
 - `clients/<client>/README.md` — fieldbook (copy from `clients/_template/FIELDBOOK.md`).
-- `clients/<client>/automation/dagnats/*.json` — recipes, names `<client>/…`, triggers `<client>-…`.
+- `clients/<client>/automation/dagnats/*.json` — recipes, names `<client>.<wf>`, triggers `<client>-…`.
+- `clients/<client>/client.yaml` — engine, runtime, target. **New clients default
+  to Windmill** (`automation/windmill/`); dagnats is legacy and only scaffolded
+  with `new-client.sh <client> --engine=dagnats`.
 - `env/<client>.env.example` — secret NAMES (commit); `env/<client>.env` — values (never).
 - `secrets/<client>/env.age` — ciphertext (commit with -f); `secrets/<client>/.recipients` — age pubkeys.
 
@@ -119,6 +122,26 @@ cp "$TEMPLATE_DIR/clients/ops/README.md" "$DEST/clients/ops/README.md" 2>/dev/nu
 cp "$TEMPLATE_DIR/clients/ops/automation/dagnats/dlq-watchdog.json" "$DEST/clients/ops/automation/dagnats/dlq-watchdog.json" 2>/dev/null || cp "$TEMPLATE_DIR/workflows/ops/dlq-watchdog.json" "$DEST/clients/ops/automation/dagnats/dlq-watchdog.json" 2>/dev/null || true
 cp "$TEMPLATE_DIR/env/personal.env.example" "$DEST/env/personal.env.example" 2>/dev/null || true
 
+# Manifests for the seeded clients. `go test ./clients/` (TestClientManifests)
+# requires a client.yaml per folder, so a seeded client without one fails the
+# ops contract CI on the first push. Both seeded folders run on dagnats today
+# (the watchdog and ping.json are dagnats recipes); a Windmill client is added
+# with `new-client.sh <client>`, which writes its own manifest.
+for seeded in personal ops; do
+  if [ ! -f "$DEST/clients/$seeded/client.yaml" ]; then
+    cat > "$DEST/clients/$seeded/client.yaml" <<YAML
+client: $seeded
+engine: dagnats       # legacy engine: this seeded folder ships dagnats recipes
+runtime: shared
+target:
+  nats_url: nats://127.0.0.1:4222
+  api_url: http://127.0.0.1:8080
+data_class: normal
+owner: ${SEED_OWNER:-operator@example.com}
+YAML
+  fi
+done
+
 mkdir -p "$DEST/.github/workflows"
 cat > "$DEST/.github/workflows/contract.yml" <<'EOF'
 # Ops contract CI: template tests (pinned by TURVEZ_PIN) against this repo.
@@ -135,14 +158,31 @@ jobs:
         with: { repository: calionauta/turvez, path: turvez }
       - uses: actions/setup-go@v5
         with: { go-version: '1.27' }
-      - run: go install github.com/danmestas/dagnats/cmd/dagnats@v0.0.30
+      - name: Install the engine CLIs this ops repo actually needs
+        # The pin comes from the pinned template's go.mod, never a literal here:
+        # a SHA/version copied into this file would drift from TURVEZ_PIN.
+        # dagnats is legacy, so it is installed only when the ops repo still has
+        # dagnats recipes; a Windmill-only repo never pays for it.
+        working-directory: turvez
+        run: |
+          if compgen -G "$GITHUB_WORKSPACE/ops/clients/*/automation/dagnats/*.json" >/dev/null; then
+            go install github.com/danmestas/dagnats/cmd/dagnats@$(go list -m -f '{{.Version}}' github.com/danmestas/dagnats)
+            echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+          fi
+          if find "$GITHUB_WORKSPACE/ops/clients" -type d -name windmill -print -quit 2>/dev/null | grep -q .; then
+            npm install -g windmill-cli
+          fi
       - name: pin template to TURVEZ_PIN
         run: |
           REF="$(awk -F= '/^TURVEZ_REF=/{print $2}' ops/TURVEZ_PIN)"
           git -C turvez fetch origin "$REF" && git -C turvez checkout "$REF"
       - run: WORKFLOWS_DIR=$GITHUB_WORKSPACE/ops/clients go test ./clients/ -timeout 300s
         working-directory: turvez
-      - run: for f in $GITHUB_WORKSPACE/ops/clients/*/automation/dagnats/*.json; do dagnats workflow validate "$f"; done
+      - name: Validate every engine present in the ops repo
+        # validate.sh skips the dagnats gate when there are no recipes, so a
+        # Windmill-only ops repo needs no dagnats install.
+        run: TURVEZ_OPS_DIR=$GITHUB_WORKSPACE/ops ./scripts/validate.sh
+        working-directory: turvez
 EOF
 
 cat > "$DEST/secrets/README.md" <<'EOF'

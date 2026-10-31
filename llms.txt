@@ -28,8 +28,9 @@
 - Alerts: docs/alerting.md (on_failure, DLQ watchdog, external probe)
 - Tenancy/extract: docs/tenancy-evolution.md, docs/isolating-a-client.md
 - Fresh checkout / install: scripts/setup.sh (check-only; --init scaffolds env), README Quickstart
-- Validate a checkout: `make validate` (every recipe) + `go test ./clients/`
-  (structure, tenancy, jq expressions, secrets guard)
+- Validate a checkout: `make validate` (every engine with source: dagnats
+  recipes + windmill lint, each skipped when absent) + `go test ./clients/`
+  (structure, manifest/engine agreement, tenancy, jq expressions, secrets guard)
 - New client fieldbook: clients/_template/FIELDBOOK.md (copy to clients/<client>/README.md)
 - Client recipe template: clients/_template/{cron-job,webhook-pipeline,approval-flow-signal}.json
 - Client layout and migrations: docs/client-spine.md (`clients/<client>/automation/<engine>/`)

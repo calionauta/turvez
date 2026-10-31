@@ -1,7 +1,7 @@
 # Fieldbook: personal (you are the client)
 
 > Personal automations use the same pipeline as client ones:
-> recipe in `workflows/personal/*.json`, secrets by name, `validate` +
+> recipe in `clients/personal/automation/dagnats/*.json`, secrets by name, `validate` +
 > `go test` + proposed `register` — nothing runs without your approval.
 > Template: `clients/_template/FIELDBOOK.md`.
 
@@ -31,7 +31,7 @@ Values in `env/personal.env` (local, gitignored) — see `env/personal.env.examp
 
 ```bash
 ./scripts/register-workflows.sh personal
-dagnats workflow validate workflows/personal/ping.json
+dagnats workflow validate clients/personal/automation/dagnats/ping.json
 dagnats run start "personal.ping" '{"hello":"world"}' --watch
 dagnats run list --workflow=personal/
 ```
@@ -44,10 +44,10 @@ dagnats run list --workflow=personal/
 ## 6. Adding your first automation
 
 ```bash
-cp clients/_template/webhook-pipeline.json workflows/personal/<name>.json
+cp clients/_template/webhook-pipeline.json clients/personal/automation/dagnats/<name>.json
 # replace TODO-CLIENT → personal (name, trigger id, webhook path)
 # secrets by NAME in env/personal.env — never values in JSON
-dagnats workflow validate workflows/personal/<name>.json
+dagnats workflow validate clients/personal/automation/dagnats/<name>.json
 go test ./clients/
 # request the register — nothing runs without your approval (skill policy)
 ./scripts/register-workflows.sh personal

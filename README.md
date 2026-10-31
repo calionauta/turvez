@@ -141,13 +141,13 @@ Full walkthrough with the traps: `docs/first-run.md`.
    decide where the work belongs (`docs/script-execution.md` Q1–Q4).
    Personal work uses client `personal/`.
 1. **Edit JSON** — copy the closest file from `clients/_template/`
-   into `clients/<client>/`, keep the `<client>/` name prefix.
-2. **Validate** — `dagnats workflow validate clients/<client>/x.json`
+   into `clients/<client>/automation/dagnats/`, keep the `<client>.` name prefix.
+2. **Validate** — `dagnats workflow validate clients/<client>/automation/dagnats/x.json`
    (or `make validate`; `go test ./clients/` compiles every jq
    expression and executes samples).
 3. **Register** — `dagnats workflow register …` (embedded `triggers`
    register with it) or attach a schedule:
-   `dagnats trigger create '<client>/nightly-sync' --cron='0 2 * * *'`.
+   `dagnats trigger create '<client>.nightly-sync' --cron='0 2 * * *'`.
 4. **Run & monitor** — `dagnats run start <name> '<input>' --watch`,
    then `run status|events|output|inspect`, `dlq list|replay`.
 

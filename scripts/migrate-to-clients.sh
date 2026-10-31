@@ -8,8 +8,9 @@
 #   workflows/_templates                    -> clients/_template
 #   evals/<client>                          -> clients/<client>/evals
 #
-# The client loop skips _templates (and evals/_template stays put as the eval
-# template source). Other files inside a client folder (windmill/, dagu/, …)
+# The client loop skips _templates. evals/_template moves into
+# clients/_template/evals so the eval skeleton travels with the rest of the
+# template. Other files inside a client folder (windmill/, dagu/, …)
 # are NOT mapped: they are reported so they can be moved by hand, because the
 # engine decision belongs in client.yaml.
 #
@@ -179,4 +180,4 @@ done
 rmdir workflows 2>/dev/null || true
 rmdir evals 2>/dev/null || true
 
-echo "moved ${#SRCS[@]} path(s). Next: git status, then WORKFLOWS_DIR=clients go test ./workflows/"
+echo "moved ${#SRCS[@]} path(s). Next: git status, then WORKFLOWS_DIR=clients go test ./clients/"

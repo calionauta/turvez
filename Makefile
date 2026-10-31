@@ -15,11 +15,13 @@ worker:
 register:
 	./scripts/register-workflows.sh $(CLIENT)
 
-# Ops repo (private data): validate/register against WORKFLOWS_DIR.
+# Validate every engine in the ops checkout (dagnats + windmill, each only
+# when it has source there), then the per-client structural contract.
 #   make validate-ops TURVEZ_OPS_DIR=../turvez-ops
 # clients-root.sh resolves the ops layout (clients/ or legacy workflows/).
 validate-ops:
 	: "${TURVEZ_OPS_DIR:?set TURVEZ_OPS_DIR to the private ops checkout}"
+	TURVEZ_OPS_DIR=${TURVEZ_OPS_DIR} ./scripts/validate.sh
 	WORKFLOWS_DIR=$$(TURVEZ_OPS_DIR=${TURVEZ_OPS_DIR} ./scripts/clients-root.sh) go test ./clients/ -timeout 300s
 
 register-ops:
@@ -78,16 +80,12 @@ test:
 lint:
 	golangci-lint run ./... 2>/dev/null || go vet ./...
 
-# Validate every recipe in either layout (phase-3 clients/<client>/automation/dagnats/*.json
-# or legacy phase-1 workflows/<client>/*.json).
+# Validate every engine in this checkout: dagnats recipes and Windmill flows.
+# Each gate is skipped when its engine has no source, so a Windmill-only ops
+# repo passes without installing dagnats (and vice versa). Structural rules
+# (client.yaml, engine dir matches the manifest) are `go test ./clients/`.
 validate:
-	@set -e; n=0; for f in clients/*/automation/dagnats/*.json workflows/*/*.json; do \
-		[ -e "$$f" ] || continue; \
-		n=$$((n + 1)); \
-		echo "== $$f"; \
-		dagnats workflow validate "$$f"; \
-	done; \
-	[ "$$n" -gt 0 ] || { echo "no recipes found (clients/*/automation/dagnats/ or workflows/*/)"; exit 1; }
+	./scripts/validate.sh
 
 tidy:
 	go mod tidy

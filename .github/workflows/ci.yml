@@ -65,8 +65,16 @@ jobs:
         run: ./scripts/guard-version.sh
       - name: Unit and recipe tests
         run: go test ./... -timeout 300s
-      - name: Validate recipes against the pinned engine
+      - name: Install the pinned engine CLIs
+        # dagnats for recipes, wmill for Windmill flows. Each gate is skipped
+        # when the checkout has no source for that engine (scripts/validate.sh),
+        # so a Windmill-only ops repo does not need dagnats and vice versa.
         run: |
           go install github.com/danmestas/dagnats/cmd/dagnats@$(go list -m -f '{{.Version}}' github.com/danmestas/dagnats)
-          export PATH="$(go env GOPATH)/bin:$PATH"
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+      - name: Validate every engine in this checkout
+        run: |
+          if find clients workflows -type d -name windmill -print -quit 2>/dev/null | grep -q .; then
+            npm install -g windmill-cli
+          fi
           make validate

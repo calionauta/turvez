@@ -67,9 +67,13 @@ fi
 TEMPLATES=""
 for d in "$TEMPLATE_DIR/clients/_template" "$TEMPLATE_DIR/workflows/_templates"; do
   [ -d "$d" ] && { TEMPLATES="$d"; break; }
-done
+ done
 [ -n "$TEMPLATES" ] || { echo "no template dir found (clients/_template or workflows/_templates)" >&2; exit 1; }
 
+# Eval skeleton: clients/_template/evals is the current home. The second path is
+# NOT dead code — an ops repo pins TURVEZ_REF to a release tag, and releases up
+# to v0.1.2 kept the eval template at the repo root (evals/_template). Dropping
+# the fallback would break scaffolding from a pinned older checkout.
 EVAL_TEMPLATE=""
 for d in "$TEMPLATE_DIR/clients/_template/evals" "$TEMPLATE_DIR/evals/_template"; do
   [ -d "$d" ] && { EVAL_TEMPLATE="$d"; break; }

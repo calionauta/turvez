@@ -90,8 +90,12 @@ Promptfoo keeps reading the same cases.
 - **Shared → dedicated** (or back): only `runtime` and `target` change. The
   source, evals and secrets schema stay; secrets are recreated in the dedicated
   store and the deploy points at the new host. No code rewrite.
-- **One engine per client**: the manifest is enforced by CI; a client with two
-  active engines fails the check.
+- **One engine per client**: `go test ./clients/` (TestClientManifests) reads
+  every `client.yaml` and fails when a client has two engine directories, when
+  the populated directory disagrees with `engine:`, when `client:` differs from
+  the folder name, or when the engine is not one of `dagnats|windmill|dagu`.
+  A folder with no engine source yet is only logged: it is a draft, not a
+  violation.
 - **Client extraction**: a dedicated server is a deployment target, not a repo
   fork. Keep the client in the central repo; use `runtime: dedicated` and a
   target. Fork the repo only when the client requires its own governance.

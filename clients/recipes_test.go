@@ -702,3 +702,120 @@ func TestRecipeExpressions(t *testing.T) {
 		}
 	})
 }
+
+// TestClientManifests enforces the manifest rules from docs/client-spine.md:
+//
+//   - every client folder has a client.yaml;
+//   - `client:` matches the folder name;
+//   - `engine:` is a known engine;
+//   - the engine's source directory exists, and no OTHER engine directory is
+//     active (one engine per client).
+//
+// This is the rule the docs claimed CI enforced while nothing read the file.
+// A client with no engine directory at all is allowed while it is being
+// drafted (scaffolding creates it, but a hand-made folder should not fail the
+// build before its first recipe), yet two directories is always an error
+// because it means the manifest and the tree disagree.
+//
+// Legacy phase-1 checkouts are exempt: a flat workflows/<client>/*.json folder
+// with no automation/ tree predates client.yaml, and the whole point of
+// accepting that layout is that an ops repo finishes its migration on its own
+// schedule. Demanding the manifest there would make the migration mandatory on
+// the next push, which is exactly what the layout rule promises not to do.
+func TestClientManifests(t *testing.T) {
+	knownEngines := map[string]bool{"dagnats": true, "windmill": true, "dagu": true}
+
+	for _, dir := range clientFolders(t) {
+		name := filepath.Base(dir)
+		manifest := filepath.Join(dir, "client.yaml")
+		raw, err := os.ReadFile(manifest)
+		if err != nil {
+			// Phase-1 folder: flat recipes, no automation/ tree, no manifest.
+			// The exemption must not leak into a folder that already has an
+			// automation/ tree — that one is phase-3 shaped and owes a manifest.
+			if legacyFlatLayout(dir) && !hasAutomationTree(dir) {
+				t.Logf("%s: phase-1 checkpoint (no client.yaml yet); manifests become required once automation/<engine>/ exists", dir)
+				continue
+			}
+			t.Errorf("%s: missing client.yaml (copy clients/_template/client.yaml)", dir)
+			continue
+		}
+
+		fields := parseManifest(raw)
+		if got := fields["client"]; got != name {
+			t.Errorf("%s: client: %q does not match the folder name %q", manifest, got, name)
+		}
+
+		engine := fields["engine"]
+		if !knownEngines[engine] {
+			t.Errorf("%s: engine: %q is not one of dagnats|windmill|dagu", manifest, engine)
+			continue
+		}
+
+		// Count active engine dirs; more than one means the manifest and the
+		// tree disagree, which is the failure mode the docs promise to catch.
+		var active []string
+		for candidate := range knownEngines {
+			if fi, err := os.Stat(filepath.Join(dir, "automation", candidate)); err == nil && fi.IsDir() {
+				active = append(active, candidate)
+			}
+		}
+		switch {
+		case len(active) > 1:
+			t.Errorf("%s: %d engine directories (%s) but a client runs exactly one engine",
+				dir, len(active), strings.Join(active, ", "))
+		case len(active) == 1 && active[0] != engine:
+			t.Errorf("%s: client.yaml says engine: %s but automation/%s is the populated one",
+				dir, engine, active[0])
+		case len(active) == 1:
+			// Manifest and tree agree — the healthy case.
+		case legacyFlatLayout(dir):
+			// Phase-1 migration state: recipes are still flat in the client
+			// folder, so automation/ is absent by design until it migrates.
+		default:
+			// No engine source yet; the folder is a draft or an eval-only entry.
+			// Not an error, but worth surfacing once so a stale folder is visible.
+			t.Logf("%s: engine: %s declared, no automation/%s yet (draft or mid-migration)", dir, engine, engine)
+		}
+	}
+}
+
+// legacyFlatLayout reports whether dir still holds phase-1 flat recipes.
+func legacyFlatLayout(dir string) bool {
+	matches, err := filepath.Glob(filepath.Join(dir, "*.json"))
+	return err == nil && len(matches) > 0
+}
+
+// hasAutomationTree reports whether dir has the phase-3 automation/ directory.
+func hasAutomationTree(dir string) bool {
+	fi, err := os.Stat(filepath.Join(dir, "automation"))
+	return err == nil && fi.IsDir()
+}
+
+// parseManifest reads the tiny flat `key: value` subset of YAML that
+// client.yaml uses. A full YAML parser would add a dependency for four keys;
+// the template is a flat manifest by design (docs/client-spine.md). Values may
+// carry a trailing comment, and a leading `#` line is ignored.
+func parseManifest(raw []byte) map[string]string {
+	out := map[string]string{}
+	for _, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		key, value, ok := strings.Cut(line, ":")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		if i := strings.Index(value, "#"); i >= 0 {
+			value = strings.TrimSpace(value[:i])
+		}
+		value = strings.Trim(value, `"'`)
+		if key != "" {
+			out[key] = value
+		}
+	}
+	return out
+}

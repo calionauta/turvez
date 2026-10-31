@@ -1,0 +1,10 @@
+# Platform overlays (DLQ watchdog and friends). Not a customer: the folder is
+# reserved by the tenancy rules so platform recipes never collide with clients.
+client: ops
+engine: dagnats
+runtime: shared
+target:
+  nats_url: nats://127.0.0.1:4222
+  api_url: http://127.0.0.1:8080
+data_class: normal
+owner: operator@example.com

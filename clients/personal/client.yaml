@@ -1,0 +1,11 @@
+# Your own namespace: same pipeline as a client, you are the approver.
+# Start here on dagnats (ping.json is the smoke recipe); move to `${engine}`
+# when you need UI or replay.
+client: personal
+engine: dagnats
+runtime: shared
+target:
+  nats_url: nats://127.0.0.1:4222
+  api_url: http://127.0.0.1:8080
+data_class: normal
+owner: operator@example.com

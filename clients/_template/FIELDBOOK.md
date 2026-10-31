@@ -1,9 +1,9 @@
 # Fieldbook: TODO-CLIENT
 
-> Copy to `turvez-ops/workflows/TODO-CLIENT/README.md` when opening the client
+> Copy to `turvez-ops/clients/TODO-CLIENT/README.md` when opening the client
 > (private ops repo — never in the public template). Git is source of truth;
 > KV is deploy target (same rule as recipes).
-> Secret names yes, values never (`go test ./workflows/` fails if one leaks).
+> Secret names yes, values never (`go test ./clients/` fails if one leaks).
 > Diagnosis seed from degustia (if an Encorpado exists): `dores_mapeadas` → §1;
 > systems mentioned → §3 (NAMES only); automations from chaining 2.2b →
 > candidate recipes in §4. The reverse works too: fieldbook + fresh transcript
@@ -49,7 +49,7 @@ The separator lives in `naming.json` at the template root; change it there, then
 
 ```bash
 CLIENT=TODO-CLIENT
-dagnats workflow validate workflows/$CLIENT/*.json
+dagnats workflow validate clients/$CLIENT/automation/dagnats/*.json
 ./scripts/register-workflows.sh $CLIENT
 dagnats run start "$CLIENT/<wf>" '{"lead_id":"test-1"}' --watch
 dagnats run list --workflow=$CLIENT/
@@ -68,4 +68,4 @@ Alerts: `on_failure` → notify (layer 1) + `ops.dlq-watchdog` (layer 2) + exter
 
 ## 7. Extract (stage 3, if needed)
 
-See `docs/isolating-a-client.md`. Summary: copy `workflows/TODO-CLIENT/` + `env.age`, `register` on the new host, repoint webhooks, `disable` on the old one.
+See `docs/isolating-a-client.md`. Summary: copy `clients/TODO-CLIENT/` + `env.age`, `register` on the new host, repoint webhooks, `disable` on the old one.

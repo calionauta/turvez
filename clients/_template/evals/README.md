@@ -99,7 +99,7 @@ Before the first run, declare what the operator is labeling. This is the only
 per-client configuration; the scripts are generic:
 
 ```bash
-python3 scripts/label-cases.py --dir evals/acme --setup
+python3 scripts/label-cases.py --dir clients/acme/evals --setup
 # fields (comma-separated) [category]: category,urgency
 # values for category [billing,technical,other]: billing,technical,other
 # values for urgency []: low,high
