@@ -49,6 +49,12 @@ if [ -d "$TEMPLATE_DIR/evals/_template" ]; then
     && mv "$EV/promptfooconfig.yaml.tmp" "$EV/promptfooconfig.yaml"
 fi
 
+# Engine/runtime manifest (client.yaml). The paths stay workflow-based for now;
+# see docs/client-spine.md for the phase-3 move to clients/<client>/.
+if [ -f "$TEMPLATE_DIR/workflows/_templates/client.yaml" ]; then
+  sed "s/TODO-CLIENT/$CLIENT/g" "$TEMPLATE_DIR/workflows/_templates/client.yaml" > "$WF/client.yaml"
+fi
+
 # Fieldbook from template (placeholder swap; portable upper-case for macOS bash 3.2).
 UPPER="$(echo "$CLIENT" | tr 'a-z' 'A-Z')"
 sed "s/TODO-CLIENT/$CLIENT/g; s/TODO_HUBSPOT_TOKEN/${UPPER}_HUBSPOT_TOKEN/g; s/TODO_SLACK_WEBHOOK_URL/${UPPER}_SLACK_WEBHOOK_URL/g" \

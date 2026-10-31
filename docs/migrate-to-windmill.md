@@ -5,7 +5,9 @@ exists so a future migration of client automations to Windmill
 "workflow as code" is mechanical, not a rewrite from scratch.
 
 Source of truth stays git: `workflows/<client-id>/*.json` plus the
-generic Go handlers under `internal/handlers/`. Never migrate
+generic Go handlers under `internal/handlers/`. The client's `client.yaml`
+records `engine: windmill` once the cutover is complete; Windmill source goes
+under `workflows/<client-id>/windmill/` in the phase-1 layout. Never migrate
 historical run logs — only definitions, triggers, and secret *names*.
 
 ## Deterministic step mapping

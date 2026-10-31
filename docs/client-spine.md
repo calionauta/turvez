@@ -4,6 +4,10 @@ The repo is the **spine**, not the runtime. A client can run on dagnats, Windmil
 or Dagu, on a shared instance or its own server, without changing where its
 source lives. This page defines the backbone and the migration rules.
 
+**Scope.** Repo split (template vs ops) is `docs/ops-repo.md`; tenancy and
+isolation are `docs/tenancy-evolution.md` and `docs/isolating-a-client.md`.
+This page only decides engine and runtime. It does not replace those documents.
+
 ## Principle
 
 `client.yaml` is the single source of truth for **where and how** a client runs.
@@ -11,7 +15,7 @@ Everything else is engine-specific source under the same client folder. Scripts,
 the skill and CI read the manifest; they never guess the engine from a path.
 
 ```yaml
-# clients/acme/client.yaml
+# workflows/acme/client.yaml (phase 1) or clients/acme/client.yaml (phase 3)
 client: acme
 engine: windmill          # dagnats | windmill | dagu
 runtime: shared           # shared | dedicated
@@ -26,23 +30,37 @@ owner: operator@example.com
 
 ## Layout
 
+**Phase 1 (current, no breakage).** The existing paths stay; the manifest is
+added inside the client folder:
+
+```
+workflows/<client>/
+  client.yaml              # engine, runtime, target, data class
+  README.md                # fieldbook
+  *.json                   # dagnats recipes (current engine)
+  windmill/                # only when the client moves to Windmill
+  dagu/                    # only when the client moves to Dagu
+evals/<client>/            # engine-agnostic: promptfooconfig, cases, labels
+env/<client>.env.example
+secrets/<client>/
+```
+
+**Target (phase 3, one migration).** The same content under a neutral folder:
+
 ```
 clients/<client>/
-  client.yaml              # engine, runtime, target, data class
-  README.md                # fieldbook (context, systems, contacts)
-  automation/
-    dagnats/*.json         # engine-specific source; only one engine is active
-    windmill/*.flow/       # WAC flows, scripts, schedules
-    dagu/*.yaml
-  evals/                   # engine-agnostic: promptfooconfig, cases, labels
-  env/<client>.env.example # names only
-  secrets/<client>/        # age ciphertext (dagnats) or references (windmill)
-  policies/                # retention, data class, redaction
+  client.yaml
+  README.md
+  automation/{dagnats,windmill,dagu}/
+  evals/
+  env/<client>.env.example
+  secrets/<client>/
+  policies/
 ```
 
 Only the directory for the active engine is required. Keeping an old engine's
 directory during a migration is allowed; `client.yaml` decides which one is
-live.
+live. The eval layer is identical in both layouts.
 
 ## Engine differences stay at the edges
 
@@ -84,8 +102,9 @@ Promptfoo keeps reading the same cases.
 
 1. **Now**: add `client.yaml` inside `workflows/<client>/` (same paths), with
    `engine: dagnats` for everyone. Scripts read it; nothing moves.
-2. **First Windmill client**: put it under `clients/<client>/automation/windmill/`
-   and add the eval `source` adapter. Old clients stay where they are.
+2. **First Windmill client**: put it under `workflows/<client>/windmill/`
+   (phase-1 layout) and add the eval `source` adapter. Old clients stay where
+   they are; nothing moves yet.
 3. **Majority Windmill**: rename `workflows/<client>` → `clients/<client>` in one
    migration; `workflows/` becomes a legacy symlink or is archived.
 4. **No dagnats clients**: drop the Go runtime; the spine and evals stay.

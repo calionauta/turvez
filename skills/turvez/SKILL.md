@@ -22,6 +22,8 @@ The skill drives repo creation; scripts never run unasked. Order:
 
 1. **Detect.** In this order: `TURVEZ_OPS_DIR` set and valid? cwd has
    `TURVEZ_PIN`? sibling `../turvez-ops` (or another `*-ops`) exists?
+   Then read `workflows/<client>/client.yaml`. If `engine` is not `dagnats`,
+   stop the recipe path and follow `references/windmill.md` (or Dagu level 2).
    If ambiguous (several candidates), ask the operator which one — never guess.
 2. **Missing + task needs a real client (or real `personal/`) → propose scaffold:**
    `./scripts/new-ops-repo.sh ../turvez-ops` (exact command, wait).
@@ -103,6 +105,7 @@ in `.data`. With a secret, the caller signs the raw body with
 nothing. Propose `create`/`update`/`enable`/`disable`/`delete` and wait;
 `list`, `history` and `test` are read-only. Details:
 `references/triggers.md`. OAuth/API keys for many APIs: `references/auth-layers.md`.
+Windmill clients: `references/windmill.md` (test gate, Go scripts, YAML, replay).
 
 ## Eval loop (after the automation runs)
 

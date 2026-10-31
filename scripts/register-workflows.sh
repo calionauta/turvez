@@ -40,6 +40,14 @@ fail=0
 for dir in "${DIRS[@]}"; do
   # Skip the templates dir (TODO-CLIENT placeholders, not registerable).
   case "$dir" in */_templates/*) continue;; esac
+  # Engine gate: a client.yaml with engine != dagnats is not registered here.
+  if [ -f "$dir/client.yaml" ]; then
+    engine="$(awk -F': *' '/^engine:/{print $2; exit}' "$dir/client.yaml" | sed 's/#.*//; s/[[:space:]]//g')"
+    if [ -n "$engine" ] && [ "$engine" != "dagnats" ]; then
+      echo "SKIP $dir: engine=$engine (not dagnats)"
+      continue
+    fi
+  fi
   expected="$(basename "$dir")"
   for f in "${dir%/}"/*.json; do
     [ -e "$f" ] || continue

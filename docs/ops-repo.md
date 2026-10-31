@@ -23,6 +23,7 @@ turvez-ops/
   TURVEZ_PIN                  # TURVEZ_REF=<tag|sha> + DAGNATS_VERSION=v0.0.30
   AGENTS.md                   # ops rules (validate from template checkout)
   .github/workflows/contract.yml  # CI: template tests @TURVEZ_PIN vs this repo
+  workflows/<client>/client.yaml    # engine, runtime, target (see docs/client-spine.md)
   workflows/<client>/README.md + *.json
   evals/<client>/                # promptfooconfig + generated cases
   workflows/personal/ + workflows/ops/   # seeded from template, watchdog included

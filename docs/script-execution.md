@@ -93,6 +93,10 @@ copy code into this repo.
 
 **Q4. Did it become the client's internal product?** (needs web form for
 the team, integration catalog, approvals with UI, low-code apps)
+Level 3 is a migration target. Windmill can also be the **primary** engine for
+a client whose contract needs UI/replay; see the platform section below. The
+client's `client.yaml` records the choice. Phase-1 layout: `workflows/<client>/`.
+
 Yes → level 3, Windmill, **per client** (see
 `docs/migrate-to-windmill.md` + `docs/isolating-a-client.md`):
 repoint webhooks, run in parallel until green, turn off dagnats
