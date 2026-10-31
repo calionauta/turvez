@@ -5,10 +5,12 @@ clients — refuse, point to turvez-ops via docs/ops-repo.md). `TURVEZ_PIN`
 only = ops repo (private, any client OK).
 
 Q0.5: which engine is this client on? Read `clients/<client>/client.yaml`.
-`engine: windmill` → `references/windmill.md`. `engine: dagnats` (or no manifest
-yet) → the levels below. There is **no global default**: the engine is chosen
-per client with `docs/client-spine.md#choosing-the-engine`. If the client has no
-manifest, run that decision first and write the answer down.
+`engine: windmill` → `references/windmill.md`. `engine: dagnats` → the levels
+below. The **default is Windmill** (`engines.json`), but the manifest always
+wins: an explicit `engine: dagnats` is honored. dagnats is chosen when the
+contract needs typed contracts, native approvals, no arbitrary code, or when
+AGPL/Postgres is a problem — see `docs/client-spine.md#choosing-the-engine`. If
+the client has no manifest, run that decision first and write the answer down.
 
 Then ask in order, for a dagnats client. First "yes" wins. Full rationale:
 `docs/script-execution.md`.

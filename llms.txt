@@ -39,10 +39,15 @@
 - Client intake (interview + degustia tool picks): skills/turvez/references/client-intake.md
 - Sandbox decision: docs/sandbox-policy.md (3 questions) + scripts/sandbox-run.sh for one-offs
 - Where to execute (dagnats vs Dagu vs Windmill): docs/script-execution.md (decision tree)
-- Windmill escape hatch: docs/migrate-to-windmill.md (docs only)
-- Engine choice is per client (docs/client-spine.md#choosing-the-engine), no global
-  default: skills/turvez/references/windmill.md + docs/script-execution.md
+- Migrating a client to Windmill: docs/migrate-to-windmill.md (mapping table)
+  + `scripts/convert-to-windmill.py` (emits a skeleton with TODOs, never a port)
+- Engine choice is per client (docs/client-spine.md#choosing-the-engine);
+  **Windmill is the default** (`engines.json`), dagnats is the exception path:
+  skills/turvez/references/windmill.md + docs/script-execution.md
   + `./scripts/check-windmill.sh` (lint gate, no worker)
+- Client isolation status: `./scripts/verify-isolation.sh` (reads runtime/target,
+  read-only). Package one client for its own host: `scripts/extract-client.py`
+  (prints the plan + commands, never executes them)
 
 ## Invariants (do not relearn these)
 

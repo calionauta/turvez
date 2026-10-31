@@ -8,16 +8,18 @@
 #   secrets/<client>/                       # age recipients
 #
 # Usage (inside template OR ops repo):
-#   ./scripts/new-client.sh <client-id>                     # engine: windmill
+#   ./scripts/new-client.sh <client-id>                     # default engine
 #   ./scripts/new-client.sh <client-id> --engine=dagnats    # typed/simple work
-#
-# There is no global default engine (docs/client-spine.md#choosing-the-engine).
-# The script preselects windmill because the dagnats build loop is already the
-documented path; pass --engine=dagnats when the criteria pick dagnats.
 #   TURVEZ_OPS_DIR=../turvez-ops ./scripts/new-client.sh <client-id>
 #
-# The engine is a per-client decision; scaffold the one the criteria pick and
-# record it in client.yaml so the manifest can never contradict the tree.
+# The default engine is whatever `engines.json` says (`default: windmill`), not
+# a hardcoded choice here: changing the policy is one edit, and the same file is
+# read by the contract test and the validate gate.
+# dagnats stays fully supported and chosen with --engine=dagnats when the
+# criteria in docs/client-spine.md#choosing-the-engine pick it.
+#
+# Scaffold the engine the criteria pick and record it in client.yaml so the
+# manifest can never contradict the tree.
 #
 # Template sources are read from clients/_template when it exists, else the
 # legacy phase-1 workflows/_templates; both layouts keep working.
@@ -27,7 +29,14 @@ documented path; pass --engine=dagnats when the criteria pick dagnats.
 set -euo pipefail
 
 CLIENT=""
-ENGINE="windmill"
+# The default engine comes from engines.json, not from this script: one place to
+# change the policy (docs/client-spine.md#choosing-the-engine).
+ENGINES_JSON="$(cd "$(dirname "$0")/.." && pwd)/engines.json"
+ENGINE=""
+if [ -f "$ENGINES_JSON" ]; then
+  ENGINE="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("default",""))' "$ENGINES_JSON" 2>/dev/null || true)"
+fi
+ENGINE="${ENGINE:-windmill}"
 for arg in "$@"; do
   case "$arg" in
     --engine=*) ENGINE="${arg#--engine=}" ;;
@@ -35,12 +44,19 @@ for arg in "$@"; do
     *) CLIENT="$arg" ;;
   esac
 done
-case "$ENGINE" in
-  windmill|dagnats|dagu) ;;
-  *) echo "bad engine: $ENGINE (windmill | dagnats | dagu)" >&2; exit 1 ;;
+
+# Validate the engine against engines.json (fallback = built-in set, so a
+# checkout pinned before engines.json existed still works).
+VALID_ENGINES="windmill dagnats dagu"
+if [ -f "$ENGINES_JSON" ]; then
+  VALID_ENGINES="$(python3 -c 'import json,sys; print(" ".join(sorted(json.load(open(sys.argv[1]))["engines"])))' "$ENGINES_JSON" 2>/dev/null || echo "$VALID_ENGINES")"
+fi
+case " $VALID_ENGINES " in
+  *" $ENGINE "*) ;;
+  *) echo "bad engine: $ENGINE (known: $VALID_ENGINES — add it to engines.json)" >&2; exit 1 ;;
 esac
 
-[ -n "$CLIENT" ] || { echo "Usage: new-client.sh <client-id> [--engine=windmill|dagnats|dagu]" >&2; exit 1; }
+[ -n "$CLIENT" ] || { echo "Usage: new-client.sh <client-id> [--engine=<$(echo $VALID_ENGINES | tr ' ' '|')>]" >&2; exit 1; }
 [[ "$CLIENT" =~ ^[a-z0-9][a-z0-9-]*$ ]] || { echo "bad client id: $CLIENT (lowercase, digits, dashes)" >&2; exit 1; }
 
 # Resolve target root: explicit ops dir wins; else current checkout.

@@ -6,10 +6,13 @@ description: Decide where an automation belongs (turvez recipe vs sandbox one-of
 # turvez
 
 Repo: consultancy automation runtime. One **client spine** (repo layout,
-fieldbook, recipes, evals) and **two engines, chosen per client** with no global
-default (`docs/client-spine.md#choosing-the-engine`): **dagnats** (Go worker +
-12 typed handlers, one binary, `go test` gate) for typed/regulated/light work,
-**Windmill** when the client needs UI/forms, step replay, or real code steps.
+fieldbook, recipes, evals) and **two engines, chosen per client**
+(`docs/client-spine.md#choosing-the-engine`): **Windmill is the default** —
+chosen for FDE work so a client lands on the mature, centralised system from
+day one (UI/forms, step-level replay, code steps in TS/Python/Go). **dagnats**
+is the exception path (Go worker + 12 typed handlers, one binary, `go test`
+gate), chosen when the contract needs typed contracts, native approvals, no
+arbitrary code, or AGPL/Postgres is a problem.
 You direct, then build. Read `AGENTS.md` first (normative), route via `llms.txt`.
 Flows as diagrams: `docs/workflows.md`. First run and traps: `docs/first-run.md`.
 
@@ -26,14 +29,14 @@ Read `clients/<client>/client.yaml` when the client exists.
 
 | `engine` | Path |
 |---|---|
-| `dagnats` | the build loop below — recipes under `automation/dagnats/` |
-| `windmill` | `references/windmill.md` — flows under `automation/windmill/`, gate `./scripts/check-windmill.sh` |
+| `windmill` (default) | `references/windmill.md` — flows under `automation/windmill/`, gate `./scripts/check-windmill.sh` |
+| `dagnats` (exception) | the build loop below — recipes under `automation/dagnats/` |
 | `dagu` | level 2 only, `docs/script-execution.md` |
 
-No `client.yaml` yet → decide with `docs/client-spine.md#choosing-the-engine`
-(UI/forms? step replay? real code steps? → Windmill. Typed contract, native
-approvals, one binary, AGPL problem? → dagnats. None of the above → dagnats is
-cheaper). Then record it in the manifest.
+No `client.yaml` yet → `scripts/new-client.sh` scaffolds Windmill. Switch to
+dagnats only when `docs/client-spine.md#choosing-the-engine` says so (typed
+contract, native approvals, no arbitrary code, one binary, AGPL problem), then
+record `engine: dagnats` in the manifest.
 
 Never migrate an engine unasked, and never run two engines for one client.
 

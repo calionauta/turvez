@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -755,7 +756,7 @@ func TestRecipeExpressions(t *testing.T) {
 // schedule. Demanding the manifest there would make the migration mandatory on
 // the next push, which is exactly what the layout rule promises not to do.
 func TestClientManifests(t *testing.T) {
-	knownEngines := map[string]bool{"dagnats": true, "windmill": true, "dagu": true}
+	knownEngines := loadEngines(t)
 
 	for _, dir := range clientFolders(t) {
 		name := filepath.Base(dir)
@@ -778,9 +779,22 @@ func TestClientManifests(t *testing.T) {
 			t.Errorf("%s: client: %q does not match the folder name %q", manifest, got, name)
 		}
 
+		runtime := fields["runtime"]
+		switch runtime {
+		case "", "shared", "dedicated":
+			// Empty is tolerated for phase-1 folders that predate the manifest
+			// fields; anything else is a typo the isolation check depends on.
+		default:
+			t.Errorf("%s: runtime: %q must be shared or dedicated", manifest, runtime)
+		}
+		if runtime == "dedicated" && fields["host"] == "" {
+			t.Errorf("%s: runtime: dedicated but no target.host — set the host this client runs on", manifest)
+		}
+
 		engine := fields["engine"]
 		if !knownEngines[engine] {
-			t.Errorf("%s: engine: %q is not one of dagnats|windmill|dagu", manifest, engine)
+			t.Errorf("%s: engine: %q is not a known engine (%s) — add it to engines.json",
+				manifest, engine, strings.Join(engineNames(knownEngines), "|"))
 			continue
 		}
 
@@ -822,6 +836,56 @@ func legacyFlatLayout(dir string) bool {
 func hasAutomationTree(dir string) bool {
 	fi, err := os.Stat(filepath.Join(dir, "automation"))
 	return err == nil && fi.IsDir()
+}
+
+// enginesConfig is the subset of engines.json the contract needs. The file is
+// the single source of truth for which engines exist; scripts/new-client.sh,
+// scripts/validate.sh and scripts/verify-isolation.sh read the same file, so
+// adding an engine is one edit instead of four.
+type enginesConfig struct {
+	Default string                     `json:"default"`
+	Engines map[string]json.RawMessage `json:"engines"`
+}
+
+// loadEngines returns the set of known engine names. A missing or malformed
+// engines.json falls back to the built-in set so a checkout pinned to an older
+// release (which had no engines.json) still validates.
+func loadEngines(t *testing.T) map[string]bool {
+	t.Helper()
+	fallback := map[string]bool{"dagnats": true, "windmill": true, "dagu": true}
+	raw, err := os.ReadFile("../engines.json")
+	if err != nil {
+		return fallback
+	}
+	var cfg enginesConfig
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		t.Errorf("engines.json: %v (falling back to %v)", err, fallback)
+		return fallback
+	}
+	if len(cfg.Engines) == 0 {
+		t.Error("engines.json: no engines defined")
+		return fallback
+	}
+	if cfg.Default != "" {
+		if _, ok := cfg.Engines[cfg.Default]; !ok {
+			t.Errorf("engines.json: default %q is not a defined engine", cfg.Default)
+		}
+	}
+	out := make(map[string]bool, len(cfg.Engines))
+	for name := range cfg.Engines {
+		out[name] = true
+	}
+	return out
+}
+
+// engineNames returns the engine names sorted, for stable error messages.
+func engineNames(set map[string]bool) []string {
+	names := make([]string, 0, len(set))
+	for n := range set {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // parseManifest reads the tiny flat `key: value` subset of YAML that

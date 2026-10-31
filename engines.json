@@ -1,0 +1,24 @@
+{
+  "comment": "Single source of truth for the engines this repo can run a client on. Read by clients/recipes_test.go (manifest validation), scripts/new-client.sh (scaffold), scripts/validate.sh (which gate to run) and scripts/verify-isolation.sh. Add an engine here first; the code picks it up. `default` names the scaffold default — changing it is a policy decision, not a code change (docs/client-spine.md#choosing-the-engine).",
+  "default": "windmill",
+  "engines": {
+    "windmill": {
+      "source_dir": "automation/windmill",
+      "validate": "scripts/check-windmill.sh",
+      "needs_cli": "wmill",
+      "summary": "Default. UI/forms, step-level replay, non-trivial code steps (TS/Python/Go). Costs Postgres, AGPL self-host, EE for SSO/audit."
+    },
+    "dagnats": {
+      "source_dir": "automation/dagnats",
+      "validate": "make validate (dagnats CLI)",
+      "needs_cli": "dagnats",
+      "summary": "Typed contracts, native approvals, one binary, go test gate. The exception path: --engine=dagnats."
+    },
+    "dagu": {
+      "source_dir": "automation/dagu",
+      "validate": "dagu validate (see docs/script-execution.md)",
+      "needs_cli": "dagu",
+      "summary": "Level 2 only: script-shaped recurrent jobs, step retry. Not a product surface."
+    }
+  }
+}

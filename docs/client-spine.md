@@ -62,36 +62,45 @@ Migrate a checkout with `./scripts/migrate-to-clients.sh --check` and then
 
 ## Choosing the engine
 
-Ask these in order. The first **yes** decides; a tie means the client does not
-need Windmill yet, so it starts on dagnats.
+**Default: Windmill.** This is an FDE consultancy: a new client should land on
+the mature, centralised system from day one — one instance with a workspace per
+client, real UI/apps, step-level replay, and code steps in TS/Python/Go. Starting
+on the heavier platform means no migration later for the majority of work, and
+`engines.json` (`"default": "windmill"`) is the single place that policy lives.
+
+**dagnats is the exception path**, not a legacy one. It is chosen explicitly
+(`--engine=dagnats`) when one of the conditions below holds, and it stays fully
+supported, tested and documented.
+
+Ask these in order. The first **yes** decides.
 
 | # | Question | Yes → | Why |
 |---|---|---|---|
-| 1 | Does the client need **generated UI/forms/apps** for the automation, or a teammate who is not you operating it? | **Windmill** | dagnats has no app surface; building one is a separate product |
-| 2 | Does diagnosing a bad step require **re-running one step**, or reading each step's log? | **Windmill** | pilot: structured error (`step_id`, stack, job id) + `flow preview --step` is materially better than base64 step output |
-| 3 | Is the logic **non-trivial code** (parsing, branching, an SDK) that a non-Go dev must own? | **Windmill** | TS/Python/Go code steps beat a jq expression the 12 handlers cannot express |
-| 4 | Does the contract demand **typed contracts, native approvals, no arbitrary code, one binary**, or AGPL is a contract problem? | **dagnats** | dagnats' whole point; `go test` gates it before any run |
-| 5 | Is the client **regulated/residency-bound**, or does it require its own instance/DB? | **dagnats** (or Windmill self-hosted, see `docs/isolating-a-client.md`) | instance isolation is a deployment choice, not an engine choice |
+| 1 | Does the contract demand **typed contracts, native approvals, no arbitrary code execution, or one binary**? | **dagnats** | dagnats' whole point; `go test` gates it before any run |
+| 2 | Is **AGPL** a contract problem, or must the stack avoid Postgres/EE features (SSO, audit)? | **dagnats** | Windmill core is AGPL; SSO/audit/PR-gating are EE |
+| 3 | Is the client so small that **operating Postgres + workers** outweighs the automation's value? | **dagnats** | one binary vs two stateful services |
+| 4 | Does the client need **generated UI/forms/apps**, or will someone other than you operate the automation? | **Windmill** | the default already covers this |
+| 5 | Is the logic **non-trivial code** a non-Go dev must own? | **Windmill** | the default already covers this |
 
-If none apply, the client is a plain integration job and **dagnats is the
-cheaper answer**: one binary, no Postgres, a `go test` gate. That is not a
-legacy statement; it is the reason dagnats exists.
-
-**Do not flip the default to Windmill for everyone.** The pilot's verdict was
-explicit: it justified offering Windmill **per client** (UI/replay clients) and
-keeping dagnats for typed/regulated/light ones. A default-for-everyone flip is
-a decision with Postgres, AGPL and governance consequences and needs a
-measured win across most clients first — not one pilot.
+A client that trips none of 1–3 stays on Windmill: that is the default, and
+drifting to dagnats without a reason is how a consultancy ends up maintaining
+two runtimes for the same kind of work.
 
 Cost of being wrong, per direction:
 
-- dagnats when Windmill was right → you pay in debugging time; step output is
-  base64 and there is no per-step replay.
-- Windmill when dagnats was right → you took on Postgres, AGPL/EE governance
+- **Windmill when dagnats was right** → you carry Postgres, AGPL/EE governance
   and a workspace per client for a workload one binary handled.
+- **dagnats when Windmill was right** → you pay in debugging time; step output
+  is base64 and there is no per-step replay.
 
-The second is the more expensive mistake, which is why the default stays where
-the contract is simple.
+Both are real, which is why the criteria above exist rather than a coin flip.
+The default is a **starting point**, and each client's `client.yaml` records the
+answer with its reason.
+
+**Do not flip the default by accident, and do not flip it back by accident.** The
+pilot that measured both engines concluded that Windmill wins on diagnosis and
+step replay, and dagnats wins on the pre-run test gate, footprint and licensing.
+That verdict is why both remain supported: it is not a reason to delete either.
 
 ## Engine differences stay at the edges
 

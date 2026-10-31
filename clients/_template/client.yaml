@@ -1,9 +1,13 @@
 client: TODO-CLIENT
-# Engine is a per-client decision, not a default: read
-# docs/client-spine.md#choosing-the-engine and set the one the criteria pick.
-# dagnats  = typed contracts, native approvals, one binary, `go test` gate.
-# windmill = UI/forms, step-level replay, non-trivial code steps.
+# Windmill is the default (`engines.json`): a new client starts on the mature,
+# centralised system. Switch to dagnats only when the criteria say so —
+# docs/client-spine.md#choosing-the-engine.
+# windmill = default: UI/forms, step-level replay, non-trivial code steps.
+# dagnats  = exception: typed contracts, native approvals, one binary, go test gate.
+# dagu     = level 2 only: script-shaped recurrent jobs (docs/script-execution.md).
 engine: windmill      # windmill | dagnats | dagu
+# runtime/target are read by `./scripts/verify-isolation.sh` and the contract
+# test: `shared` runs on the main stack, `dedicated` needs target.host.
 runtime: shared       # shared | dedicated
 target:
   # windmill (shared or dedicated) — fill these when engine: windmill

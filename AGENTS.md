@@ -14,16 +14,21 @@
 
 - The repo is the **spine**; the engine is per client, in
   `clients/<client>/client.yaml` (`docs/client-spine.md`).
-- `engine: dagnats` — Go worker + 12 typed handlers, one binary, `go test` gate.
-  Cheaper for typed/regulated/light integration work. Source in
-  `clients/<client>/automation/dagnats/*.json`.
-- `engine: windmill` — needed when the client wants UI/forms, step-level replay,
-  or non-trivial code steps. Source in `clients/<client>/automation/windmill/`;
+- `engine: windmill` — **the default** (`engines.json`), scaffolded by
+  `scripts/new-client.sh`. One instance, workspace per client, UI/forms,
+  step-level replay, code steps. Source in `clients/<client>/automation/windmill/`;
   gate `./scripts/check-windmill.sh`.
-- No global default: pick per client with `docs/client-spine.md#choosing-the-engine`.
-  `new-client.sh` scaffolds Windmill unless told otherwise because the dagnats
-  path is already the documented build loop; say `--engine=dagnats` for it.
-- One engine per client. Never migrate one unasked.
+- `engine: dagnats` — the exception path: Go worker + 12 typed handlers, one
+  binary, `go test` gate. Chosen with `--engine=dagnats` when the contract needs
+  typed contracts, native approvals, no arbitrary code, or AGPL/Postgres is a
+  problem. Source in `clients/<client>/automation/dagnats/*.json`.
+- Default comes from `engines.json` (one place). The manifest always wins: an
+  explicit `engine:` in `client.yaml` is honored. Criteria:
+  `docs/client-spine.md#choosing-the-engine`.
+- `runtime: shared|dedicated` + `target.host` are read by
+  `./scripts/verify-isolation.sh` and the contract test — keep them honest.
+- One engine per client. Never migrate one unasked; the converter
+  (`scripts/convert-to-windmill.py`) produces a skeleton, never a finished port.
 
 ## Layout
 

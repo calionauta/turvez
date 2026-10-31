@@ -8,13 +8,15 @@ engine.
 
 **Engines.** The repo is the spine; the runtime is a **per-client choice**
 recorded in `clients/<client>/client.yaml` (`docs/client-spine.md` → "Choosing
-the engine"). There is no global default: **dagnats** (Go worker + 12 generic
-tasks, one binary, `go test` gate) is the cheaper answer for typed/regulated
-integration work, and **Windmill** is the answer when a client needs
-UI/forms, step-level replay, or real code steps. One engine per client, chosen
-with criteria — never both (`.github/workflows/ci.yml` and `go test ./clients/`
-enforce the manifest). Migrating one client is mechanical
-(`docs/migrate-to-windmill.md`).
+the engine"). **Windmill is the default** and is what `scripts/new-client.sh`
+scaffolds: one instance with a workspace per client, UI/forms, step-level replay
+and code steps. **dagnats** (Go worker + 12 generic tasks, one binary, `go test`
+gate) is the exception path — chosen with `--engine=dagnats` when the contract
+demands typed contracts, native approvals, no arbitrary code, or AGPL/Postgres
+is a problem. `engines.json` holds that policy in one place. One engine per
+client, never both (`.github/workflows/ci.yml` and `go test ./clients/` enforce
+the manifest). Migrating a client either way is mechanical
+(`docs/migrate-to-windmill.md`, `scripts/convert-to-windmill.py`).
 
 ## What it solves, and how
 
