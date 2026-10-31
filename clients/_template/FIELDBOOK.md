@@ -63,7 +63,7 @@ Alerts: `on_failure` → notify (layer 1) + `ops.dlq-watchdog` (layer 2) + exter
 
 - 2026-10-24: approval threshold = 10000 because… (who asked)
 - …: new handler? no — `transform.json` + `skip_if` covered it
-- …: what became reusable? (new template in `_templates/`? pattern that
+- …: what became reusable? (new template in `clients/_template/`? pattern that
   becomes a handler? — productize: what this client taught that the next one gets for free)
 
 ## 7. Extract (stage 3, if needed)

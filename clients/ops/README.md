@@ -1,7 +1,7 @@
 # Fieldbook: ops (platform namespace, not a client)
 
 > `ops/` holds platform automation (DLQ watchdog, etc.). No client secrets
-> here — only `OPS_*` names. Per-client work lives in `workflows/<client>/`.
+> here — only `OPS_*` names. Per-client work lives in `clients/<client>/`.
 
 ## Recipes
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run the whole eval loop for one client: ingest, label, evaluate, summarize.
 
-    python3 scripts/eval-loop.py --dir evals/acme
+    python3 scripts/eval-loop.py --dir clients/acme/evals
 
 Steps, in order:
   1. read run history and regenerate cases (read-only)
@@ -109,10 +109,10 @@ def main() -> int:
         description="Ingest run history, label, evaluate and summarize one client.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""examples:
-  python3 scripts/eval-loop.py --dir evals/acme
-  python3 scripts/eval-loop.py --dir evals/acme --skip-label --yes
-  python3 scripts/eval-loop.py --dir evals/acme --skip-eval
-  python3 scripts/eval-loop.py --dir evals/acme --strict
+  python3 scripts/eval-loop.py --dir clients/acme/evals
+  python3 scripts/eval-loop.py --dir clients/acme/evals --skip-label --yes
+  python3 scripts/eval-loop.py --dir clients/acme/evals --skip-eval
+  python3 scripts/eval-loop.py --dir clients/acme/evals --strict
 
 requires DAGNATS_NATS_URL to point at the client's stack.
 see skills/turvez/references/eval-loop.md.""")

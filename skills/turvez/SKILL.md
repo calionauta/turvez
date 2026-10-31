@@ -5,7 +5,10 @@ description: Decide where an automation belongs (turvez recipe vs sandbox one-of
 
 # turvez
 
-Repo: consultancy automation runtime (dagnats + 1 Go worker, 12 generic tasks).
+Repo: consultancy automation runtime. One **client spine** (repo layout, fieldbook,
+recipes, evals) and two engines: **Windmill is the default for new clients**;
+**dagnats (Go worker + 12 generic tasks) is legacy** — supported, no new client
+starts there (`docs/client-spine.md`, phase 4).
 You direct, then build. Read `AGENTS.md` first (normative), route via `llms.txt`.
 Flows as diagrams: `docs/workflows.md`. First run and traps: `docs/first-run.md`.
 
@@ -14,7 +17,19 @@ Flows as diagrams: `docs/workflows.md`. First run and traps: `docs/first-run.md`
 - `go.mod` only = template (public). Real clients forbidden — refuse, point to
   `turvez-ops` (`docs/ops-repo.md`) + `scripts/new-client.sh`.
 - `TURVEZ_PIN` only = ops repo (private). Validate from the template checkout:
-  `OPS=$PWD; cd $TURVEZ_CHECKOUT && WORKFLOWS_DIR=$OPS/workflows go test ./workflows/`.
+  `OPS=$PWD; cd $TURVEZ_CHECKOUT && WORKFLOWS_DIR=$OPS/clients go test ./clients/`.
+
+@@ENGINE@@
+
+Read `clients/<client>/client.yaml` when the client exists.
+
+| `engine` | Path |
+|---|---|
+| `windmill` (default for new) | `references/windmill.md` — flows under `automation/windmill/`, gate `./scripts/check-windmill.sh` |
+| `dagnats` (legacy) | the build loop below — recipes under `automation/dagnats/` |
+| `dagu` | level 2 only, `docs/script-execution.md` |
+
+Never migrate an engine unasked, and never run two engines for one client.
 
 ## Q0b — split: ensuring the ops repo exists (skill-driven)
 
@@ -22,7 +37,7 @@ The skill drives repo creation; scripts never run unasked. Order:
 
 1. **Detect.** In this order: `TURVEZ_OPS_DIR` set and valid? cwd has
    `TURVEZ_PIN`? sibling `../turvez-ops` (or another `*-ops`) exists?
-   Then read `workflows/<client>/client.yaml`. If `engine` is not `dagnats`,
+   Then read `clients/<client>/client.yaml`. If `engine` is not `dagnats`,
    stop the recipe path and follow `references/windmill.md` (or Dagu level 2).
    If ambiguous (several candidates), ask the operator which one — never guess.
 2. **Missing + task needs a real client (or real `personal/`) → propose scaffold:**
@@ -38,6 +53,18 @@ The skill drives repo creation; scripts never run unasked. Order:
    "pode dar push" (or equivalent). `gh` auth failure → stop, hand the operator
    the printed manual command.
 
+## Q0c — which engine
+
+Read `clients/<client>/client.yaml` when the client exists.
+
+| `engine` | Path |
+|---|---|
+| `windmill` (default for new) | `references/windmill.md` — flows under `automation/windmill/`, gate `./scripts/check-windmill.sh` |
+| `dagnats` (legacy) | the build loop below — recipes under `automation/dagnats/` |
+| `dagu` | level 2 only, `docs/script-execution.md` |
+
+Never migrate an engine unasked, and never run two engines for one client.
+
 ## When to use
 
 Any "automate X" request — personal (`personal/`) or client (`<client>/`).
@@ -51,7 +78,9 @@ Methodology questions (discover, scope, runbook): see `references/methodology.md
 | `scripts/setup.sh [--init]` | first checkout, env files |
 | `scripts/doctor.sh` / `make doctor` | ports, NATS target, workers, stuck runs, console |
 | `scripts/new-ops-repo.sh`, `scripts/new-client.sh` | ops repo and client scaffold (confirm first) |
-| `scripts/register-workflows.sh` | validate + register (confirm first) |
+| `scripts/clients-root.sh`, `scripts/eval-dir.sh` | resolve the client / eval dir (clients or legacy workflows) |
+| `scripts/check-windmill.sh` | Windmill lint gate, no worker needed |
+| `scripts/register-workflows.sh` | validate + register (confirm first, dagnats engine) |
 | `scripts/sandbox-run.sh` | one-off script, level 1 (no recipe) |
 | `scripts/edit-secrets.sh` | decrypt, edit, re-encrypt one client's age file |
 | `scripts/rename-workflows.sh --apply` | after changing `naming.json` |
@@ -61,10 +90,12 @@ Methodology questions (discover, scope, runbook): see `references/methodology.md
 | `scripts/eval-loop.py` | ingest + label + eval + summary (`--skip-label`, `--skip-eval`, `--yes`, `--strict`) |
 | `make eval-client` / `eval-client-view` / `eval-loop` | run / UI :15500 / full loop |
 
-Eval options live in `evals/<client>/eval.config.json`: step names, label
+Eval options live in `clients/<client>/evals/eval.config.json`: step names, label
 fields and values, `schema_extra`, `rubric` (empty = deterministic only) and
 `judge.provider` (passed as `--grader`). Cases are deterministic first;
-rubric only when no label is possible.
+rubric only when no label is possible. The eval layer is engine-agnostic:
+`scripts/windmill-job-to-run.py` normalizes a Windmill job into the same shape
+`select-cases.py` already reads.
 
 ## Confirm policy (no exceptions)
 
@@ -75,17 +106,17 @@ rubric only when no label is possible.
 - New Go handler: propose only, human lands (table tests required).
 - Secrets by NAME only. Never print values.
 
-## Build loop (level 0)
+## Build loop (level 0 — dagnats engine)
 
-1. Read `workflows/<client>/README.md` + closest `workflows/_templates/*.json`.
+1. Read `clients/<client>/README.md` + closest `clients/_template/*.json`.
    Fieldbook thin or tool choice open? → `references/client-intake.md`
    (≤2 fact questions; local degustia ranker for tool picks).
 2. Copy → name `<client><separator><wf>` (separator in `naming.json`) → envelope-tolerant first step `((.data // .) | …)`.
-3. `dagnats workflow validate` + `go test ./workflows/`.
+3. `dagnats workflow validate` + `go test ./clients/`.
 4. Propose `register` + triggers. Never run unasked.
 5. Traps: durations ns or Go strings; `$schema` accepted (optional); `on_failure`→`aux_steps`, no `depends_on` (`docs/writing-recipes.md`).
 6. Offer the eval loop at handoff. `new-client.sh` already scaffolds
-   `evals/<client>/`; ask whether to generate cases now and whether to run
+   `clients/<client>/evals/`; ask whether to generate cases now and whether to run
    the eval. Generating cases is read-only; running costs judge tokens, so it
    needs an explicit yes.
 
@@ -115,17 +146,17 @@ Full sequence, flags and troubleshooting: `references/eval-loop.md`.
    and `run inspect` show what actually ran. Never start runs to “get data” —
    ask, because runs have side effects.
 2. **Generate cases.** `python3 scripts/select-cases.py --dagnats --out
-   evals/<client>/cases --include-ok 3`. It picks failures, retries, gate
+   clients/<client>/evals/cases --include-ok 3`. It picks failures, retries, gate
    rejections and malformed output, dedupes by hash, and writes
    `selection.json`. Read-only. Logs only, with no run history:
-   `python3 scripts/import-logs.py --input logs.jsonl --out evals/<client>`.
+   `python3 scripts/import-logs.py --input logs.jsonl --out clients/<client>/evals`.
 3. **Show the numbers, then ask.** “N runs → M cases, reasons X/Y. Run the
    eval? It costs judge tokens.” Do not run the eval unasked.
 4. **Run.** `make eval-loop CLIENT=<client> TURVEZ_OPS_DIR=…` does ingest,
    label, eval and summary in one command; `make eval-client` runs only the
    eval; `make eval-client-view` serves the UI at :15500. Report per assertion:
    `is-json` (contract), rubric (quality), label (accuracy).
-5. **Label.** First run `label-cases.py --dir evals/<client> --setup` to
+5. **Label.** First run `label-cases.py --dir clients/<client>/evals --setup` to
    declare fields and values. Then label: enter accepts, unique prefixes or
    1..N pick, any other text is a new value, `skip`/`quit` exit. `--blind`
    hides production suggestions for an unbiased sample. Labels key on the

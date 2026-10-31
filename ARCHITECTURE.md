@@ -35,7 +35,7 @@
 - **Worker** (`cmd/worker`) registers the eight generic handlers and
   blocks on tasks. It is stateless and horizontally repeatable; the only
   per-host state is which secret files it loads.
-- **Recipes** (`workflows/<client>/*.json`) are the automation code:
+- **Recipes** (`clients/<client>/automation/dagnats/*.json`) are the automation code:
   DAG + static config in step `metadata` + trigger declarations.
   Registered into dagnats, versioned in git.
 - **Secrets** (`internal/secret`): env-first, optional age-encrypted

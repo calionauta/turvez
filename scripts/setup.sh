@@ -32,7 +32,7 @@ if [ -f "TURVEZ_PIN" ] && [ ! -f "go.mod" ]; then ok "ops repo (data-only; engin
 elif [ -f "go.mod" ] && [ ! -f "TURVEZ_PIN" ]; then ok "template repo (public; real clients live in turvez-ops — docs/ops-repo.md)";
 elif [ -f "TURVEZ_PIN" ] && [ -f "go.mod" ]; then warn "both TURVEZ_PIN and go.mod present — ambiguous checkout";
 else warn "unknown checkout (neither go.mod nor TURVEZ_PIN)"; fi
-if [ -n "${WORKFLOWS_DIR:-${TURVEZ_OPS_DIR:+$TURVEZ_OPS_DIR/workflows}}" ]; then ok "WORKFLOWS_DIR override: ${WORKFLOWS_DIR:-$TURVEZ_OPS_DIR/workflows}"; fi
+if [ -n "${WORKFLOWS_DIR:-${TURVEZ_OPS_DIR:+$(cd "$TURVEZ_OPS_DIR" 2>/dev/null && "$(dirname "$0")/clients-root.sh")}}" ]; then ok "WORKFLOWS_DIR override: ${WORKFLOWS_DIR:-$("$(dirname "$0")/clients-root.sh")}"; fi
 
 echo "== 1. Go toolchain =="
 if command -v go >/dev/null; then ok "$(go version)"; else warn "go not found — https://go.dev/dl/"; fi
@@ -86,9 +86,9 @@ echo
 echo "== next =="
 if [ -f "TURVEZ_PIN" ] && [ ! -f "go.mod" ]; then
   echo "  # ops repo: validate/register from the pinned template checkout"
-  echo "  OPS=\$PWD; cd \$TURVEZ_CHECKOUT && WORKFLOWS_DIR=\$OPS/workflows go test ./workflows/"
+  echo "  OPS=\$PWD; cd \$TURVEZ_CHECKOUT && WORKFLOWS_DIR=\$OPS/clients go test ./clients/"
   echo "  # or: make validate-ops TURVEZ_OPS_DIR=\$PWD   (from \$TURVEZ_CHECKOUT)"
-  echo "  OPS=\$PWD; cd \$TURVEZ_CHECKOUT && WORKFLOWS_DIR=\$OPS/workflows ./scripts/register-workflows.sh $CLIENT"
+  echo "  OPS=\$PWD; cd \$TURVEZ_CHECKOUT && WORKFLOWS_DIR=\$OPS/clients ./scripts/register-workflows.sh $CLIENT"
 else
   echo "  make up                      # engine :8080/:4222 + worker (docker)"
   echo "  # …or locally: dagnats serve &  make worker"

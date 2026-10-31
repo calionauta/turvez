@@ -1,8 +1,12 @@
 # Where to execute? dagnats vs one-off vs Dagu vs Windmill
 
-Short answer: **dagnats is the default**. Everything else is an exception,
-and the exception has an owner. This page is the day-to-day decision tree;
-`docs/migrate-to-windmill.md` remains the migration plan.
+Short answer: **it depends on the client's engine, not on taste.** A client
+already on dagnats stays there (level 0 below); a **new client starts on
+Windmill** (level 3) unless the work is clearly dagnats-shaped and the operator
+says so. dagnats is legacy (`docs/client-spine.md`, phase 4): it is supported,
+documented and tested, but it is no longer where new work lands by default.
+Everything below is still the day-to-day decision tree;
+`docs/migrate-to-windmill.md` is the migration plan.
 
 **One engine per client.** In steady state, levels 0, 2 and 3 are mutually
 exclusive for the same client's orchestration (overlap is allowed only during
@@ -34,8 +38,11 @@ against either. Official Dagu-vs-Windmill comparison:
 `http.request`, `transform.json`, `condition`, `map`, `delay`,
 `notify.*`, `request.approval`, `llm.complete`, `dlq.check`
 (see `docs/handlers-reference.md`).
-Yes → level 0. Write the recipe, `validate` + `go test ./workflows/`.
+Yes → level 0, and only when the client's `engine` is `dagnats`. Write the
+recipe, `validate` + `go test ./clients/`.
 Ex.: HubSpot deal → Slack → Notion; invoice VIP split; refund with approval.
+The same logic on a `engine: windmill` client is a flow, not a recipe: the 12
+handlers have direct equivalents (`docs/migrate-to-windmill.md`, step mapping).
 
 **Q1.5. Does it need an agent that loops with tools (shell, files, browser)
 until it is done?**
@@ -93,14 +100,15 @@ copy code into this repo.
 
 **Q4. Did it become the client's internal product?** (needs web form for
 the team, integration catalog, approvals with UI, low-code apps)
-Level 3 is a migration target. Windmill can also be the **primary** engine for
-a client whose contract needs UI/replay; see the platform section below. The
-client's `client.yaml` records the choice. Phase-1 layout: `workflows/<client>/`.
+Windmill is both the **default for new clients** and the migration target for
+a client that outgrows dagnats. The client's `client.yaml` records the choice.
 
 Yes → level 3, Windmill, **per client** (see
 `docs/migrate-to-windmill.md` + `docs/isolating-a-client.md`):
 repoint webhooks, run in parallel until green, turn off dagnats
-for that client.
+for that client. For a brand-new client there is nothing to migrate: scaffold
+with `new-client.sh` (engine defaults to `windmill`) and follow
+`skills/turvez/references/windmill.md`.
 
 ## Dagu 2.x reality check (verified 2026-10-24, v2.22.2)
 

@@ -7,7 +7,7 @@ in folder + name prefix + env file only — never in Go code.
 
 ## What to copy
 
-- `workflows/<client-id>/*.json` — all recipes for that client
+- `clients/<client-id>/automation/dagnats/*.json` — all recipes for that client
 - Trigger definitions for that client (ids start with `<client-id>-`;
   recreate from the JSON `triggers` arrays, see below)
 - `env/<client-id>.env` (or `secrets/<client-id>/env.age` +
@@ -27,7 +27,7 @@ so a replay is boring.
 
 Conventions assumed: workflow names `<client-id>/…`, trigger ids
 `<client-id>-…`, webhook paths containing `<client-id>`. The register
-script and `go test ./workflows/` enforce the name prefix.
+script and `go test ./clients/` enforce the name prefix.
 
 ```bash
 CLIENT=acme   # example

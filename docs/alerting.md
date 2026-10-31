@@ -27,7 +27,7 @@ client id, workflow name, run id, error summary.
 }
 ```
 
-(`workflows/example-client/approval-refund.json` — the reference example.)
+(`clients/example-client/automation/dagnats/approval-refund.json` — the reference example.)
 
 Two engine facts shape this pattern (verified at v0.0.30):
 
@@ -44,7 +44,7 @@ Two engine facts shape this pattern (verified at v0.0.30):
 
 ## 2. DLQ watchdog (inside dagnats, best-effort)
 
-`workflows/ops/dlq-watchdog.json` runs every 5 minutes
+`clients/ops/automation/dagnats/dlq-watchdog.json` runs every 5 minutes
 (`ops-dlq-watchdog-cron`): `dlq.check` reads the `DEAD_LETTERS` stream
 depth (there is no dagnats HTTP route for the DLQ, hence the dedicated
 handler), `skip_if` drops the quiet path, `notify.webhook` pages
@@ -56,7 +56,7 @@ side-effect steps). It cannot fire when the engine itself is down —
 that is layer 3.
 
 `ops/` is the reserved platform namespace (same prefix conventions as
-client folders, enforced by `go test ./workflows/`). Register it with
+client folders, enforced by `go test ./clients/`). Register it with
 everything else: `./scripts/register-workflows.sh` picks it up.
 
 ## 3. Platform health (outside dagnats — document only)

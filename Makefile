@@ -17,13 +17,14 @@ register:
 
 # Ops repo (private data): validate/register against WORKFLOWS_DIR.
 #   make validate-ops TURVEZ_OPS_DIR=../turvez-ops
+# clients-root.sh resolves the ops layout (clients/ or legacy workflows/).
 validate-ops:
 	: "${TURVEZ_OPS_DIR:?set TURVEZ_OPS_DIR to the private ops checkout}"
-	WORKFLOWS_DIR=${TURVEZ_OPS_DIR}/workflows go test ./workflows/ -timeout 300s
+	WORKFLOWS_DIR=$$(TURVEZ_OPS_DIR=${TURVEZ_OPS_DIR} ./scripts/clients-root.sh) go test ./clients/ -timeout 300s
 
 register-ops:
 	: "${TURVEZ_OPS_DIR:?set TURVEZ_OPS_DIR to the private ops checkout}"
-	WORKFLOWS_DIR=${TURVEZ_OPS_DIR}/workflows ./scripts/register-workflows.sh $(CLIENT)
+	WORKFLOWS_DIR=$$(TURVEZ_OPS_DIR=${TURVEZ_OPS_DIR} ./scripts/clients-root.sh) ./scripts/register-workflows.sh $(CLIENT)
 
 new-ops-repo:
 	./scripts/new-ops-repo.sh $(DEST)
@@ -36,18 +37,20 @@ edit-secrets:
 	./scripts/edit-secrets.sh $(CLIENT)
 
 # Per-client eval (cases generated from that client's run history).
+# EVAL_DIR resolves both layouts: clients/<client>/evals (phase 3) and
+# evals/<client> (legacy phase 1).
 eval-client:
 	: "${TURVEZ_OPS_DIR:?set TURVEZ_OPS_DIR}"; : "${CLIENT:?set CLIENT}"
-	cd "$(TURVEZ_OPS_DIR)/evals/$(CLIENT)" && npx -y promptfoo@latest eval -c promptfooconfig.yaml --no-cache -o results.json
+	cd "$$(./scripts/eval-dir.sh $(CLIENT))" && npx -y promptfoo@latest eval -c promptfooconfig.yaml --no-cache -o results.json
 
 eval-client-view:
 	: "${TURVEZ_OPS_DIR:?set TURVEZ_OPS_DIR}"; : "${CLIENT:?set CLIENT}"
-	cd "$(TURVEZ_OPS_DIR)/evals/$(CLIENT)" && npx -y promptfoo@latest view -n -p 15500
+	cd "$$(./scripts/eval-dir.sh $(CLIENT))" && npx -y promptfoo@latest view -n -p 15500
 
 # One command: ingest run history, label, evaluate, summarize.
 eval-loop:
 	: "${TURVEZ_OPS_DIR:?set TURVEZ_OPS_DIR}"; : "${CLIENT:?set CLIENT}"
-	python3 scripts/eval-loop.py --dir "$(TURVEZ_OPS_DIR)/evals/$(CLIENT)" --include-ok 3
+	python3 scripts/eval-loop.py --dir "$$(./scripts/eval-dir.sh $(CLIENT))" --include-ok 3
 
 # Wiring health: ports, NATS target, workers, stuck runs, console, eval tooling.
 doctor:
@@ -75,16 +78,16 @@ test:
 lint:
 	golangci-lint run ./... 2>/dev/null || go vet ./...
 
-# Validate every recipe in either layout (phase-1 workflows/<client>/*.json or
-# phase-3 clients/<client>/automation/dagnats/*.json).
+# Validate every recipe in either layout (phase-3 clients/<client>/automation/dagnats/*.json
+# or legacy phase-1 workflows/<client>/*.json).
 validate:
-	@set -e; n=0; for f in workflows/*/*.json clients/*/automation/dagnats/*.json; do \
+	@set -e; n=0; for f in clients/*/automation/dagnats/*.json workflows/*/*.json; do \
 		[ -e "$$f" ] || continue; \
 		n=$$((n + 1)); \
 		echo "== $$f"; \
 		dagnats workflow validate "$$f"; \
 	done; \
-	[ "$$n" -gt 0 ] || { echo "no recipes found (workflows/*/ or clients/*/automation/dagnats/)"; exit 1; }
+	[ "$$n" -gt 0 ] || { echo "no recipes found (clients/*/automation/dagnats/ or workflows/*/)"; exit 1; }
 
 tidy:
 	go mod tidy

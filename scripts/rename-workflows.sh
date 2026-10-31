@@ -10,16 +10,21 @@
 # definitions stay behind until `dagnats workflow delete <old>`.
 #
 # Usage:
-#   ./scripts/rename-workflows.sh                     # preview, ./workflows
+#   ./scripts/rename-workflows.sh                     # preview, ./clients
 #   ./scripts/rename-workflows.sh --apply
-#   WORKFLOWS_DIR=../turvez-ops/workflows ./scripts/rename-workflows.sh --apply
+#   WORKFLOWS_DIR=../turvez-ops/clients ./scripts/rename-workflows.sh --apply
+#
+# Both layouts are supported: <client>/automation/dagnats/*.json (phase 3) and
+# the legacy <client>/*.json (phase 1).
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SEP="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["client_workflow_separator"])' "$ROOT/naming.json")"
-WORKFLOWS_DIR="${WORKFLOWS_DIR:-${TURVEZ_OPS_DIR:+$TURVEZ_OPS_DIR/workflows}}"
-WORKFLOWS_DIR="${WORKFLOWS_DIR:-$ROOT/workflows}"
+if [ -z "${WORKFLOWS_DIR:-}" ]; then
+  WORKFLOWS_DIR="${TURVEZ_OPS_DIR:+$(cd "${TURVEZ_OPS_DIR}" && "$ROOT/scripts/clients-root.sh")}"
+  WORKFLOWS_DIR="${WORKFLOWS_DIR:-$("$ROOT/scripts/clients-root.sh")}"
+fi
 
 APPLY=0
 [ "${1:-}" = "--apply" ] && APPLY=1
@@ -35,9 +40,11 @@ apply = sys.argv[3] == "1"
 
 changed = 0
 for client_dir in sorted(p for p in root.iterdir() if p.is_dir()):
-    if client_dir.name == "_templates":
+    if client_dir.name in ("_templates", "_template"):
         continue
-    for f in sorted(client_dir.glob("*.json")):
+    # phase 3 keeps recipes one level down; the legacy layout has them flat.
+    recipe_dirs = [d for d in (client_dir / "automation" / "dagnats", client_dir) if d.is_dir()]
+    for f in sorted(p for d in recipe_dirs for p in d.glob("*.json")):
         try:
             wf = json.loads(f.read_text())
         except json.JSONDecodeError:

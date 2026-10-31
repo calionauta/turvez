@@ -31,7 +31,7 @@ fi
 
 echo
 echo "== templates (new skeletons you may want) =="
-ls "$TEMPLATE_DIR/workflows/_templates/"
+ls "$TEMPLATE_DIR/clients/_template/" 2>/dev/null || ls "$TEMPLATE_DIR/workflows/_templates/"
 
 echo
 echo "== handlers (registry in template) =="
@@ -39,4 +39,4 @@ grep -o '"http.request"\|"transform.json"\|"condition"\|"map"\|"delay"\|"notify[
   "$TEMPLATE_DIR/internal/handlers/handlers.go" 2>/dev/null | sort -u || echo "  (registry unreadable — check internal/handlers/handlers.go)"
 
 echo
-echo "no action taken. To adopt: cd $TEMPLATE_DIR && git pull, re-run go test with WORKFLOWS_DIR=$OPS_DIR/workflows, then update TURVEZ_PIN."
+echo "no action taken. To adopt: cd $TEMPLATE_DIR && git pull, re-run go test with WORKFLOWS_DIR=$OPS_DIR/clients, then update TURVEZ_PIN."

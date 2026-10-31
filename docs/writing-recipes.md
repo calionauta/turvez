@@ -6,7 +6,7 @@ the logic (see the checklist at the bottom).
 
 ## Change flow: git is the source of truth
 
-Every recipe change is a commit in `workflows/<client-id>/`. Never edit a
+Every recipe change is a commit in `clients/<client-id>/automation/dagnats/`. Never edit a
 definition only inside dagnats KV (console/API) without updating git —
 KV is a deployment target, git is the source of truth. The extract and
 disaster-recovery paths re-register from git; anything that lives only
@@ -33,7 +33,7 @@ or from a trigger, open webhook/cron recipes with:
 ```
 
 (`.data // .` = trigger envelope or raw manual input.) All example recipes
-do this; `workflows/recipes_test.go` executes both shapes.
+do this; `clients/recipes_test.go` executes both shapes.
 
 ## Idempotency: what re-runs, and what must not duplicate
 
@@ -68,7 +68,7 @@ existing run instead of starting a second one.
 - Trigger envelope → `data.<field>`; manual start → `<field>`. One path does
   not cover both shapes.
 - A missing path is a **soft failure**: the run starts without dedup and
-  logs a warning. `go test ./workflows/` cannot catch it — check the field
+  logs a warning. `go test ./clients/` cannot catch it — check the field
   exists in every producer.
 - It is check-then-start, not a lock: two concurrent deliveries can both
   pass. Treat it as duplicate *reduction*, not a guarantee.
@@ -186,7 +186,7 @@ turn instead of the first. It is not enabled in this runtime on purpose:
 2. **Tools are arbitrary code.** The loop's value is letting the model call
    shell/files/HTTP. That is exactly the surface `AGENTS.md` forbids
    ("never execute arbitrary scripts from workflow JSON").
-3. **It does not pass our gate.** `go test ./workflows/` runs jq expressions
+3. **It does not pass our gate.** `go test ./clients/` runs jq expressions
    against samples; a model loop is non-deterministic and has unbounded
    cost per run. A recipe you cannot validate before registering is not a
    recipe.

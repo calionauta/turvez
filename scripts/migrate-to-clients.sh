@@ -69,8 +69,11 @@ print_notes() {
 if [ -d "workflows/_templates" ]; then
   queue "workflows/_templates" "clients/_template"
 fi
+# The eval skeleton belongs to the template too: clients/_template/evals is
+# what new-client.sh copies. A pre-existing clients/_template/evals wins
+# (nothing to do then; the plan simply omits the move).
 if [ -d "evals/_template" ] && [ ! -d "clients/_template/evals" ]; then
-  note "evals/_template stays as the eval template source (not mapped)"
+  queue "evals/_template" "clients/_template/evals"
 fi
 
 # --- per client ------------------------------------------------------------

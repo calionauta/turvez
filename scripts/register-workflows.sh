@@ -19,11 +19,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SEP="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["client_workflow_separator"])' "$ROOT/naming.json")"
 CLIENT="${1:-${CLIENT_ID:-}}"
-# Data-only ops repos: WORKFLOWS_DIR (or TURVEZ_OPS_DIR/workflows) points at
-# the private checkout. It may be either root: .../workflows (phase 1) or
-# .../clients (phase 3). Default = this repo's workflows/ (template mode).
-WORKFLOWS_DIR="${WORKFLOWS_DIR:-${TURVEZ_OPS_DIR:+$TURVEZ_OPS_DIR/workflows}}"
-WORKFLOWS_DIR="${WORKFLOWS_DIR:-$ROOT/workflows}"
+# Data-only ops repos: WORKFLOWS_DIR (or TURVEZ_OPS_DIR) points at the private
+# checkout. It may be either root: .../clients (phase 3) or .../workflows
+# (legacy phase 1). Default = this repo's clients/, falling back to workflows/
+# when clients/ holds no client recipes yet (mid-migration checkout).
+WORKFLOWS_DIR="${WORKFLOWS_DIR:-${TURVEZ_OPS_DIR:+$(cd "${TURVEZ_OPS_DIR}" && "$ROOT/scripts/clients-root.sh")}}"
+WORKFLOWS_DIR="${WORKFLOWS_DIR:-$("$ROOT/scripts/clients-root.sh")}"
 
 command -v dagnats >/dev/null || {
   echo "dagnats CLI not found. Install: go install github.com/danmestas/dagnats/cmd/dagnats@v0.0.30" >&2

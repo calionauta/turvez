@@ -18,7 +18,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-DIRS="$(find workflows clients -type d -name windmill -prune -print 2>/dev/null | sort || true)"
+DIRS="$(find clients workflows -type d -name windmill -prune -print 2>/dev/null | sort || true)"
+# `workflows` is the legacy root; `find` prints a warning when it is missing,
+# which is the normal state after the phase-3 migration, so both are optional.
 
 if [ -z "$DIRS" ]; then
   echo "windmill: no windmill directories — nothing to lint"

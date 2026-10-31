@@ -3,7 +3,7 @@
 > Personal automations use the same pipeline as client ones:
 > recipe in `workflows/personal/*.json`, secrets by name, `validate` +
 > `go test` + proposed `register` — nothing runs without your approval.
-> Template: `workflows/_templates/FIELDBOOK.md`.
+> Template: `clients/_template/FIELDBOOK.md`.
 
 ## 1. Context
 
@@ -39,16 +39,16 @@ dagnats run list --workflow=personal/
 ## 5. Decisions
 
 - Namespace `personal/` instead of an off-pattern folder: inherits tenancy,
-  tests, and scripts with no exceptions (`go test ./workflows/` covers the prefix).
+  tests, and scripts with no exceptions (`go test ./clients/` covers the prefix).
 
 ## 6. Adding your first automation
 
 ```bash
-cp workflows/_templates/webhook-pipeline.json workflows/personal/<name>.json
+cp clients/_template/webhook-pipeline.json workflows/personal/<name>.json
 # replace TODO-CLIENT → personal (name, trigger id, webhook path)
 # secrets by NAME in env/personal.env — never values in JSON
 dagnats workflow validate workflows/personal/<name>.json
-go test ./workflows/
+go test ./clients/
 # request the register — nothing runs without your approval (skill policy)
 ./scripts/register-workflows.sh personal
 ```

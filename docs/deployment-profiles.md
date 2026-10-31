@@ -18,7 +18,7 @@ before the first deploy.
 
 - **Default for SMB consulting: B.** One server, fast delivery, per-client
   isolation via `env/<client>.env`, `secrets/<client>/`, and separate
-  `workflows/<client>/`. Name it a managed service in the proposal; the
+  `clients/<client>/`. Name it a managed service in the proposal; the
   client pays for operation, not just build.
 - **Choose A** when the client requires data residency, has an internal
   platform team, or will not sign a DPA that lets data leave their

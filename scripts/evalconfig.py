@@ -1,6 +1,6 @@
 """Shared eval config for the turvez scripts.
 
-One file per client, `evals/<client>/eval.config.json`, describes what to pull
+One file per client, `clients/<client>/evals/eval.config.json`, describes what to pull
 from run history and what the operator should label. The scripts fall back to
 the support-ticket example when the file is absent, so the template keeps
 working out of the box.

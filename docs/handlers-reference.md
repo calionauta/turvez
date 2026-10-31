@@ -130,7 +130,7 @@ NATS directly (short-lived connection, `DAGNATS_NATS_URL`) and returns
 `{"stream": "DEAD_LETTERS", "threshold": 0}` (both optional; metadata
 keys `stream, threshold`) → `{"stream":…, "depth":…, "threshold":…,
 "alert": depth>threshold}`. Backend errors are retryable; pair with a
-`skip_if` on `alert` (see `workflows/ops/dlq-watchdog.json`).
+`skip_if` on `alert` (see `clients/ops/automation/dagnats/dlq-watchdog.json`).
 ## request.approval
 
 Signal-based human gate with optional pre-notify. Blocks in ≤55m chunks

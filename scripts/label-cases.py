@@ -8,9 +8,9 @@ classification. Labels are keyed by the case hash and written to labels.json,
 which survives case regeneration.
 
 Usage:
-  python3 scripts/label-cases.py --dir evals/acme
-  python3 scripts/label-cases.py --dir evals/acme --setup   # define fields
-  python3 scripts/label-cases.py --dir evals/acme --blind   # hide suggestions
+  python3 scripts/label-cases.py --dir clients/acme/evals
+  python3 scripts/label-cases.py --dir clients/acme/evals --setup   # define fields
+  python3 scripts/label-cases.py --dir clients/acme/evals --blind   # hide suggestions
 
 Keys: enter accepts the suggestion, a configured shortcut picks that value,
 1..N picks by position, any other text is stored as a free value, s skips the
@@ -110,9 +110,9 @@ def main() -> int:
   quit       quit, progress is saved (q also works)
 
 examples:
-  python3 scripts/label-cases.py --dir evals/acme --setup
-  python3 scripts/label-cases.py --dir evals/acme
-  python3 scripts/label-cases.py --dir evals/acme --blind
+  python3 scripts/label-cases.py --dir clients/acme/evals --setup
+  python3 scripts/label-cases.py --dir clients/acme/evals
+  python3 scripts/label-cases.py --dir clients/acme/evals --blind
 
 see skills/turvez/references/eval-loop.md.""")
     ap.add_argument("--dir", required=True, help="client eval dir (contains cases/)")

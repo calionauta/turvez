@@ -9,8 +9,8 @@
 #   <path>/AGENTS.md                   # ops-specific agent rules
 #   <path>/README.md                   # what lives here, operator loop
 #   <path>/.github/workflows/contract.yml  # CI: template tests @TURVEZ_PIN vs this repo
-#   <path>/workflows/personal/         # your own namespace (from template)
-#   <path>/workflows/ops/              # platform overlay, watchdog included
+#   <path>/clients/personal/           # your own namespace (from template)
+#   <path>/clients/ops/                # platform overlay, watchdog included
 #   <path>/env/personal.env.example    # secret NAMES template
 #   <path>/secrets/README.md           # ciphertext-only reminder
 #   <path>/docker-compose.override.yml # CLIENT_ID + age mounts
@@ -40,7 +40,7 @@ TEMPLATE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REF="$(git -C "$TEMPLATE_DIR" describe --tags --exact-match 2>/dev/null || git -C "$TEMPLATE_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")"
 DAGNATS_V="$(cd "$TEMPLATE_DIR" && go list -m -f '{{.Version}}' github.com/danmestas/dagnats 2>/dev/null || echo "v0.0.30")"
 
-mkdir -p "$DEST/workflows/personal" "$DEST/workflows/ops" "$DEST/env" "$DEST/secrets"
+mkdir -p "$DEST/clients/personal/automation/dagnats" "$DEST/clients/ops/automation/dagnats" "$DEST/env" "$DEST/secrets"
 
 cat > "$DEST/TURVEZ_PIN" <<EOF
 # Pinned engine source. Worker image builds from this turvez ref only.
@@ -70,12 +70,12 @@ cat > "$DEST/AGENTS.md" <<'EOF'
 
 Data-only. No Go code. Engine = turvez template at `TURVEZ_PIN`.
 Validate from the template checkout (go needs its module context):
-`OPS=$PWD; cd $TURVEZ_CHECKOUT && WORKFLOWS_DIR=$OPS/workflows go test ./workflows/`.
+`OPS=$PWD; cd $TURVEZ_CHECKOUT && WORKFLOWS_DIR=$OPS/clients go test ./clients/`.
 
 ## Layout
 
-- `workflows/<client>/README.md` — fieldbook (copy from template `workflows/_templates/FIELDBOOK.md`).
-- `workflows/<client>/*.json` — recipes, names `<client>/…`, triggers `<client>-…`.
+- `clients/<client>/README.md` — fieldbook (copy from `clients/_template/FIELDBOOK.md`).
+- `clients/<client>/automation/dagnats/*.json` — recipes, names `<client>/…`, triggers `<client>-…`.
 - `env/<client>.env.example` — secret NAMES (commit); `env/<client>.env` — values (never).
 - `secrets/<client>/env.age` — ciphertext (commit with -f); `secrets/<client>/.recipients` — age pubkeys.
 
@@ -89,8 +89,8 @@ Validate from the template checkout (go needs its module context):
 
 ```bash
 export TURVEZ_CHECKOUT=~/Development/turvez TURVEZ_OPS_DIR=$PWD
-OPS=$PWD; cd $TURVEZ_CHECKOUT && WORKFLOWS_DIR=$OPS/workflows go test ./workflows/
-OPS=$PWD; cd $TURVEZ_CHECKOUT && WORKFLOWS_DIR=$OPS/workflows ./scripts/register-workflows.sh <client>
+OPS=$PWD; cd $TURVEZ_CHECKOUT && WORKFLOWS_DIR=$OPS/clients go test ./clients/
+OPS=$PWD; cd $TURVEZ_CHECKOUT && WORKFLOWS_DIR=$OPS/clients ./scripts/register-workflows.sh <client>
 $TURVEZ_CHECKOUT/scripts/new-client.sh <client>  # scaffold (TURVEZ_OPS_DIR supported)
 ```
 EOF
@@ -104,19 +104,19 @@ Git here is source of truth; dagnats KV is a deploy target.
 ```bash
 export TURVEZ_CHECKOUT=~/Development/turvez TURVEZ_OPS_DIR=$PWD
 $TURVEZ_CHECKOUT/scripts/setup.sh                 # check prereqs
-$TURVEZ_CHECKOUT/scripts/new-client.sh acme       # scaffold workflows/acme/
-cd $TURVEZ_CHECKOUT && WORKFLOWS_DIR=$TURVEZ_OPS_DIR/workflows go test ./workflows/
-cd $TURVEZ_CHECKOUT && WORKFLOWS_DIR=$TURVEZ_OPS_DIR/workflows ./scripts/register-workflows.sh acme
+$TURVEZ_CHECKOUT/scripts/new-client.sh acme       # scaffold clients/acme/
+cd $TURVEZ_CHECKOUT && WORKFLOWS_DIR=$TURVEZ_OPS_DIR/clients go test ./clients/
+cd $TURVEZ_CHECKOUT && WORKFLOWS_DIR=$TURVEZ_OPS_DIR/clients ./scripts/register-workflows.sh acme
 ```
 EOF
 
 # Seed personal + ops overlays from the template (examples, safe to commit).
 # ops/dlq-watchdog.json ships enabled: fresh ops repos keep the silent-DLQ
 # layer (AGENTS.md) from day one; disable per client via trigger disable.
-cp "$TEMPLATE_DIR/workflows/personal/README.md" "$DEST/workflows/personal/README.md" 2>/dev/null || true
-cp "$TEMPLATE_DIR/workflows/personal/ping.json" "$DEST/workflows/personal/ping.json" 2>/dev/null || true
-cp "$TEMPLATE_DIR/workflows/ops/README.md" "$DEST/workflows/ops/README.md" 2>/dev/null || true
-cp "$TEMPLATE_DIR/workflows/ops/dlq-watchdog.json" "$DEST/workflows/ops/dlq-watchdog.json" 2>/dev/null || true
+cp "$TEMPLATE_DIR/clients/personal/README.md" "$DEST/clients/personal/README.md" 2>/dev/null || cp "$TEMPLATE_DIR/workflows/personal/README.md" "$DEST/clients/personal/README.md" 2>/dev/null || true
+cp "$TEMPLATE_DIR/clients/personal/automation/dagnats/ping.json" "$DEST/clients/personal/automation/dagnats/ping.json" 2>/dev/null || cp "$TEMPLATE_DIR/workflows/personal/ping.json" "$DEST/clients/personal/automation/dagnats/ping.json" 2>/dev/null || true
+cp "$TEMPLATE_DIR/clients/ops/README.md" "$DEST/clients/ops/README.md" 2>/dev/null || cp "$TEMPLATE_DIR/workflows/ops/README.md" "$DEST/clients/ops/README.md" 2>/dev/null || true
+cp "$TEMPLATE_DIR/clients/ops/automation/dagnats/dlq-watchdog.json" "$DEST/clients/ops/automation/dagnats/dlq-watchdog.json" 2>/dev/null || cp "$TEMPLATE_DIR/workflows/ops/dlq-watchdog.json" "$DEST/clients/ops/automation/dagnats/dlq-watchdog.json" 2>/dev/null || true
 cp "$TEMPLATE_DIR/env/personal.env.example" "$DEST/env/personal.env.example" 2>/dev/null || true
 
 mkdir -p "$DEST/.github/workflows"
@@ -140,9 +140,9 @@ jobs:
         run: |
           REF="$(awk -F= '/^TURVEZ_REF=/{print $2}' ops/TURVEZ_PIN)"
           git -C turvez fetch origin "$REF" && git -C turvez checkout "$REF"
-      - run: WORKFLOWS_DIR=$GITHUB_WORKSPACE/ops/workflows go test ./workflows/ -timeout 300s
+      - run: WORKFLOWS_DIR=$GITHUB_WORKSPACE/ops/clients go test ./clients/ -timeout 300s
         working-directory: turvez
-      - run: for f in $GITHUB_WORKSPACE/ops/workflows/*/*.json; do dagnats workflow validate "$f"; done
+      - run: for f in $GITHUB_WORKSPACE/ops/clients/*/automation/dagnats/*.json; do dagnats workflow validate "$f"; done
 EOF
 
 cat > "$DEST/secrets/README.md" <<'EOF'

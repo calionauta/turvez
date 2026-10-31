@@ -1,13 +1,14 @@
-# Migrate to Windmill (escape hatch, no dependency)
+# Migrate to Windmill (new-client default, no dependency)
 
-Windmill is **not** a runtime dependency of this repo. This document
-exists so a future migration of client automations to Windmill
-"workflow as code" is mechanical, not a rewrite from scratch.
+Windmill is **not** a runtime dependency of this repo. It is the **default
+engine for new clients** (`docs/client-spine.md`, phase 4), and this document is
+both the step mapping for a dagnats client that outgrows the 12 handlers and the
+reference for what a new Windmill client starts from.
 
-Source of truth stays git: `workflows/<client-id>/*.json` plus the
+Source of truth stays git: `clients/<client-id>/automation/dagnats/*.json` plus the
 generic Go handlers under `internal/handlers/`. The client's `client.yaml`
 records `engine: windmill` once the cutover is complete; Windmill source goes
-under `workflows/<client-id>/windmill/` in the phase-1 layout. Never migrate
+under `clients/<client-id>/automation/windmill/`. Never migrate
 historical run logs — only definitions, triggers, and secret *names*.
 
 ## Deterministic step mapping
@@ -26,7 +27,7 @@ historical run logs — only definitions, triggers, and secret *names*.
 
 ## Per-client checklist
 
-1. Read `workflows/<client-id>/*.json` — one Windmill flow per recipe,
+1. Read `clients/<client-id>/automation/dagnats/*.json` — one Windmill flow per recipe,
    preserving step order and `depends_on` fan-in (multi-dep steps become
    a join: pass each parent's result as a named flow input).
 2. Recreate secrets in Windmill from `env/<client-id>.env.example`
@@ -43,7 +44,7 @@ historical run logs — only definitions, triggers, and secret *names*.
 
 ## Example: lead pipeline rewritten (illustrative TypeScript)
 
-Source: `workflows/example-client.hubspot-lead-to-slack.json`
+Source: `clients/example-client/automation/dagnats/hubspot-lead-to-slack.json`
 (build-fetch → fetch-lead → build-notify → notify).
 
 ```typescript

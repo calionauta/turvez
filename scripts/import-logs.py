@@ -6,7 +6,7 @@ This turns log lines into `cases/logs.csv`, one row per unique input, with an
 empty `expected_category` for a human to fill. It never invents a label.
 
     python3 scripts/import-logs.py --input logs.jsonl --text-field message \
-        --out evals/acme
+        --out clients/acme/evals
 
 Reads JSONL, a JSON array, or CSV. Writes `cases/logs.csv` with columns
 `text, expected_category, __metadata:source, __metadata:split`.
@@ -65,8 +65,8 @@ def main() -> int:
         description="Turn logs into an unlabeled CSV for human labeling.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""examples:
-  python3 scripts/import-logs.py --input logs.jsonl --text-field message --out evals/acme
-  python3 scripts/import-logs.py --input logs.csv --text-field body --out evals/acme --max 200
+  python3 scripts/import-logs.py --input logs.jsonl --text-field message --out clients/acme/evals
+  python3 scripts/import-logs.py --input logs.csv --text-field body --out clients/acme/evals --max 200
 
 no label is generated. fill expected_category in the CSV, then run
 promptfooconfig.logs.yaml. see skills/turvez/references/eval-loop.md.""")

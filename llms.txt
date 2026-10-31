@@ -28,18 +28,26 @@
 - Alerts: docs/alerting.md (on_failure, DLQ watchdog, external probe)
 - Tenancy/extract: docs/tenancy-evolution.md, docs/isolating-a-client.md
 - Fresh checkout / install: scripts/setup.sh (check-only; --init scaffolds env), README Quickstart
-- New client fieldbook: workflows/_templates/FIELDBOOK.md (copy to workflows/<client>/README.md)
+- Validate a checkout: `make validate` (every recipe) + `go test ./clients/`
+  (structure, tenancy, jq expressions, secrets guard)
+- New client fieldbook: clients/_template/FIELDBOOK.md (copy to clients/<client>/README.md)
+- Client recipe template: clients/_template/{cron-job,webhook-pipeline,approval-flow-signal}.json
+- Client layout and migrations: docs/client-spine.md (`clients/<client>/automation/<engine>/`)
 - Personal automations: client `personal/` (same pipeline, you are the approver)
 - Automate-anything skill: skills/turvez/SKILL.md (direct → confirm → build; link into your harness skills dir)
 - Client intake (interview + degustia tool picks): skills/turvez/references/client-intake.md
 - Sandbox decision: docs/sandbox-policy.md (3 questions) + scripts/sandbox-run.sh for one-offs
 - Where to execute (dagnats vs Dagu vs Windmill): docs/script-execution.md (decision tree)
 - Windmill escape hatch: docs/migrate-to-windmill.md (docs only)
+- Windmill as the default for new clients: skills/turvez/references/windmill.md
+  + `./scripts/check-windmill.sh` (lint gate, no worker)
 
 ## Invariants (do not relearn these)
 
-- Automation code = workflow JSON in `workflows/<client>/`; git is source
-  of truth, dagnats KV is a deployment target.
+- Automation code = JSON in `clients/<client>/automation/dagnats/`; git is the
+  source of truth, dagnats KV is a deployment target. New clients default to
+  `engine: windmill` (dagnats is legacy, see docs/client-spine.md phase 4).
+- A client runs exactly one engine; `clients/<client>/client.yaml` decides.
 - Workflow names are `<client><separator><wf>`; the separator and the name
   regex live in `naming.json` (single source of truth). Change them there,
   then `scripts/rename-workflows.sh --apply`.

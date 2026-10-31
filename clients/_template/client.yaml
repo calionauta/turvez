@@ -1,0 +1,16 @@
+client: TODO-CLIENT
+# dagnats is legacy (docs/client-spine.md, phase 4): supported, but no new client
+# starts there. Set `engine: windmill` unless this client already runs on dagnats.
+engine: windmill      # windmill (default) | dagnats (legacy) | dagu
+runtime: shared       # shared | dedicated
+target:
+  # windmill (shared or dedicated) — fill these when engine: windmill
+  base_url: https://app.windmill.dev
+  workspace: TODO-CLIENT
+  # dagnats (legacy; shared or dedicated)
+  # nats_url: nats://127.0.0.1:4222
+  # api_url: http://127.0.0.1:8080
+  # dedicated server
+  # host: TODO-CLIENT.internal
+data_class: normal    # normal | sensitive
+owner: TODO-OWNER

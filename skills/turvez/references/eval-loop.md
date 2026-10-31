@@ -7,13 +7,13 @@ Confirm at the marked points; never run the eval unasked.
 
 - the client's stack is running and the CLI points at it:
   `export DAGNATS_NATS_URL=nats://127.0.0.1:4222`
-- the client folder exists: `workflows/<client>/` and `evals/<client>/`
+- the client folder exists: `clients/<client>/` and `clients/<client>/evals/`
   (both scaffolded by `scripts/new-client.sh`)
 
 ## One command
 
 ```bash
-python3 scripts/eval-loop.py --dir evals/<client>
+python3 scripts/eval-loop.py --dir clients/<client>/evals
 ```
 
 It runs steps 2 to 6 below, asks before spending judge tokens, and prints pass
@@ -23,19 +23,19 @@ rate plus per-field accuracy. Flags: `--skip-label`, `--skip-eval`, `--yes`,
 ## 1. Declare the taxonomy (once per client)
 
 ```bash
-python3 scripts/label-cases.py --dir evals/<client> --setup
+python3 scripts/label-cases.py --dir clients/<client>/evals --setup
 # fields (comma-separated) [category]: category,urgency
 # values for category [billing,technical,other]: billing,technical,other
 # values for urgency []: low,high
 ```
 
-Writes `evals/<client>/eval.config.json`. It also holds the step names
+Writes `clients/<client>/evals/eval.config.json`. It also holds the step names
 (`prompt_step`, `result_step`, `gate_step`) and the optional `rubric`.
 
 ## 2. Generate cases from run history
 
 ```bash
-python3 scripts/select-cases.py --dagnats --out evals/<client>/cases --include-ok 3
+python3 scripts/select-cases.py --dagnats --out clients/<client>/evals/cases --include-ok 3
 ```
 
 Reads every run, picks failures, retries, gate rejections and malformed
@@ -45,7 +45,7 @@ Show the operator the counts and reasons. **Ask before continuing.**
 ## 3. Label
 
 ```bash
-python3 scripts/label-cases.py --dir evals/<client>
+python3 scripts/label-cases.py --dir clients/<client>/evals
 ```
 
 Keys: `enter` accepts the production value, a unique prefix (`b`, `hi`) picks a
@@ -61,7 +61,7 @@ When the client has only logs, there is no output to suggest a label. Import
 the inputs and label by hand:
 
 ```bash
-python3 scripts/import-logs.py --input logs.jsonl --text-field message --out evals/<client>
+python3 scripts/import-logs.py --input logs.jsonl --text-field message --out clients/<client>/evals
 # fill expected_category in cases/logs.csv
 npx promptfoo eval -c promptfooconfig.logs.yaml
 ```
@@ -72,7 +72,7 @@ is tied to dagnats runs.
 
 ## 4. Add curated cases (optional)
 
-Hand-written cases live in `evals/<client>/cases/curated.yaml` (rich asserts)
+Hand-written cases live in `clients/<client>/evals/cases/curated.yaml` (rich asserts)
 or `cases/curated.csv` (spreadsheet). Keep `metadata.source: curated` and
 `metadata.split: dev|holdout`.
 

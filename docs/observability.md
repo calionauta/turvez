@@ -66,7 +66,7 @@ Console UI: `http://127.0.0.1:8080/console/` (or `${DAGNATS_HTTP_PORT}`).
 ## Eval loop
 
 `scripts/select-cases.py` turns run history into frozen cases; each client's
-`evals/<client>/promptfooconfig.yaml` replays them through its gateway
+`clients/<client>/evals/promptfooconfig.yaml` replays them through its gateway
 (`make eval-client CLIENT=<id>`). Two rules: generation params must mirror
 production (`max_tokens`), and the rubric must carry `{{text}}` or it grades
 blind.

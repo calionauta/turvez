@@ -11,7 +11,7 @@ convention + script change, never a handler or recipe-format redesign.
 
 ## Stage 1 — single server (default)
 
-- Recipes: `workflows/<client-id>/*.json`, names `<client-id>/…`.
+- Recipes: `clients/<client-id>/automation/dagnats/*.json`, names `<client-id>.<wf>`.
 - Secrets: `env/<client-id>.env` (+ `env/<client-id>.env.example`
   committed); worker loads all of them (single `.env` or several
   `DOTENV_FILE`s merged — env wins on conflict).
@@ -26,8 +26,8 @@ Already wired in this repo:
   violations (workflow name must match its folder prefix), so a
   misnamespaced recipe never reaches the shared engine. Run it per
   client in CI: `./scripts/register-workflows.sh acme`.
-- `go test ./workflows/` enforces the same prefix rule plus trigger
-  id/path conventions for every client folder (except `_templates`).
+- `go test ./clients/` enforces the same prefix rule plus trigger
+  id/path conventions for every client folder (except `_template`).
 - Optional per-client approval tokens: run one ops-HTTP shim per
   client with distinct `OPS_APPROVAL_TOKEN` values (separate
   `OPS_HTTP_ADDR` ports, or separate processes with

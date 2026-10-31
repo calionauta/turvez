@@ -11,13 +11,13 @@ flowchart TD
     B -->|"TURVEZ_PIN"| D["Ops repo: client data only"]
     C --> E["Client work?"]
     E -->|"new client"| F["new-client.sh in the ops repo"]
-    E -->|"automation"| G["workflows/client/*.json"]
-    E -->|"eval"| H["evals/client/"]
+    E -->|"automation"| G["clients/client/automation/dagnats/*.json"]
+    E -->|"eval"| H["clients/client/evals/"]
     D --> F
 ```
 
-`new-client.sh` scaffolds `workflows/<client>/`, `env/<client>.env.example`,
-`secrets/<client>/` and `evals/<client>/` in one pass.
+`new-client.sh` scaffolds `clients/<client>/`, `env/<client>.env.example`,
+`secrets/<client>/` and `clients/<client>/evals/` in one pass.
 
 ## 2. Automation: build, run, observe
 
@@ -31,7 +31,7 @@ flowchart LR
     R --> A["Alerts: on_failure, DLQ, health"]
 ```
 
-A recipe is JSON in `workflows/<client>/`. Git is the source; `workflow
+A recipe is JSON in `clients/<client>/automation/dagnats/`. Git is the source; `workflow
 register` puts it in the engine. Every run keeps its input and each step's
 output, which is what the eval reads.
 
@@ -100,7 +100,7 @@ sequenceDiagram
 | Step | Operator | Agent | Where to check |
 |---|---|---|---|
 | 1. Ask | describes the integration in natural language | loads `turvez` skill, Q0, decision tree | the agent's answer |
-| 2. Intake | answers systems, trigger, approval rule, secret **names**, alert channel | asks, then writes the fieldbook | `workflows/<client>/README.md` |
+| 2. Intake | answers systems, trigger, approval rule, secret **names**, alert channel | asks, then writes the fieldbook | `clients/<client>/README.md` |
 | 3. Build | reviews the recipe | writes JSON, runs `validate` + `go test` | repo diff |
 | 4. Secrets | puts values in `env/<client>.env` or age | never writes values | `env/`, `secrets/` |
 | 5. Go live | approves `register` + `trigger` | runs them | `/console/workflows/<client>.<wf>` |

@@ -13,7 +13,7 @@ Do NOT vendor FDEOps here (35 skills would swamp a lean runtime repo).
 |---|---|
 | What is worth building? Who decides? | FDEOps skills (harness-level, upstream) |
 | Where does it run + build it now? | this skill (levels 0–3) |
-| Per-client ops memory (contacts, secrets map, runbook)? | `workflows/<client>/README.md` fieldbook (in git) |
+| Per-client ops memory (contacts, secrets map, runbook)? | `clients/<client>/README.md` fieldbook (in git) |
 | Cross-session engagement memory? | FDEOps `~/fde-engagements/` record (local, out of git) |
 
 Handoff: FDEOps `runbook` output fills `FIELDBOOK.md` §1–§5;

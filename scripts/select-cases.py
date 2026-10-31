@@ -162,11 +162,11 @@ def main() -> int:
         description="Select eval cases from dagnats run history.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""examples:
-  python3 scripts/select-cases.py --dagnats --out evals/acme/cases --include-ok 3
+  python3 scripts/select-cases.py --dagnats --out clients/acme/evals/cases --include-ok 3
   python3 scripts/select-cases.py --runs run.json --out /tmp/cases
   python3 scripts/select-cases.py --help
 
-the client config (evals/<client>/eval.config.json) supplies step names,
+the client config (clients/<client>/evals/eval.config.json) supplies step names,
 label fields and schema. see skills/turvez/references/eval-loop.md.""")
     ap.add_argument("--runs", help="inspect-shaped JSON file")
     ap.add_argument("--dagnats", action="store_true", help="query the live dagnats CLI")

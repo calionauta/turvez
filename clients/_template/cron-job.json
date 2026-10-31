@@ -8,7 +8,7 @@
       "type": "normal",
       "timeout": 30000000000,
       "metadata": {
-        "expression": "{method: \"GET\", url: \"https://api.example.com THINGS?limit=100\", auth_secret: \"TODO_CLIENT_TOKEN\", response_json: true}"
+        "expression": "{method: \"GET\", url: \"https://api.example.com/things?limit=100\", auth_secret: \"TODO_CLIENT_TOKEN\", response_json: true}"
       }
     },
     {

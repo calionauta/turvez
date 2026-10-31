@@ -1,9 +1,13 @@
-// Package workflows verifies the example recipes structurally and by
+// Package clients verifies the example recipes structurally and by
 // executing every embedded jq expression against sample payloads.
 //
 // This is the contract test for "automation code is workflow JSON":
 // if a recipe's expression breaks, this fails without needing NATS.
-package workflows
+//
+// The package lives in clients/ (phase 3 of docs/client-spine.md) and still
+// validates the phase-1 workflows/ layout, so one checkout can hold both
+// during a migration.
+package clients
 
 import (
 	"encoding/json"
@@ -74,9 +78,9 @@ type recipeRef struct {
 	Client string // client folder name
 }
 
-// workflowsRoot is the WORKFLOWS_DIR override: another checkout's workflows
-// (or clients) root, so the template's contract tests can validate a private
-// ops repo without copying Go code. Empty = "." (this package's dir).
+// workflowsRoot is the WORKFLOWS_DIR override: another checkout's clients
+// (or legacy workflows) root, so the template's contract tests can validate a
+// private ops repo without copying Go code. Empty = "." (this package's dir).
 func workflowsRoot() string {
 	if v := os.Getenv("WORKFLOWS_DIR"); v != "" {
 		return v
@@ -84,29 +88,47 @@ func workflowsRoot() string {
 	return "."
 }
 
-// clientRoots lists the directories that may hold client folders. Phase 3a
-// supports both layouts side by side: workflows/<client>/ (legacy) and
-// clients/<client>/ (neutral). WORKFLOWS_DIR may point at either root; the
-// sibling root is covered too so one env var validates a whole checkout.
-func clientRoots() []string {
-	root := workflowsRoot()
-	if os.Getenv("WORKFLOWS_DIR") == "" {
-		// Package dir is workflows/; the neutral root is its sibling.
-		return []string{root, filepath.Join("..", "clients")}
+// resolveRoot anchors a relative WORKFLOWS_DIR at the repo root. `go test`
+// runs with the package directory as cwd (clients/ or a legacy workflows/),
+// so a value like "clients" or "workflows" must be read from the repo, not
+// from inside the package. Absolute paths and paths that already resolve from
+// the package dir are returned untouched.
+func resolveRoot(root string) string {
+	if filepath.IsAbs(root) {
+		return root
 	}
-	clean := filepath.Clean(root)
+	if _, err := os.Stat(root); err == nil {
+		return root
+	}
+	if _, err := os.Stat(filepath.Join("..", root)); err == nil {
+		return filepath.Join("..", root)
+	}
+	return root
+}
+
+// clientRoots lists the directories that may hold client folders. Both
+// layouts are supported side by side: clients/<client>/ (phase 3) and
+// workflows/<client>/ (legacy phase 1). WORKFLOWS_DIR may point at either
+// root; the sibling root is covered too so one env var validates a whole
+// checkout.
+func clientRoots() []string {
+	if os.Getenv("WORKFLOWS_DIR") == "" {
+		// Package dir is clients/; the legacy root is its sibling.
+		return []string{".", filepath.Join("..", "workflows")}
+	}
+	clean := filepath.Clean(resolveRoot(workflowsRoot()))
 	switch filepath.Base(clean) {
 	case "workflows":
 		return []string{clean, filepath.Join(filepath.Dir(clean), "clients")}
 	case "clients":
 		return []string{clean, filepath.Join(filepath.Dir(clean), "workflows")}
 	}
-	return []string{root}
+	return []string{clean}
 }
 
 // clientFolders returns every client folder in both layouts, regardless of
 // whether recipes exist yet (the fieldbook test cares about the folder).
-// _templates/_template hold template sources, not a client.
+// _template (and the legacy _templates) hold template sources, not a client.
 func clientFolders(t *testing.T) []string {
 	t.Helper()
 	seen := map[string]bool{}
@@ -144,7 +166,7 @@ func clientFolders(t *testing.T) []string {
 //	<root>/<client>/*.json                          (phase 1, legacy)
 //	<root>/<client>/automation/dagnats/*.json       (phase 3, neutral spine)
 //
-// _templates holds TODO-CLIENT placeholders (validated by `make validate`,
+// _template holds TODO-CLIENT placeholders (validated by `make validate`,
 // not by these tests).
 func recipeRefs(t *testing.T) []recipeRef {
 	t.Helper()
@@ -401,17 +423,17 @@ func TestRecipeStructure(t *testing.T) {
 
 // TestClientFieldbooks enforces the fieldbook-per-client structure: every
 // client folder (except the template dirs) must have a README.md copied from
-// the FIELDBOOK template. Covers both layouts: workflows/<client>/README.md
-// and clients/<client>/README.md.
+// the FIELDBOOK template. Covers both layouts: clients/<client>/README.md and
+// the legacy workflows/<client>/README.md.
 func TestClientFieldbooks(t *testing.T) {
 	found := 0
 	// Hint points at the template checkout when validating an ops repo.
-	templateHint := "workflows/_templates/FIELDBOOK.md (or clients/_template/FIELDBOOK.md)"
+	templateHint := "clients/_template/FIELDBOOK.md"
 	if os.Getenv("WORKFLOWS_DIR") != "" {
 		if tc := os.Getenv("TURVEZ_CHECKOUT"); tc != "" {
-			templateHint = tc + "/workflows/_templates/FIELDBOOK.md (or " + tc + "/clients/_template/FIELDBOOK.md)"
+			templateHint = tc + "/clients/_template/FIELDBOOK.md"
 		} else {
-			templateHint = "<turvez-template>/workflows/_templates/FIELDBOOK.md or <turvez-template>/clients/_template/FIELDBOOK.md (set TURVEZ_CHECKOUT)"
+			templateHint = "<turvez-template>/clients/_template/FIELDBOOK.md (set TURVEZ_CHECKOUT)"
 		}
 	}
 	for _, d := range clientFolders(t) {

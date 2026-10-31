@@ -222,5 +222,5 @@ moves to a managed platform per environment.
 - Never paste `.env` / `~/.secrets` content into chat, issues, or prompts.
 - Identities (`*.age.key`) live in `~/.secrets` with `600`, outside any
   repo — even if an agent lists the directory, there is nothing to read.
-- The value scan in `go test ./workflows/` is the safety net: a secret
+- The value scan in `go test ./clients/` is the safety net: a secret
   landing in a recipe breaks CI before commit.

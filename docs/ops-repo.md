@@ -23,10 +23,10 @@ turvez-ops/
   TURVEZ_PIN                  # TURVEZ_REF=<tag|sha> + DAGNATS_VERSION=v0.0.30
   AGENTS.md                   # ops rules (validate from template checkout)
   .github/workflows/contract.yml  # CI: template tests @TURVEZ_PIN vs this repo
-  workflows/<client>/client.yaml    # engine, runtime, target (see docs/client-spine.md)
-  workflows/<client>/README.md + *.json
-  evals/<client>/                # promptfooconfig + generated cases
-  workflows/personal/ + workflows/ops/   # seeded from template, watchdog included
+  clients/<client>/client.yaml    # engine, runtime, target (see docs/client-spine.md)
+  clients/<client>/README.md + *.json
+  clients/<client>/evals/                # promptfooconfig + generated cases
+  clients/personal/ + clients/ops/   # seeded from template, watchdog included
   env/<client>.env.example    # NAMES only (commit)
   env/<client>.env            # values (never commit)
   secrets/<client>/env.age + .recipients # ciphertext (git add -f) + age pubkeys
@@ -63,7 +63,7 @@ export TURVEZ_CHECKOUT=~/Development/turvez TURVEZ_OPS_DIR=$PWD
 $TURVEZ_CHECKOUT/scripts/new-client.sh acme
 
 # 3. Validate (contract tests live in template — run from the template checkout):
-cd $TURVEZ_CHECKOUT && WORKFLOWS_DIR=$TURVEZ_OPS_DIR/workflows go test ./workflows/
+cd $TURVEZ_CHECKOUT && WORKFLOWS_DIR=$TURVEZ_OPS_DIR/clients go test ./clients/
 # or: make validate-ops TURVEZ_OPS_DIR=$TURVEZ_OPS_DIR   (from $TURVEZ_CHECKOUT)
 
 # 4. Register / run (prefix-checked per client):
@@ -93,5 +93,5 @@ git add -f secrets/acme/env.age && git commit
 
 Fieldbooks with real contacts/systems, recipes with real business logic,
 `env.age` with real ciphertext — even encrypted, the metadata (client names,
-secret names, systems) leaks. Template keeps only `_templates/`,
+secret names, systems) leaks. Template keeps only `_template/`,
 `example-client/`, `ops/`, `personal.ping` as fixtures.

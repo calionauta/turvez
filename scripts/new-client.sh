@@ -1,25 +1,43 @@
 #!/usr/bin/env bash
-# Scaffold a new client on the neutral spine (phase 3):
+# Scaffold a new client on the neutral spine:
 #   clients/<client>/client.yaml            # engine, runtime, target
 #   clients/<client>/README.md              # fieldbook
-#   clients/<client>/automation/dagnats/    # recipes
+#   clients/<client>/automation/<engine>/   # windmill (default) or dagnats (legacy)
 #   clients/<client>/evals/                 # promptfoo cases
 #   env/<client>.env.example                # secret NAMES
 #   secrets/<client>/                       # age recipients
 #
 # Usage (inside template OR ops repo):
-#   ./scripts/new-client.sh <client-id>
+#   ./scripts/new-client.sh <client-id>              # engine: windmill (default)
+#   ./scripts/new-client.sh <client-id> --engine=dagnats   # legacy engine
 #   TURVEZ_OPS_DIR=../turvez-ops ./scripts/new-client.sh <client-id>
 #
+# dagnats is legacy (docs/client-spine.md, phase 4): it is scaffolded only when
+# asked for explicitly, so a new client never silently starts on a runtime that
+# is on its way out.
+#
 # Template sources are read from clients/_template when it exists, else the
-# phase-1 workflows/_templates; both layouts keep working.
+# legacy phase-1 workflows/_templates; both layouts keep working.
 #
 # Template repo guard: only _templates/_template/example-client/ops/personal
 # may exist here — anything else aborts with a pointer to docs/ops-repo.md.
 set -euo pipefail
 
-[ -n "${1:-}" ] || { echo "Usage: new-client.sh <client-id> (lowercase, digits, dashes)" >&2; exit 1; }
-CLIENT="$1"
+CLIENT=""
+ENGINE="windmill"
+for arg in "$@"; do
+  case "$arg" in
+    --engine=*) ENGINE="${arg#--engine=}" ;;
+    -*) echo "unknown flag: $arg" >&2; exit 1 ;;
+    *) CLIENT="$arg" ;;
+  esac
+done
+case "$ENGINE" in
+  windmill|dagnats|dagu) ;;
+  *) echo "bad engine: $ENGINE (windmill | dagnats | dagu)" >&2; exit 1 ;;
+esac
+
+[ -n "$CLIENT" ] || { echo "Usage: new-client.sh <client-id> [--engine=windmill|dagnats|dagu]" >&2; exit 1; }
 [[ "$CLIENT" =~ ^[a-z0-9][a-z0-9-]*$ ]] || { echo "bad client id: $CLIENT (lowercase, digits, dashes)" >&2; exit 1; }
 
 # Resolve target root: explicit ops dir wins; else current checkout.
@@ -59,14 +77,17 @@ done
 
 C="$ROOT/clients/$CLIENT"
 WF="$C/automation/dagnats"
+WMW="$C/automation/windmill"
 EV="$C/evals"
 [ -e "$C" ] && { echo "already exists: $C" >&2; exit 1; }
-mkdir -p "$WF" "$EV" "$ROOT/env" "$ROOT/secrets/$CLIENT"
+mkdir -p "$C/automation/$ENGINE" "$EV" "$ROOT/env" "$ROOT/secrets/$CLIENT"
 
 # Engine/runtime manifest (client.yaml) — the single source of truth for where
-# and how this client runs (docs/client-spine.md).
+# and how this client runs (docs/client-spine.md). The template ships
+# `engine: windmill`; pin the chosen engine so the manifest never contradicts
+# the directory that actually holds the source.
 if [ -f "$TEMPLATES/client.yaml" ]; then
-  sed "s/TODO-CLIENT/$CLIENT/g" "$TEMPLATES/client.yaml" > "$C/client.yaml"
+  sed "s/TODO-CLIENT/$CLIENT/g; s/^engine: .*/engine: $ENGINE/" "$TEMPLATES/client.yaml" > "$C/client.yaml"
 fi
 
 # Fieldbook from template (placeholder swap; portable upper-case for macOS bash 3.2).
@@ -74,9 +95,9 @@ UPPER="$(echo "$CLIENT" | tr 'a-z' 'A-Z')"
 sed "s/TODO-CLIENT/$CLIENT/g; s/TODO_HUBSPOT_TOKEN/${UPPER}_HUBSPOT_TOKEN/g; s/TODO_SLACK_WEBHOOK_URL/${UPPER}_SLACK_WEBHOOK_URL/g" \
   "$TEMPLATES/FIELDBOOK.md" > "$C/README.md"
 
-# Starter recipe: copy cron-job skeleton with client prefix (basename kept so
-# the recipe name matches the file: acme/cron-job in cron-job.json).
-if [ -f "$TEMPLATES/cron-job.json" ]; then
+# Starter recipe (dagnats legacy only): copy the cron-job skeleton with the
+# client prefix, basename kept so the recipe name matches the file.
+if [ "$ENGINE" = "dagnats" ] && [ -f "$TEMPLATES/cron-job.json" ]; then
   sed "s|TODO-CLIENT/|$CLIENT$SEP|g; s/TODO-CLIENT/$CLIENT/g" \
     "$TEMPLATES/cron-job.json" > "$WF/cron-job.json"
 fi
@@ -104,10 +125,24 @@ cat > "$ROOT/secrets/$CLIENT/.recipients" <<'EOF'
 # Ask each operator for their key over an authenticated channel first.
 EOF
 
-echo "client scaffolded: $C"
+echo "client scaffolded: $C (engine: $ENGINE)"
 echo "next:"
 echo "  \$EDITOR $C/README.md   # fill §1-3 (context, contacts, systems)"
-echo "  \$EDITOR $C/client.yaml # engine/runtime/target (default: dagnats)"
-echo "  dagnats workflow validate $WF/*.json"
-echo "  cd $TEMPLATE_DIR && WORKFLOWS_DIR=$ROOT/clients go test ./workflows/"
-echo "  evals: $EV  (generate cases: scripts/select-cases.py --dagnats --out $EV/cases; label: scripts/label-cases.py --dir $EV)"
+echo "  \$EDITOR $C/client.yaml # runtime/target (engine is already $ENGINE)"
+case "$ENGINE" in
+  dagnats)
+    echo "  dagnats workflow validate $WF/*.json"
+    echo "  cd $TEMPLATE_DIR && WORKFLOWS_DIR=$ROOT/clients go test ./clients/"
+    echo "  evals: $EV  (generate cases: scripts/select-cases.py --dagnats --out $EV/cases; label: scripts/label-cases.py --dir $EV)"
+    ;;
+  windmill)
+    echo "  put the flows under $WMW (wmill flow push one item at a time)"
+    echo "  read skills/turvez/references/windmill.md first: never \`wmill sync push\`"
+    echo "  ./scripts/check-windmill.sh   # lint gate, then wmill flow preview"
+    echo "  evals: $EV  (normalize a job: scripts/windmill-job-to-run.py --job-id <id> --out run.json)"
+    ;;
+  dagu)
+    echo "  put the DAGs under $C/automation/dagu (level 2: docs/script-execution.md)"
+    echo "  evals: $EV"
+    ;;
+esac

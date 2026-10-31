@@ -2,8 +2,16 @@
 
 Q0 first: which repo am I in? `go.mod` only = template (public, no real
 clients — refuse, point to turvez-ops via docs/ops-repo.md). `TURVEZ_PIN`
-only = ops repo (private, any client OK). Then ask in order. First "yes"
-wins. Full rationale: `docs/script-execution.md`.
+only = ops repo (private, any client OK).
+
+Q0.5: which engine is this client on? Read `clients/<client>/client.yaml`.
+`engine: windmill` (the default for new clients) → `references/windmill.md`;
+the levels below describe the **dagnats** path, which is legacy but still
+supported. A new client starts on Windmill unless the operator chooses dagnats
+explicitly (`new-client.sh <client> --engine=dagnats`).
+
+Then ask in order, for a dagnats client. First "yes" wins. Full rationale:
+`docs/script-execution.md`.
 
 ## Q1.5 — agent loop gate
 
@@ -13,11 +21,13 @@ decision (Dagu 2.x `llm.*`/`harness.run`/agent DAGs, or a dedicated
 harness). Why: `docs/writing-recipes.md` → "Why AgentLoop/planner stay
 upstream-only".
 
-## Level 0 — dagnats recipe (default)
+## Level 0 — dagnats recipe (legacy engine)
 
 Q: fits the 12 handlers (`http.request`, `transform.json`, `condition`,
 `map`, `delay`, `notify.*`, `request.approval`, `llm.complete`, `dlq.check`)?
-Yes → write `workflows/<client>/*.json`, `validate` + `go test`, propose `register`.
+Yes → write `clients/<client>/automation/dagnats/*.json`, `validate` + `go test`, propose `register`.
+On a Windmill client the same 12 shapes are flow steps (`docs/migrate-to-windmill.md`
+has the mapping); do not add a dagnats recipe to a Windmill client.
 Ex.: HubSpot deal → Slack + Notion; invoice VIP split; refund with 48h approval gate.
 
 ## Level 1 — sandbox one-off (zero residue)

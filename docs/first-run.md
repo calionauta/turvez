@@ -60,14 +60,14 @@ TURVEZ_OPS_DIR=../turvez-ops ./scripts/new-client.sh acme
 Validate before registering:
 
 ```bash
-dagnats workflow validate ../turvez-ops/workflows/acme/<wf>.json
-WORKFLOWS_DIR=../turvez-ops/workflows go test ./workflows/
+dagnats workflow validate ../turvez-ops/clients/acme/automation/dagnats/<wf>.json
+WORKFLOWS_DIR=../turvez-ops/clients go test ./clients/
 ```
 
 ## 6. Register and run
 
 ```bash
-docker compose cp ../turvez-ops/workflows/acme/<wf>.json dagnats:/tmp/wf.json
+docker compose cp ../turvez-ops/clients/acme/automation/dagnats/<wf>.json dagnats:/tmp/wf.json
 docker compose exec -T dagnats dagnats workflow register /tmp/wf.json
 docker compose exec -T dagnats dagnats run start acme.<wf> '{}' --json
 ```
@@ -102,10 +102,10 @@ separator in `naming.json`; the run page `/console/runs?id=<run-id>` always work
 
 ## 8. Eval
 
-Per client (`evals/<client>/` in the ops repo, scaffolded by `new-client.sh`):
+Per client (`clients/<client>/evals/` in the ops repo, scaffolded by `new-client.sh`):
 
 ```bash
-DAGNATS_NATS_URL=... python3 scripts/select-cases.py --dagnats --out evals/acme/cases --include-ok 3
+DAGNATS_NATS_URL=... python3 scripts/select-cases.py --dagnats --out clients/acme/evals/cases --include-ok 3
 make eval-client CLIENT=acme TURVEZ_OPS_DIR=../turvez-ops
 make eval-client-view CLIENT=acme TURVEZ_OPS_DIR=../turvez-ops
 # agent procedure: skills/turvez/references/eval-loop.md

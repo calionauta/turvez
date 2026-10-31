@@ -1,10 +1,17 @@
 # turvez — the solo consultancy runtime for durable client automations
 
 Turvez is built for forward-deployed engineers: client work that survives
-failures, waits for humans, and keeps receipts. Recipes live in git — your
-agent drafts them, tests gate them, you approve. One folder per client,
-extractable to dedicated infra when they grow. Your own automations run
-free on the same engine.
+failures, waits for humans, and keeps receipts. Source lives in git — your
+agent drafts it, tests gate it, you approve. One folder per client, extractable
+to dedicated infra when they grow. Your own automations run free on the same
+engine.
+
+**Engines.** The repo is the spine; the runtime is a per-client choice recorded
+in `clients/<client>/client.yaml` (`docs/client-spine.md`). **Windmill is the
+default for new clients.** The dagnats engine documented below (Go worker +
+12 generic tasks) is **legacy**: fully supported, still tested, but no new
+client starts there. Migrating one client is mechanical
+(`docs/migrate-to-windmill.md`).
 
 ## What it solves, and how
 
@@ -37,7 +44,7 @@ external SaaS ◄──────── human (Slack link / curl approve)
   Full diagram and verified behaviors in `ARCHITECTURE.md`.
 - **Worker**: one Go binary, twelve generic task handlers (HTTP, jq transform,
   condition, map, delay, Slack/Telegram/Discord/webhook, approval, LLM, DLQ check).
-- **Recipes**: `workflows/<client>/*.json` — the automation code. Git is source
+- **Recipes**: `clients/<client>/automation/dagnats/*.json` — the automation code. Git is source
   of truth, dagnats KV is a deployment target.
 - **Secrets**: names in JSON, values in `env/<client>.env` or age-encrypted
   `secrets/<client>/env.age`, decrypted to memory at boot.
@@ -62,23 +69,23 @@ FDEOps are *inputs* (diagnose, decide), turvez is the *executor* (run, operate).
 
 ## Per-client structure and fieldbooks
 
-> Public template keeps only `_templates/`, `example-client/`, `ops/`,
+> Public template keeps only `_template/`, `example-client/`, `ops/`,
 > `personal/` (fixtures). Real clients live in a private `turvez-ops` repo —
 > see `docs/ops-repo.md` (scaffold: `./scripts/new-ops-repo.sh ../turvez-ops`).
 
 Everything a client needs lives in one folder plus one env template:
 
 ```text
-workflows/<client>/
+clients/<client>/
   README.md        # fieldbook: context, contacts, systems, triggers, runbook, decisions
   *.json           # recipes, named <client>/…, triggers <client>-…
 env/<client>.env.example   # secret NAMES (commit); env/<client>.env holds values (never)
 secrets/<client>/env.age   # same env, age-encrypted (ciphertext OK in git)
 ```
 
-Conventions (enforced by `go test ./workflows/`): workflow names start with
+Conventions (enforced by `go test ./clients/`): workflow names start with
 `<client>/`, trigger ids with `<client>-`, webhook paths contain `<client>`.
-Template: `workflows/_templates/FIELDBOOK.md`. Worked example: `example-client/`,
+Template: `clients/_template/FIELDBOOK.md`. Worked example: `example-client/`,
 platform automations: `ops/`, your own: `personal/` (same pipeline, you approve).
 
 ## Scaling: solo → team, one client → many
@@ -130,13 +137,13 @@ Full walkthrough with the traps: `docs/first-run.md`.
 
 ## Operator loop
 
-0. **Direct first** — read `workflows/<client>/README.md` (fieldbook) and
+0. **Direct first** — read `clients/<client>/README.md` (fieldbook) and
    decide where the work belongs (`docs/script-execution.md` Q1–Q4).
    Personal work uses client `personal/`.
-1. **Edit JSON** — copy the closest file from `workflows/_templates/`
-   into `workflows/<client>/`, keep the `<client>/` name prefix.
-2. **Validate** — `dagnats workflow validate workflows/<client>/x.json`
-   (or `make validate`; `go test ./workflows/` compiles every jq
+1. **Edit JSON** — copy the closest file from `clients/_template/`
+   into `clients/<client>/`, keep the `<client>/` name prefix.
+2. **Validate** — `dagnats workflow validate clients/<client>/x.json`
+   (or `make validate`; `go test ./clients/` compiles every jq
    expression and executes samples).
 3. **Register** — `dagnats workflow register …` (embedded `triggers`
    register with it) or attach a schedule:
@@ -180,9 +187,9 @@ curl -X POST localhost:8090/ops/approvals/<run-id> \
 - `docs/migrate-to-windmill.md` — Windmill escape hatch (docs only).
 - `docs/sandbox-policy.md` — when you need a sandbox (usually you don't) + `scripts/sandbox-run.sh`.
 - `docs/script-execution.md` — where to execute: dagnats vs one-off vs Dagu vs Windmill.
-- `workflows/_templates/FIELDBOOK.md` — per-client fieldbook template (copy to `workflows/<client>/README.md`).
+- `clients/_template/FIELDBOOK.md` — per-client fieldbook template (copy to `clients/<client>/README.md`).
 - `skills/turvez/SKILL.md` — automate-anything skill (direct → confirm → build). Symlink into your harness skills dir.
-- `workflows/personal/` — your own automations as client `personal/` (same pipeline, you approve).
+- `clients/personal/` — your own automations as client `personal/` (same pipeline, you approve).
 - `ARCHITECTURE.md` — diagram, data flow, decisions.
 - `CHANGELOG.md` — release history (generated by release-please).
 - `AGENTS.md` — agent quick rules (this file's essentials).

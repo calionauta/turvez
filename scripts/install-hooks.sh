@@ -25,7 +25,7 @@ global="$(git config --global --get core.hooksPath || true)"
 if [ -n "$global" ] && [ -x "$global/pre-commit" ]; then "$global/pre-commit" "$@"; fi
 [ -f "$root/go.mod" ] || exit 0
 cd "$root"
-go test ./workflows/ || { echo "commit blocked: workflows contract failed"; exit 1; }
+go test ./clients/ || { echo "commit blocked: clients contract failed"; exit 1; }
 EOF
 
 cat > "$HOOKS_DIR/commit-msg" <<'EOF'
@@ -42,6 +42,17 @@ EOF
 
 chmod +x "$HOOKS_DIR/pre-commit" "$HOOKS_DIR/commit-msg"
 git -C "$ROOT" config --local core.hooksPath .githooks
+
+# Legacy cleanup: older versions of this script wrote .git/hooks/pre-commit.
+# That path is not versioned and not used while core.hooksPath points at
+# .githooks, but the global hook chains to it by absolute path, so a stale copy
+# keeps running the old command (e.g. `go test ./workflows/` after the layout
+# moved). Remove it only when it is ours — never delete another tool's hook.
+LEGACY="$(git -C "$ROOT" rev-parse --git-dir)/hooks/pre-commit"
+if [ -f "$LEGACY" ] && grep -q "turvez pre-commit" "$LEGACY" 2>/dev/null; then
+  rm -f "$LEGACY"
+  echo "removed stale legacy hook: $LEGACY"
+fi
 
 echo "installed: core.hooksPath=.githooks"
 echo "  pre-commit: global hook + recipe tests (template checkout only)"

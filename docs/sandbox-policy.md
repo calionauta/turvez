@@ -11,8 +11,8 @@ with `validate` + `go test` + a staging run.
 Yes → no external sandbox. Run:
 
 ```bash
-dagnats workflow validate workflows/<client>/<wf>.json
-go test ./workflows/   # executes every jq expression against samples
+dagnats workflow validate clients/<client>/<wf>.json
+go test ./clients/   # executes every jq expression against samples
 ./scripts/register-workflows.sh <client>  # staging first
 dagnats run start "<client>/<wf>" '<json>' --watch
 ```

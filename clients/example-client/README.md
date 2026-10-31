@@ -1,6 +1,6 @@
 # Fieldbook: example-client
 
-> Worked example of the `workflows/_templates/FIELDBOOK.md` template.
+> Worked example of the `clients/_template/FIELDBOOK.md` template.
 > Secret names yes, values never.
 
 ## 1. Context
@@ -50,7 +50,7 @@ dagnats run list --workflow=example-client/
 - Refund uses native `type: approval` (durable 48h, no worker slot) instead of chunked `request.approval`.
 - VIP split uses `skip_if` (top-level) instead of `condition` — simple comparison, no extra task.
 - No custom handler: everything fit in `http.request` + `transform.json` + `skip_if` + `map`.
-- Reusable: (nothing yet — when a pattern repeats, it becomes a `_templates/` template or a handler proposal; productize is what the next client gets for free).
+- Reusable: (nothing yet — when a pattern repeats, it becomes a `clients/_template/` template or a handler proposal; productize is what the next client gets for free).
 
 ## 7. Extract
 

@@ -26,7 +26,7 @@ Three layers, in order:
    lockfiles. `locksRequired: true` in `wmill.yaml` also blocks `sync push`.
 2. **`go test` for logic.** Put the domain logic in a Go package and unit-test
    it; the Windmill Go script is a thin wrapper. This is the closest equivalent
-   to the dagnats `go test ./workflows/` gate.
+   to the dagnats `go test ./clients/` gate.
 3. **CI test scripts** (`// test: flow/...` annotation) for integration: run
    the flow with fixtures and assert the result. PR gating is EE.
    `wmill flow preview --data … --step <id>` runs local files without deploying;
@@ -67,7 +67,7 @@ Normalize a flow job into the shape the selector already reads:
 
 ```bash
 python3 scripts/windmill-job-to-run.py --job-id <id> --out run.json
-python3 scripts/select-cases.py --runs run.json --out evals/<client>/cases
+python3 scripts/select-cases.py --runs run.json --out clients/<client>/evals/cases
 ```
 
 ## Replay and debug
