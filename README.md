@@ -6,11 +6,14 @@ agent drafts it, tests gate it, you approve. One folder per client, extractable
 to dedicated infra when they grow. Your own automations run free on the same
 engine.
 
-**Engines.** The repo is the spine; the runtime is a per-client choice recorded
-in `clients/<client>/client.yaml` (`docs/client-spine.md`). **Windmill is the
-default for new clients.** The dagnats engine documented below (Go worker +
-12 generic tasks) is **legacy**: fully supported, still tested, but no new
-client starts there. Migrating one client is mechanical
+**Engines.** The repo is the spine; the runtime is a **per-client choice**
+recorded in `clients/<client>/client.yaml` (`docs/client-spine.md` → "Choosing
+the engine"). There is no global default: **dagnats** (Go worker + 12 generic
+tasks, one binary, `go test` gate) is the cheaper answer for typed/regulated
+integration work, and **Windmill** is the answer when a client needs
+UI/forms, step-level replay, or real code steps. One engine per client, chosen
+with criteria — never both (`.github/workflows/ci.yml` and `go test ./clients/`
+enforce the manifest). Migrating one client is mechanical
 (`docs/migrate-to-windmill.md`).
 
 ## What it solves, and how

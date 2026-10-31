@@ -1,13 +1,20 @@
 # Isolating a client
 
-One shared dagnats instance is fine to start (stage 1 in
-`docs/tenancy-evolution.md`). The layout keeps extracting one client to
-a dedicated host a copy operation, not a redesign: client identity lives
-in folder + name prefix + env file only — never in Go code.
+A dedicated host is a **deployment profile** decision (`runtime: dedicated` in
+`client.yaml`, see `docs/deployment-profiles.md#when-a-client-needs-its-own-instance`),
+not an engine or repo decision. The layout keeps extracting one client a copy
+operation, not a redesign: client identity lives in folder + name prefix + env
+file only — never in Go code.
+
+The procedure below is the **dagnats** path, which is the common case for
+
+typed/regulated work. For a Windmill client see
+["Windmill client on its own instance"](#windmill-client-on-its-own-instance).
 
 ## What to copy
 
 - `clients/<client-id>/automation/dagnats/*.json` — all recipes for that client
+  (for a Windmill client: `clients/<client-id>/automation/windmill/`)
 - Trigger definitions for that client (ids start with `<client-id>-`;
   recreate from the JSON `triggers` arrays, see below)
 - `env/<client-id>.env` (or `secrets/<client-id>/env.age` +
@@ -25,7 +32,8 @@ so a replay is boring.
 
 ## Procedure: extract `<client-id>` to its own server
 
-Conventions assumed: workflow names `<client-id>/…`, trigger ids
+Conventions assumed: workflow names `<client-id>.<wf>` (the separator lives in
+`naming.json`), trigger ids
 `<client-id>-…`, webhook paths containing `<client-id>`. The register
 script and `go test ./clients/` enforce the name prefix.
 
@@ -55,18 +63,18 @@ go run ./cmd/worker &
 
 # 3. Register that client's recipes only (prefix-checked by the script)
 ./scripts/register-workflows.sh $CLIENT
-dagnats workflow list   # expect only $CLIENT/… names
+dagnats workflow list   # expect only $CLIENT.<wf> names
 
 # 4. Recreate that client's triggers only.
 #    Cron (dry-check the expression first):
 dagnats trigger test "0 2 * * *" --tz=UTC --count=3
-dagnats trigger create "$CLIENT/nightly-sync" --cron="0 2 * * *" --tz=UTC
+dagnats trigger create "$CLIENT.nightly-sync" --cron="0 2 * * *" --tz=UTC
 #    Webhook (path must contain the client id):
-dagnats trigger create "$CLIENT/hubspot-lead-to-slack" --webhook=/hooks/$CLIENT/lead
+dagnats trigger create "$CLIENT.hubspot-lead-to-slack" --webhook=/hooks/$CLIENT/lead
 dagnats trigger list   # expect only $CLIENT-… ids
 
 # 5. Smoke on the new server
-RUN_ID=$(dagnats run start "$CLIENT/hubspot-lead-to-slack" '{"lead_id":"cutover-1"}' --json \
+RUN_ID=$(dagnats run start "$CLIENT.hubspot-lead-to-slack" '{"lead_id":"cutover-1"}' --json \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["run_id"])')
 sleep 8
 dagnats run status $RUN_ID
@@ -82,7 +90,7 @@ dagnats run list --workflow=$CLIENT.<wf>   # new run appears (exact name)
 dagnats trigger list   # note the $CLIENT-… ids
 dagnats trigger disable $CLIENT-nightly-sync-cron
 dagnats trigger disable $CLIENT-lead-webhook
-# later: dagnats trigger delete <id> … ; dagnats workflow delete "$CLIENT/<name>"
+# later: dagnats trigger delete <id> … ; dagnats workflow delete "$CLIENT.<name>"
 
 # ---------- External systems ----------
 # 7. Repoint SaaS webhook sender URLs from old host → new host
@@ -92,15 +100,15 @@ dagnats trigger disable $CLIENT-lead-webhook
 
 ## Verification checklist
 
-- [ ] `dagnats workflow list` on new server shows only `$CLIENT/…`
+- [ ] `dagnats workflow list` on new server shows only `$CLIENT.<wf>`
 - [ ] Smoke run completes transform steps; side-effect steps succeed
       with real secrets (or fail with a clear secret/config error, not
       a protocol error — see `scripts/smoke-test.sh`)
-- [ ] Webhook POST to the new host creates a run under `$CLIENT/`
+- [ ] Webhook POST to the new host creates a run under `$CLIENT.`
 - [ ] `dagnats trigger test` shows expected cron fire times
 - [ ] Old server: `dagnats trigger list` shows the client's triggers
       disabled; other clients' triggers still enabled; no new
-      `$CLIENT/` runs appear there
+      `$CLIENT.` runs appear there
 
 ## Rollback
 
@@ -118,3 +126,52 @@ dagnats trigger disable $CLIENT-lead-webhook
 Definitions are portable (git + register); history never moves. If the
 new host misbehaves, the old host still has its definitions, secrets,
 and history — rollback is two enables plus a URL change.
+
+## Windmill client on its own instance
+
+Same principle (definitions from git, history stays), different commands. A
+self-hosted Windmill instance is Postgres + workers, so "own server" for a
+Windmill client is a heavier commitment — confirm the licence path first
+(`docs/deployment-profiles.md#engine-implications-per-profile`).
+
+```bash
+CLIENT=acme   # example
+
+# ---------- On the NEW server ----------
+# 1. Windmill instance (Docker Compose from upstream; pin the version).
+#    One instance can hold several workspaces; a dedicated instance is the
+#    deployment-profile decision, a workspace is the tenancy unit.
+# 2. Create the workspace, then push the client's flows ONE AT A TIME.
+#    NEVER `wmill sync push` (it deletes remote items missing locally —
+#    it removed 12 items from a live workspace during the pilot).
+for f in clients/$CLIENT/automation/windmill/*/; do
+  wmill flow preview "$f"          # lint locally, no deploy
+  wmill flow push  "$f" "f/$CLIENT/$(basename "$f")"
+done
+
+# 3. Recreate secrets as workspace variables/resources — values never in git.
+#    env/<client>.env / age is the BOOTSTRAP source, not the runtime store:
+#    the workspace variable is what the flow reads.
+# 4. Recreate schedules/triggers in the workspace.
+# 5. Smoke: `wmill flow run f/$CLIENT/<wf>` and `wmill job get <id> --json`.
+#    For the eval loop: scripts/windmill-job-to-run.py --job-id <id>
+
+# ---------- On the OLD server ----------
+# 6. Disable this client's schedules only. Prefer disable; delete after bake-in.
+
+# ---------- External systems ----------
+# 7. Repoint SaaS webhook URLs, then re-run the smoke flow.
+```
+
+There is no `jobs` history migration. Run history stays where it ran; the
+cutover needs **definitions**, and a `windmill-job-to-run.py` export if the
+client's eval set must survive the move.
+
+### Windmill verification checklist
+
+- [ ] `wmill flow list` in the workspace shows only this client's flows
+- [ ] Every pushed flow has a lockfile (`locksRequired: true`, `wmill lint` clean)
+- [ ] Secrets exist as workspace variables; the flow reads no `.env` at runtime
+- [ ] A schedule fires a run in the new workspace
+- [ ] Old instance: this client's schedules disabled, others untouched
+- [ ] Licence path recorded for the contract (AGPL self-host vs Cloud vs EE)

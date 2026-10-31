@@ -76,9 +76,9 @@ Validate from the template checkout (go needs its module context):
 
 - `clients/<client>/README.md` — fieldbook (copy from `clients/_template/FIELDBOOK.md`).
 - `clients/<client>/automation/dagnats/*.json` — recipes, names `<client>.<wf>`, triggers `<client>-…`.
-- `clients/<client>/client.yaml` — engine, runtime, target. **New clients default
-  to Windmill** (`automation/windmill/`); dagnats is legacy and only scaffolded
-  with `new-client.sh <client> --engine=dagnats`.
+- `clients/<client>/client.yaml` — engine, runtime, target. The engine is chosen
+  per client (`docs/client-spine.md#choosing-the-engine`): `new-client.sh` for
+  Windmill (`automation/windmill/`), `--engine=dagnats` for the typed path.
 - `env/<client>.env.example` — secret NAMES (commit); `env/<client>.env` — values (never).
 - `secrets/<client>/env.age` — ciphertext (commit with -f); `secrets/<client>/.recipients` — age pubkeys.
 
@@ -131,7 +131,7 @@ for seeded in personal ops; do
   if [ ! -f "$DEST/clients/$seeded/client.yaml" ]; then
     cat > "$DEST/clients/$seeded/client.yaml" <<YAML
 client: $seeded
-engine: dagnats       # legacy engine: this seeded folder ships dagnats recipes
+engine: dagnats       # this seeded folder ships dagnats recipes
 runtime: shared
 target:
   nats_url: nats://127.0.0.1:4222
@@ -161,7 +161,7 @@ jobs:
       - name: Install the engine CLIs this ops repo actually needs
         # The pin comes from the pinned template's go.mod, never a literal here:
         # a SHA/version copied into this file would drift from TURVEZ_PIN.
-        # dagnats is legacy, so it is installed only when the ops repo still has
+        # dagnats is installed only when the ops repo actually has
         # dagnats recipes; a Windmill-only repo never pays for it.
         working-directory: turvez
         run: |

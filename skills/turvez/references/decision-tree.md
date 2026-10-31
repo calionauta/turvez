@@ -5,10 +5,10 @@ clients — refuse, point to turvez-ops via docs/ops-repo.md). `TURVEZ_PIN`
 only = ops repo (private, any client OK).
 
 Q0.5: which engine is this client on? Read `clients/<client>/client.yaml`.
-`engine: windmill` (the default for new clients) → `references/windmill.md`;
-the levels below describe the **dagnats** path, which is legacy but still
-supported. A new client starts on Windmill unless the operator chooses dagnats
-explicitly (`new-client.sh <client> --engine=dagnats`).
+`engine: windmill` → `references/windmill.md`. `engine: dagnats` (or no manifest
+yet) → the levels below. There is **no global default**: the engine is chosen
+per client with `docs/client-spine.md#choosing-the-engine`. If the client has no
+manifest, run that decision first and write the answer down.
 
 Then ask in order, for a dagnats client. First "yes" wins. Full rationale:
 `docs/script-execution.md`.
@@ -21,7 +21,7 @@ decision (Dagu 2.x `llm.*`/`harness.run`/agent DAGs, or a dedicated
 harness). Why: `docs/writing-recipes.md` → "Why AgentLoop/planner stay
 upstream-only".
 
-## Level 0 — dagnats recipe (legacy engine)
+## Level 0 — dagnats recipe
 
 Q: fits the 12 handlers (`http.request`, `transform.json`, `condition`,
 `map`, `delay`, `notify.*`, `request.approval`, `llm.complete`, `dlq.check`)?

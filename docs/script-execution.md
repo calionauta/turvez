@@ -3,10 +3,10 @@
 Short answer: **it depends on the client's engine, not on taste.** A client
 already on dagnats stays there (level 0 below); a **new client starts on
 Windmill** (level 3) unless the work is clearly dagnats-shaped and the operator
-says so. dagnats is legacy (`docs/client-spine.md`, phase 4): it is supported,
-documented and tested, but it is no longer where new work lands by default.
-Everything below is still the day-to-day decision tree;
-`docs/migrate-to-windmill.md` is the migration plan.
+says so. Both engines are supported and a client runs exactly one; the choice
+is per client (`docs/client-spine.md#choosing-the-engine`), not a global
+default. Everything below is the day-to-day decision tree for the **dagnats**
+engine; `docs/migrate-to-windmill.md` is the migration plan.
 
 **One engine per client.** In steady state, levels 0, 2 and 3 are mutually
 exclusive for the same client's orchestration (overlap is allowed only during
@@ -100,8 +100,10 @@ copy code into this repo.
 
 **Q4. Did it become the client's internal product?** (needs web form for
 the team, integration catalog, approvals with UI, low-code apps)
-Windmill is both the **default for new clients** and the migration target for
-a client that outgrows dagnats. The client's `client.yaml` records the choice.
+Windmill is the migration target for a client that outgrows dagnats, and the
+right first choice when the criteria in
+`docs/client-spine.md#choosing-the-engine` point at it. It is **not** a global
+default: the client's `client.yaml` records the per-client choice.
 
 Yes → level 3, Windmill, **per client** (see
 `docs/migrate-to-windmill.md` + `docs/isolating-a-client.md`):

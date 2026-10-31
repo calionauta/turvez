@@ -60,6 +60,39 @@ still validates, but it is frozen: new clients are scaffolded under `clients/`.
 Migrate a checkout with `./scripts/migrate-to-clients.sh --check` and then
 `--apply`.
 
+## Choosing the engine
+
+Ask these in order. The first **yes** decides; a tie means the client does not
+need Windmill yet, so it starts on dagnats.
+
+| # | Question | Yes → | Why |
+|---|---|---|---|
+| 1 | Does the client need **generated UI/forms/apps** for the automation, or a teammate who is not you operating it? | **Windmill** | dagnats has no app surface; building one is a separate product |
+| 2 | Does diagnosing a bad step require **re-running one step**, or reading each step's log? | **Windmill** | pilot: structured error (`step_id`, stack, job id) + `flow preview --step` is materially better than base64 step output |
+| 3 | Is the logic **non-trivial code** (parsing, branching, an SDK) that a non-Go dev must own? | **Windmill** | TS/Python/Go code steps beat a jq expression the 12 handlers cannot express |
+| 4 | Does the contract demand **typed contracts, native approvals, no arbitrary code, one binary**, or AGPL is a contract problem? | **dagnats** | dagnats' whole point; `go test` gates it before any run |
+| 5 | Is the client **regulated/residency-bound**, or does it require its own instance/DB? | **dagnats** (or Windmill self-hosted, see `docs/isolating-a-client.md`) | instance isolation is a deployment choice, not an engine choice |
+
+If none apply, the client is a plain integration job and **dagnats is the
+cheaper answer**: one binary, no Postgres, a `go test` gate. That is not a
+legacy statement; it is the reason dagnats exists.
+
+**Do not flip the default to Windmill for everyone.** The pilot's verdict was
+explicit: it justified offering Windmill **per client** (UI/replay clients) and
+keeping dagnats for typed/regulated/light ones. A default-for-everyone flip is
+a decision with Postgres, AGPL and governance consequences and needs a
+measured win across most clients first — not one pilot.
+
+Cost of being wrong, per direction:
+
+- dagnats when Windmill was right → you pay in debugging time; step output is
+  base64 and there is no per-step replay.
+- Windmill when dagnats was right → you took on Postgres, AGPL/EE governance
+  and a workspace per client for a workload one binary handled.
+
+The second is the more expensive mistake, which is why the default stays where
+the contract is simple.
+
 ## Engine differences stay at the edges
 
 | Concern | dagnats | Windmill | Dagu |
@@ -119,11 +152,24 @@ Promptfoo keeps reading the same cases either way.
    single migration (`scripts/migrate-to-clients.sh`). The test package lives in
    `clients/`; scripts, hooks, CI and docs speak one layout. `workflows/` is
    accepted for reading only, so an ops repo can migrate when it wants.
-4. **Current — dagnats is legacy.** New clients default to Windmill
-   (`engine: windmill` in `client.yaml`). The dagnats runtime (worker, handlers,
-   `automation/dagnats/`) stays until no client uses it, then it is deleted in a
-   single commit: worker, handlers, `docker-compose` engine services, the
-   `register` make targets. The spine, `evals/` and the scripts survive.
+4. **Current — two engines, one per client, no default.** The engine is a
+   **per-client decision**, not a rank order: `client.yaml` records it and the
+   criteria live in § "Choosing the engine". dagnats remains the default for
+   the work it was built for (typed contracts, native approvals, a single
+   binary, a `go test` gate); Windmill is the answer when the client needs
+   UI/forms, step-level replay, test-one-step, or code steps in TS/Python/Go.
+   Neither engine is deprecated by fiat.
 
-Until phase 4 ends, both engines are supported but a client runs exactly one.
-Do not run two engines for the same client.
+   The windmill pilot (`spike`, measured against pre-decided weighted criteria)
+   found Windmill materially better at **diagnosis and step replay** — exactly
+   where an LLM-authored flow is most likely to be wrong — and dagnats better
+   at the **pre-run test gate, footprint and licensing**. That is a reason to
+   offer both per client, not to flip a default.
+
+   **Retirement trigger (unchanged):** the dagnats runtime goes away only when
+   no client uses it, in a single commit — worker, handlers, `docker-compose`
+   engine services, the `register` make targets. The spine, `evals/` and the
+   scripts survive. Flipping the default is not a retirement step.
+
+Both engines are supported and a client runs exactly one. Do not run two
+engines for the same client.

@@ -1,7 +1,8 @@
 # Worked example of clients/_template/client.yaml. Kept on dagnats on purpose:
-# it exercises the legacy engine that the contract test still supports.
+# it is the engine most integration clients use, and the contract test needs a
+# dagnats example to gate.
 client: example-client
-engine: dagnats       # legacy engine, by design in this fixture
+engine: dagnats       # typed integration example, by design in this fixture
 runtime: shared
 target:
   nats_url: nats://127.0.0.1:4222

@@ -53,7 +53,7 @@ Bump only after reading the release notes and running the ops contract tests
 ## Lifecycle
 
 ```bash
-# 1. Scaffold (from template checkout; skill proposes the command and waits — Q0b):
+# 1. Scaffold (from template checkout; skill proposes the command and waits — Q0c):
 ./scripts/new-ops-repo.sh ../turvez-ops   # local-only unless --github-private
 cd ../turvez-ops && git init && git add -A && git commit -m 'ops init'
 gh repo create --private --source=. --push   # never public; only after operator says so

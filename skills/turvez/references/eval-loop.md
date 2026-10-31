@@ -109,6 +109,28 @@ jq -r '.results.results[]
 
 ## Troubleshooting
 
+### promptfoo (each was hit, not read)
+
+- **Provider silently calls api.openai.com**: the key is `apiBaseUrl`, not
+  `apiHost` (the name other OpenAI-compatible tools use). Wrong name = no error,
+  just a cloud call. Symptom: eval passes with no traffic in the gateway log.
+- **`llm-rubric` fails or demands `OPENAI_API_KEY`**: the grader inherits the
+  default provider, not yours. Pin it under `defaultTest.options.provider`.
+- **`Unexpected token 'return'`**: a JS assertion written as an expression body.
+  Use `is-json` + JSON schema instead of code; code assertions are the brittle
+  path here.
+- **Rubric grades blind** ("No ticket content was provided"): the rubric value
+  does not interpolate the case. Put `{{text}}` inside the rubric string.
+- **Eval traffic re-ingested as production samples**: tag it (`x-eval-run`, kept
+  via the gateway's logging-headers allowlist) or the next sampling round
+  feeds on itself.
+
+A green eval that never reached the gateway, or a rubric grading an empty
+prompt, is the failure mode these five produce. Check the gateway log before
+trusting a 100% pass rate.
+
+### dagnats
+
 - **`empty completion (finish=length)`**: reasoning model spent `max_tokens`;
   raise it in the recipe, not in the eval.
 - **rubric disagrees with a correct label**: judges vary. Prefer schema +
@@ -117,3 +139,14 @@ jq -r '.results.results[]
   the input changed. Re-label the new input.
 - **`cannot connect to NATS`**: the CLI is NATS-first; check
   `DAGNATS_NATS_URL`, not `DAGNATS_API_URL`.
+- **A step's prompt is missing from the run**: prompts are not recorded unless
+  a `build-prompt` step emits `messages` (see `docs/observability.md`).
+
+### Windmill eval source
+
+`select-cases.py` reads dagnats runs. For a Windmill client, normalize first:
+
+```bash
+python3 scripts/windmill-job-to-run.py --job-id <id> --out run.json
+python3 scripts/select-cases.py --runs run.json --out clients/<client>/evals/cases
+```

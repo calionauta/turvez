@@ -1,5 +1,5 @@
-# AGENTS.md — consultancy automation runtime (client spine; Windmill default,
-# dagnats legacy)
+# AGENTS.md — consultancy automation runtime (client spine; two engines,
+# chosen per client)
 
 ## Repo type (Q0 — check before anything else)
 
@@ -14,11 +14,15 @@
 
 - The repo is the **spine**; the engine is per client, in
   `clients/<client>/client.yaml` (`docs/client-spine.md`).
-- `engine: windmill` — **default for new clients**. Source in
-  `clients/<client>/automation/windmill/`; gate `./scripts/check-windmill.sh`.
-- `engine: dagnats` — **legacy**: supported, still tested, no new client starts
-  here (`new-client.sh` needs `--engine=dagnats` for it). Source in
+- `engine: dagnats` — Go worker + 12 typed handlers, one binary, `go test` gate.
+  Cheaper for typed/regulated/light integration work. Source in
   `clients/<client>/automation/dagnats/*.json`.
+- `engine: windmill` — needed when the client wants UI/forms, step-level replay,
+  or non-trivial code steps. Source in `clients/<client>/automation/windmill/`;
+  gate `./scripts/check-windmill.sh`.
+- No global default: pick per client with `docs/client-spine.md#choosing-the-engine`.
+  `new-client.sh` scaffolds Windmill unless told otherwise because the dagnats
+  path is already the documented build loop; say `--engine=dagnats` for it.
 - One engine per client. Never migrate one unasked.
 
 ## Layout
@@ -51,7 +55,7 @@
   overrides). Durations accept integer ns (`30000000000`) **or** Go strings
   (`"30s"`), and `$schema` is accepted (optional). Allowed/excluded engine
   surfaces: `docs/writing-recipes.md#what-the-engine-allows-in-this-runtime`.
-- Windmill: default engine, still no dependency of this repo. Never `wmill sync
+- Windmill: no dependency of this repo, and not a global default. Never `wmill sync
   push` (deletes remote items); push one flow at a time after `wmill flow
   preview`. Keep logic in Go/TS scripts, not in YAML expressions
   (`skills/turvez/references/windmill.md`).
@@ -67,7 +71,7 @@ make validate            # every engine with source (dagnats + windmill)
 go test ./...            # structure, tenancy, jq expressions, secrets guard
 ./scripts/check-windmill.sh   # windmill lint gate (no worker needed)
 
-# dagnats engine (legacy)
+# dagnats engine
 dagnats workflow validate <file> && dagnats workflow register <file>
 dagnats run start <client>.<wf> '<json>' --watch | --json
 dagnats run status|events|output|inspect <run-id> [--last]

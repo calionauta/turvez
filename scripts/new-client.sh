@@ -2,19 +2,22 @@
 # Scaffold a new client on the neutral spine:
 #   clients/<client>/client.yaml            # engine, runtime, target
 #   clients/<client>/README.md              # fieldbook
-#   clients/<client>/automation/<engine>/   # windmill (default) or dagnats (legacy)
+#   clients/<client>/automation/<engine>/   # windmill or dagnats
 #   clients/<client>/evals/                 # promptfoo cases
 #   env/<client>.env.example                # secret NAMES
 #   secrets/<client>/                       # age recipients
 #
 # Usage (inside template OR ops repo):
-#   ./scripts/new-client.sh <client-id>              # engine: windmill (default)
-#   ./scripts/new-client.sh <client-id> --engine=dagnats   # legacy engine
+#   ./scripts/new-client.sh <client-id>                     # engine: windmill
+#   ./scripts/new-client.sh <client-id> --engine=dagnats    # typed/simple work
+#
+# There is no global default engine (docs/client-spine.md#choosing-the-engine).
+# The script preselects windmill because the dagnats build loop is already the
+documented path; pass --engine=dagnats when the criteria pick dagnats.
 #   TURVEZ_OPS_DIR=../turvez-ops ./scripts/new-client.sh <client-id>
 #
-# dagnats is legacy (docs/client-spine.md, phase 4): it is scaffolded only when
-# asked for explicitly, so a new client never silently starts on a runtime that
-# is on its way out.
+# The engine is a per-client decision; scaffold the one the criteria pick and
+# record it in client.yaml so the manifest can never contradict the tree.
 #
 # Template sources are read from clients/_template when it exists, else the
 # legacy phase-1 workflows/_templates; both layouts keep working.
@@ -99,7 +102,7 @@ UPPER="$(echo "$CLIENT" | tr 'a-z' 'A-Z')"
 sed "s/TODO-CLIENT/$CLIENT/g; s/TODO_HUBSPOT_TOKEN/${UPPER}_HUBSPOT_TOKEN/g; s/TODO_SLACK_WEBHOOK_URL/${UPPER}_SLACK_WEBHOOK_URL/g" \
   "$TEMPLATES/FIELDBOOK.md" > "$C/README.md"
 
-# Starter recipe (dagnats legacy only): copy the cron-job skeleton with the
+# Starter recipe (dagnats engine only): copy the cron-job skeleton with the
 # client prefix, basename kept so the recipe name matches the file.
 if [ "$ENGINE" = "dagnats" ] && [ -f "$TEMPLATES/cron-job.json" ]; then
   sed "s|TODO-CLIENT/|$CLIENT$SEP|g; s/TODO-CLIENT/$CLIENT/g" \

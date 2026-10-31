@@ -5,10 +5,11 @@ description: Decide where an automation belongs (turvez recipe vs sandbox one-of
 
 # turvez
 
-Repo: consultancy automation runtime. One **client spine** (repo layout, fieldbook,
-recipes, evals) and two engines: **Windmill is the default for new clients**;
-**dagnats (Go worker + 12 generic tasks) is legacy** — supported, no new client
-starts there (`docs/client-spine.md`, phase 4).
+Repo: consultancy automation runtime. One **client spine** (repo layout,
+fieldbook, recipes, evals) and **two engines, chosen per client** with no global
+default (`docs/client-spine.md#choosing-the-engine`): **dagnats** (Go worker +
+12 typed handlers, one binary, `go test` gate) for typed/regulated/light work,
+**Windmill** when the client needs UI/forms, step replay, or real code steps.
 You direct, then build. Read `AGENTS.md` first (normative), route via `llms.txt`.
 Flows as diagrams: `docs/workflows.md`. First run and traps: `docs/first-run.md`.
 
@@ -19,19 +20,24 @@ Flows as diagrams: `docs/workflows.md`. First run and traps: `docs/first-run.md`
 - `TURVEZ_PIN` only = ops repo (private). Validate from the template checkout:
   `OPS=$PWD; cd $TURVEZ_CHECKOUT && WORKFLOWS_DIR=$OPS/clients go test ./clients/`.
 
-@@ENGINE@@
+## Q0b — which engine
 
 Read `clients/<client>/client.yaml` when the client exists.
 
 | `engine` | Path |
 |---|---|
-| `windmill` (default for new) | `references/windmill.md` — flows under `automation/windmill/`, gate `./scripts/check-windmill.sh` |
-| `dagnats` (legacy) | the build loop below — recipes under `automation/dagnats/` |
+| `dagnats` | the build loop below — recipes under `automation/dagnats/` |
+| `windmill` | `references/windmill.md` — flows under `automation/windmill/`, gate `./scripts/check-windmill.sh` |
 | `dagu` | level 2 only, `docs/script-execution.md` |
+
+No `client.yaml` yet → decide with `docs/client-spine.md#choosing-the-engine`
+(UI/forms? step replay? real code steps? → Windmill. Typed contract, native
+approvals, one binary, AGPL problem? → dagnats. None of the above → dagnats is
+cheaper). Then record it in the manifest.
 
 Never migrate an engine unasked, and never run two engines for one client.
 
-## Q0b — split: ensuring the ops repo exists (skill-driven)
+## Q0c — split: ensuring the ops repo exists (skill-driven)
 
 The skill drives repo creation; scripts never run unasked. Order:
 
@@ -53,17 +59,23 @@ The skill drives repo creation; scripts never run unasked. Order:
    "pode dar push" (or equivalent). `gh` auth failure → stop, hand the operator
    the printed manual command.
 
-## Q0c — which engine
+## Q0d — deployment: does this client need its own server?
 
-Read `clients/<client>/client.yaml` when the client exists.
+A dedicated host is a **deployment profile**, not an engine or repo decision
+(`docs/deployment-profiles.md`). One of these justifies it, and nothing else:
+regulation/residency, the client owns the infra, noisy neighbour, a per-client
+upgrade window, or a contract requiring a separate database.
 
-| `engine` | Path |
-|---|---|
-| `windmill` (default for new) | `references/windmill.md` — flows under `automation/windmill/`, gate `./scripts/check-windmill.sh` |
-| `dagnats` (legacy) | the build loop below — recipes under `automation/dagnats/` |
-| `dagu` | level 2 only, `docs/script-execution.md` |
-
-Never migrate an engine unasked, and never run two engines for one client.
+- Profile A (embedded, client's server) / B (managed, your server) / C
+  (multi-tenant, productize) — pick per engagement and write it down before the
+  first deploy. Default for SMB consulting is **B**.
+- `runtime: shared|dedicated` in `client.yaml` records it. Isolation never
+  means forking the repo and never means changing the engine.
+- Moving a client: `docs/isolating-a-client.md` (dagnats path and Windmill path)
+  — definitions from git, history stays behind.
+- Windmill adds real cost here: Postgres + workers, AGPL on self-host, EE for
+  SSO/audit. Read `docs/deployment-profiles.md#engine-implications-per-profile`
+  before promising a dedicated Windmill instance.
 
 ## When to use
 
@@ -185,5 +197,5 @@ Full sequence, flags and troubleshooting: `references/eval-loop.md`.
 
 ## Test cases
 
-Should activate: "automate X for me", "create a recipe for client acme", "where do I run this script?".
+Should activate: "automate X for me", "create a recipe for client acme", "where do I run this script?", "this client needs its own server", "windmill or dagnats for this one?".
 Should NOT activate: "optimize this SQL query" (general coding), "what is dagnats?" (just answer, point to docs).
