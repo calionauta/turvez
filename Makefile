@@ -75,11 +75,16 @@ test:
 lint:
 	golangci-lint run ./... 2>/dev/null || go vet ./...
 
+# Validate every recipe in either layout (phase-1 workflows/<client>/*.json or
+# phase-3 clients/<client>/automation/dagnats/*.json).
 validate:
-	@for f in workflows/*/*.json; do \
+	@set -e; n=0; for f in workflows/*/*.json clients/*/automation/dagnats/*.json; do \
+		[ -e "$$f" ] || continue; \
+		n=$$((n + 1)); \
 		echo "== $$f"; \
-		dagnats workflow validate "$$f" || exit 1; \
-	done
+		dagnats workflow validate "$$f"; \
+	done; \
+	[ "$$n" -gt 0 ] || { echo "no recipes found (workflows/*/ or clients/*/automation/dagnats/)"; exit 1; }
 
 tidy:
 	go mod tidy

@@ -65,13 +65,18 @@ type triggerDef struct {
 	Subject any `json:"subject"`
 }
 
-// recipeFiles lists every client recipe. _templates holds TODO-CLIENT
-// placeholders (validated by `make validate`, not by these tests).
-//
-// WORKFLOWS_DIR override: points at another checkout's workflows dir
-// (e.g. ../turvez-ops/workflows) so the template's contract tests can
-// validate a private ops repo without copying Go code. Empty = "." (this
-// package's dir, the template default).
+// recipeRef is one recipe file plus the client folder it belongs to.
+// Client drives every tenancy check, so it must be derived from the layout
+// (workflows/<client>/ or clients/<client>/automation/dagnats/), never from
+// the file's own name.
+type recipeRef struct {
+	Path   string // filesystem path (relative or absolute)
+	Client string // client folder name
+}
+
+// workflowsRoot is the WORKFLOWS_DIR override: another checkout's workflows
+// (or clients) root, so the template's contract tests can validate a private
+// ops repo without copying Go code. Empty = "." (this package's dir).
 func workflowsRoot() string {
 	if v := os.Getenv("WORKFLOWS_DIR"); v != "" {
 		return v
@@ -79,50 +84,164 @@ func workflowsRoot() string {
 	return "."
 }
 
-func recipeFiles(t *testing.T) []string {
-	t.Helper()
+// clientRoots lists the directories that may hold client folders. Phase 3a
+// supports both layouts side by side: workflows/<client>/ (legacy) and
+// clients/<client>/ (neutral). WORKFLOWS_DIR may point at either root; the
+// sibling root is covered too so one env var validates a whole checkout.
+func clientRoots() []string {
 	root := workflowsRoot()
-	dirs, err := filepath.Glob(filepath.Join(root, "*"))
-	if err != nil {
-		t.Fatal(err)
+	if os.Getenv("WORKFLOWS_DIR") == "" {
+		// Package dir is workflows/; the neutral root is its sibling.
+		return []string{root, filepath.Join("..", "clients")}
 	}
-	var files []string
-	for _, d := range dirs {
-		if filepath.Base(d) == "_templates" {
-			continue
-		}
-		if fi, err := os.Stat(d); err != nil || !fi.IsDir() {
-			continue
-		}
-		matches, err := filepath.Glob(filepath.Join(d, "*.json"))
+	clean := filepath.Clean(root)
+	switch filepath.Base(clean) {
+	case "workflows":
+		return []string{clean, filepath.Join(filepath.Dir(clean), "clients")}
+	case "clients":
+		return []string{clean, filepath.Join(filepath.Dir(clean), "workflows")}
+	}
+	return []string{root}
+}
+
+// clientFolders returns every client folder in both layouts, regardless of
+// whether recipes exist yet (the fieldbook test cares about the folder).
+// _templates/_template hold template sources, not a client.
+func clientFolders(t *testing.T) []string {
+	t.Helper()
+	seen := map[string]bool{}
+	var dirs []string
+	for _, root := range clientRoots() {
+		entries, err := filepath.Glob(filepath.Join(root, "*"))
 		if err != nil {
 			t.Fatal(err)
 		}
-		files = append(files, matches...)
+		for _, d := range entries {
+			fi, err := os.Stat(d)
+			if err != nil || !fi.IsDir() {
+				continue
+			}
+			switch filepath.Base(d) {
+			case "_templates", "_template":
+				continue
+			}
+			abs, err := filepath.Abs(d)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if seen[abs] {
+				continue
+			}
+			seen[abs] = true
+			dirs = append(dirs, d)
+		}
 	}
-	if len(files) == 0 {
+	return dirs
+}
+
+// recipeRefs scans both supported layouts under every client root:
+//
+//	<root>/<client>/*.json                          (phase 1, legacy)
+//	<root>/<client>/automation/dagnats/*.json       (phase 3, neutral spine)
+//
+// _templates holds TODO-CLIENT placeholders (validated by `make validate`,
+// not by these tests).
+func recipeRefs(t *testing.T) []recipeRef {
+	t.Helper()
+	seen := map[string]bool{}
+	var refs []recipeRef
+	add := func(path, client string) {
+		abs, err := filepath.Abs(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if seen[abs] {
+			return
+		}
+		seen[abs] = true
+		refs = append(refs, recipeRef{Path: path, Client: client})
+	}
+	for _, root := range clientRoots() {
+		// Legacy: recipes sit directly inside the client folder.
+		for _, d := range clientFolders(t) {
+			if !isUnder(root, d) {
+				continue
+			}
+			matches, err := filepath.Glob(filepath.Join(d, "*.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, m := range matches {
+				add(m, filepath.Base(d))
+			}
+		}
+		// Phase 3: recipes under automation/dagnats/.
+		matches, err := filepath.Glob(filepath.Join(root, "*", "automation", "dagnats", "*.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, m := range matches {
+			dagnatsDir := filepath.Dir(m)
+			client := filepath.Base(filepath.Dir(filepath.Dir(dagnatsDir)))
+			add(m, client)
+		}
+	}
+	if len(refs) == 0 {
 		t.Fatal("no client recipes found")
+	}
+	return refs
+}
+
+// isUnder reports whether dir is a direct child of root (both relative or
+// both absolute), without shelling out.
+func isUnder(root, dir string) bool {
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return false
+	}
+	dirAbs, err := filepath.Abs(dir)
+	if err != nil {
+		return false
+	}
+	return filepath.Dir(dirAbs) == rootAbs
+}
+
+func recipeFiles(t *testing.T) []string {
+	t.Helper()
+	refs := recipeRefs(t)
+	files := make([]string, len(refs))
+	for i, r := range refs {
+		files[i] = r.Path
 	}
 	return files
 }
 
+// recipeClients maps the stable <client>/<file> key back to its client folder.
+func recipeClients(t *testing.T) map[string]string {
+	t.Helper()
+	out := map[string]string{}
+	for _, r := range recipeRefs(t) {
+		out[filepath.Join(r.Client, filepath.Base(r.Path))] = r.Client
+	}
+	return out
+}
+
 func loadRecipes(t *testing.T) map[string]workflowFile {
 	t.Helper()
-	files := recipeFiles(t)
+	refs := recipeRefs(t)
 	out := map[string]workflowFile{}
-	for _, f := range files {
-		raw, err := os.ReadFile(f)
+	for _, r := range refs {
+		raw, err := os.ReadFile(r.Path)
 		if err != nil {
 			t.Fatal(err)
 		}
 		var wf workflowFile
 		if err := json.Unmarshal(raw, &wf); err != nil {
-			t.Fatalf("%s: %v", f, err)
+			t.Fatalf("%s: %v", r.Path, err)
 		}
-		// Stable key: <client>/<file>.json regardless of WORKFLOWS_DIR
-		// (absolute or relative). Keeps curated expression tests working
-		// against a private ops checkout.
-		key := filepath.Join(filepath.Base(filepath.Dir(f)), filepath.Base(f))
+		// Stable key: <client>/<file>.json in BOTH layouts, so curated
+		// expression fixtures keep working after the phase-3 move.
+		key := filepath.Join(r.Client, filepath.Base(r.Path))
 		out[key] = wf
 	}
 	return out
@@ -173,12 +292,11 @@ func TestRecipeStructure(t *testing.T) {
 			}
 		}
 	}
+	clients := recipeClients(t)
 	for path, wf := range loadRecipes(t) {
-		client := filepath.Dir(path) // <client-id>/file.json (Base-normalized in loadRecipes)
-		// filepath.Dir on "client/file" returns "client"; on absolute paths
-		// fall back to Base to survive WORKFLOWS_DIR overrides.
-		if strings.Contains(client, string(os.PathSeparator)) {
-			client = filepath.Base(client)
+		client := clients[path]
+		if client == "" {
+			t.Fatalf("%s: cannot derive client from path", path)
 		}
 		t.Run(path, func(t *testing.T) {
 			nm, nameRe := loadNaming(t)
@@ -282,28 +400,21 @@ func TestRecipeStructure(t *testing.T) {
 }
 
 // TestClientFieldbooks enforces the fieldbook-per-client structure: every
-// client folder (except _templates, which holds the template itself) must
-// have a README.md copied from workflows/_templates/FIELDBOOK.md.
+// client folder (except the template dirs) must have a README.md copied from
+// the FIELDBOOK template. Covers both layouts: workflows/<client>/README.md
+// and clients/<client>/README.md.
 func TestClientFieldbooks(t *testing.T) {
-	dirs, err := filepath.Glob(filepath.Join(workflowsRoot(), "*"))
-	if err != nil {
-		t.Fatal(err)
-	}
 	found := 0
 	// Hint points at the template checkout when validating an ops repo.
-	templateHint := "workflows/_templates/FIELDBOOK.md"
+	templateHint := "workflows/_templates/FIELDBOOK.md (or clients/_template/FIELDBOOK.md)"
 	if os.Getenv("WORKFLOWS_DIR") != "" {
 		if tc := os.Getenv("TURVEZ_CHECKOUT"); tc != "" {
-			templateHint = tc + "/workflows/_templates/FIELDBOOK.md"
+			templateHint = tc + "/workflows/_templates/FIELDBOOK.md (or " + tc + "/clients/_template/FIELDBOOK.md)"
 		} else {
-			templateHint = "<turvez-template>/workflows/_templates/FIELDBOOK.md (set TURVEZ_CHECKOUT)"
+			templateHint = "<turvez-template>/workflows/_templates/FIELDBOOK.md or <turvez-template>/clients/_template/FIELDBOOK.md (set TURVEZ_CHECKOUT)"
 		}
 	}
-	for _, d := range dirs {
-		fi, err := os.Stat(d)
-		if err != nil || !fi.IsDir() || filepath.Base(d) == "_templates" {
-			continue
-		}
+	for _, d := range clientFolders(t) {
 		found++
 		readme := filepath.Join(d, "README.md")
 		raw, err := os.ReadFile(readme)
@@ -322,28 +433,21 @@ func TestClientFieldbooks(t *testing.T) {
 
 // TestNoRealClientsInTemplate keeps this public repo template-only.
 // Real customers live in a private turvez-ops checkout (see docs/ops-repo.md).
-// Allowlist: _templates, example-client, ops, personal. Anything else fails
-// with a move-to-ops message. Skipped when WORKFLOWS_DIR points at an ops
-// repo (there, any client folder is legitimate).
+// Allowlist: _templates/_template, example-client, ops, personal. Anything
+// else fails with a move-to-ops message. Skipped when WORKFLOWS_DIR points at
+// an ops repo (there, any client folder is legitimate). Covers both layouts.
 func TestNoRealClientsInTemplate(t *testing.T) {
 	if os.Getenv("WORKFLOWS_DIR") != "" {
 		t.Skip("ops repo under test: any client folder is allowed")
 	}
 	allowed := map[string]bool{
-		"_templates": true, "example-client": true, "ops": true, "personal": true,
+		"_templates": true, "_template": true,
+		"example-client": true, "ops": true, "personal": true,
 	}
-	dirs, err := filepath.Glob(filepath.Join(workflowsRoot(), "*"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, d := range dirs {
-		fi, err := os.Stat(d)
-		if err != nil || !fi.IsDir() {
-			continue
-		}
+	for _, d := range clientFolders(t) {
 		base := filepath.Base(d)
 		if !allowed[base] {
-			t.Errorf("real client %q in template repo — move to turvez-ops (docs/ops-repo.md); template keeps only _templates/example-client/ops/personal", base)
+			t.Errorf("real client %q in template repo — move to turvez-ops (docs/ops-repo.md); template keeps only _templates/_template/example-client/ops/personal", base)
 		}
 	}
 }
