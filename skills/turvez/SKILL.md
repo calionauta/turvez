@@ -40,6 +40,26 @@ record `engine: dagnats` in the manifest.
 
 Never migrate an engine unasked, and never run two engines for one client.
 
+## Q0b.1 — changing a client's engine
+
+Only when the operator asks, or the criteria visibly changed. Order matters:
+
+1. `./scripts/convert-to-windmill.py <client>` (dagnats → Windmill only; the
+   reverse has no converter — rewrite by hand into recipes). It writes to
+   `clients/<client>/converted-windmill/` and **never** to `automation/windmill/`.
+2. Read the generated `REPORT.md`. Steps marked `TODO(human)` are real work:
+   jq→TypeScript and condition predicates are never guessed, and each custom Go
+   handler is the long pole — budget it explicitly with the operator.
+3. Finish the TODOs, then `wmill flow preview <dir>` per flow.
+4. Push **one flow at a time**: `wmill flow push <dir> "f/<client>/<flow>"`.
+   Never `wmill sync push` — it deletes remote items missing locally.
+5. Only after the flow is green in production, delete `automation/dagnats/` and
+   flip `engine:` in `client.yaml`. A half-migrated client keeps both trees and
+   fails the contract test on purpose.
+
+Do not treat a generated skeleton as done because it lints. The converter exists
+so the mechanical part is honest about what it skipped.
+
 ## Q0c — split: ensuring the ops repo exists (skill-driven)
 
 The skill drives repo creation; scripts never run unasked. Order:
@@ -74,8 +94,16 @@ upgrade window, or a contract requiring a separate database.
   first deploy. Default for SMB consulting is **B**.
 - `runtime: shared|dedicated` in `client.yaml` records it. Isolation never
   means forking the repo and never means changing the engine.
-- Moving a client: `docs/isolating-a-client.md` (dagnats path and Windmill path)
-  — definitions from git, history stays behind.
+- **Check reality first, don't trust memory:** `./scripts/verify-isolation.sh`
+  prints where each client actually runs and fails when a `dedicated` client has
+  no `target.host` or two clients claim one host. `runtime`/`target` used to be
+  written and never read; they are now validated by the contract test and this
+  script.
+- **Moving a client:** `./scripts/extract-client.py <client>` packages it — the
+  definitions to carry, the env file to recreate, the trigger ids to disable, and
+  the ordered commands plus rollback. It is read-only: it prints, you execute.
+  Procedure and traps: `docs/isolating-a-client.md` (dagnats and Windmill paths).
+  Definitions come from git; history never moves.
 - Windmill adds real cost here: Postgres + workers, AGPL on self-host, EE for
   SSO/audit. Read `docs/deployment-profiles.md#engine-implications-per-profile`
   before promising a dedicated Windmill instance.
@@ -95,6 +123,9 @@ Methodology questions (discover, scope, runbook): see `references/methodology.md
 | `scripts/new-ops-repo.sh`, `scripts/new-client.sh` | ops repo and client scaffold (confirm first) |
 | `scripts/clients-root.sh`, `scripts/eval-dir.sh` | resolve the client / eval dir (clients or legacy workflows) |
 | `scripts/check-windmill.sh` | Windmill lint gate, no worker needed |
+| `scripts/verify-isolation.sh` | where every client runs (`runtime`/`target`), read-only; in `make validate` |
+| `scripts/extract-client.py <client>` | package one client for its own server — prints the plan, never executes |
+| `scripts/convert-to-windmill.py <client>` | dagnats recipes → Windmill **skeleton** in `converted-windmill/`; TODOs, never a port |
 | `scripts/register-workflows.sh` | validate + register (confirm first, dagnats engine) |
 | `scripts/sandbox-run.sh` | one-off script, level 1 (no recipe) |
 | `scripts/edit-secrets.sh` | decrypt, edit, re-encrypt one client's age file |

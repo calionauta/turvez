@@ -12,8 +12,20 @@ contract needs typed contracts, native approvals, no arbitrary code, or when
 AGPL/Postgres is a problem — see `docs/client-spine.md#choosing-the-engine`. If
 the client has no manifest, run that decision first and write the answer down.
 
-Then ask in order, for a dagnats client. First "yes" wins. Full rationale:
-`docs/script-execution.md`.
+Q0.6: is this client on the right host? `./scripts/verify-isolation.sh <client>`
+prints what `runtime:`/`target:` actually say. Ships `shared` but the client
+needs its own box → `./scripts/extract-client.py <client>` packages the move
+(read-only; it prints commands, you run them). Never answer "is it isolated?"
+from memory — those fields were once written and never read.
+
+Q0.7: engine change requested? dagnats → Windmill has a converter
+(`scripts/convert-to-windmill.py <client>`, skeleton + explicit TODOs, lands in
+`converted-windmill/`). The reverse has none. Never migrate unasked, and never
+run both engines for one client.
+
+Then, **for a dagnats client only**, ask the levels below in order. First
+"yes" wins. Full rationale: `docs/script-execution.md`. A Windmill client stops
+at `references/windmill.md` — the level questions are dagnats-shaped.
 
 ## Q1.5 — agent loop gate
 

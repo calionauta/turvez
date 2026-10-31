@@ -1,9 +1,35 @@
-# Migrate to Windmill (new-client default, no dependency)
+# Migrate to Windmill (the default engine, no dependency)
 
 Windmill is **not** a runtime dependency of this repo. It is the **default
-engine for new clients** (`docs/client-spine.md`, phase 4), and this document is
-both the step mapping for a dagnats client that outgrows the 12 handlers and the
-reference for what a new Windmill client starts from.
+engine for new clients** (`engines.json` → `"default": "windmill"`, see
+`docs/client-spine.md`), and this document is both the step mapping for a dagnats
+client whose contract changed and the reference for what a new Windmill client
+starts from.
+
+## Let the converter do the mechanical half
+
+```bash
+./scripts/convert-to-windmill.py <client-id>          # -> clients/<id>/converted-windmill/
+./scripts/convert-to-windmill.py <client-id> --force  # re-run over a previous attempt
+```
+
+It reads `automation/dagnats/*.json` and emits a WAC flow skeleton per recipe,
+plus a `REPORT.md` counting how many steps per recipe need a human. It **never**
+writes into `automation/windmill/`, so a half-finished conversion cannot be
+pushed by accident.
+
+What it deliberately will not do — do not expect otherwise:
+
+- **jq → TypeScript.** The expression is carried verbatim into a comment and
+  marked `TODO(human)`. A wrong translation that looks migrated is worse than a
+  TODO.
+- **`condition` / `skip_if` predicates.** Same reason.
+- **Custom Go handlers.** Any task outside the mapping table below appears as an
+  unmapped step. Each one is the long pole of the migration; budget it with the
+  operator before promising a date.
+
+The table below is what the converter implements. Read it before trusting a
+generated skeleton.
 
 Source of truth stays git: `clients/<client-id>/automation/dagnats/*.json` plus the
 generic Go handlers under `internal/handlers/`. The client's `client.yaml`

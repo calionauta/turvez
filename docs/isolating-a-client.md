@@ -7,9 +7,25 @@ operation, not a redesign: client identity lives in folder + name prefix + env
 file only — never in Go code.
 
 The procedure below is the **dagnats** path, which is the common case for
-
 typed/regulated work. For a Windmill client see
 ["Windmill client on its own instance"](#windmill-client-on-its-own-instance).
+
+## Start from the generated plan, not from this page
+
+```bash
+./scripts/verify-isolation.sh <client-id>   # what does the manifest claim today?
+./scripts/extract-client.py <client-id>     # package the move
+```
+
+`extract-client.py` emits the concrete list for *this* client: the definitions to
+carry, the env file whose names must be recreated, the trigger ids to disable,
+the ordered commands per server, and the rollback. It is **read-only** — it
+prints, you execute. Use `--out DIR` to keep a copy with the engagement.
+
+Both scripts exist because `runtime:` and `target:` used to be written into
+`client.yaml` and read by nothing, so "is this client isolated?" was answered
+from memory. Now the contract test validates them and `make validate` runs the
+isolation check.
 
 ## What to copy
 
