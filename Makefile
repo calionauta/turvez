@@ -1,4 +1,4 @@
-.PHONY: up down worker register smoke test lint validate tidy new-ops-repo new-client validate-ops register-ops hooks guard-version eval-client eval-client-view eval-loop doctor
+.PHONY: up down worker register smoke test lint validate tidy new-ops-repo new-client validate-ops register-ops hooks guard-version eval-client eval-client-view eval-loop doctor windmill-check
 
 # Start dagnats (engine + embedded NATS + API + console) and the worker.
 up:
@@ -52,6 +52,10 @@ eval-loop:
 # Wiring health: ports, NATS target, workers, stuck runs, console, eval tooling.
 doctor:
 	./scripts/doctor.sh
+
+# Lint Windmill clients (no worker needed). Fails if wmill is missing.
+windmill-check:
+	./scripts/check-windmill.sh
 
 # Install local hooks: pre-commit recipe scan + commit-msg convention check.
 hooks:
