@@ -181,3 +181,62 @@ narrower than "Dagu can't do approvals". It is:
 
 Operate only one per client: dagnats default, Dagu ad-hoc for script-shaped
 work, Windmill by migration.
+
+## Platform choice beyond turvez
+
+The levels above answer "where does this automation run inside turvez". The
+question "should this client use turvez at all" needs a second cut:
+
+| Need | Choose | Why |
+|---|---|---|
+| Typed API automation, native approvals, no arbitrary code, light footprint, Apache-2.0 | **dagnats** | contract + tests + git; 1 binary |
+| Client-facing UI/forms/apps, replay from a step, test one step, code steps in TS/Python/Go | **Windmill** | flow editor, step results, restart from node |
+| 400+ SaaS nodes, visual builder, client team edits the flow | **n8n** | catalog and UI; heavier, SUL license |
+| Recurrent script/SSH/Docker job, step-level retry, one binary | **Dagu** | script-shaped work; GPLv3 |
+| One command on a schedule, nothing else | **cron** | zero new surface |
+| OAuth/refresh for many SaaS APIs | **Nango** (optional layer) | self-hosted credential broker; HTTP proxy |
+| Agent tool auth over MCP | **Executor** (optional layer) | per-connection auth and policies |
+
+Operate **one orchestrator per client**. Nango and Executor are layers, not
+orchestrators: they can sit in front of dagnats or Windmill, but they do not
+replace either.
+
+### Windmill, free edition
+
+- Replay/resume is real: select a top-level node in the flow preview and use
+  "Re-start from X"; also test up to a step, test an iteration, test one step.
+- Secrets: Variables/Secrets encrypted per workspace, masked in logs, path
+  ACLs. Audit logs are 14 days in the community edition; SSO/SAML, durable
+  audit, concurrency limits, critical alerts, autoscaling and external secret
+  managers are Enterprise.
+- **Alerting in the free edition is code, not a feature.** Put `http` or
+  `smtplib` steps in the flow (Slack/Telegram/Discord webhook, email API or
+  SMTP), or use a flow error handler. There is no native "critical alerts"
+  without EE. Add an external dead-man switch (`GET /health`, Uptime Kuma,
+  Healthchecks) because the alerting flow can fail silently.
+- License: AGPLv3 core plus proprietary EE code. Hosting it for clients and
+  exposing the service triggers AGPL obligations; white-label/SSO is EE.
+
+### n8n
+
+Catalog and visual building are its advantage; the cost is Node + Postgres
+(+ Redis in queue mode), the Sustainable Use License (restrictions on offering
+it as a service), and a Code node that runs arbitrary JavaScript. It does not
+give typed contracts, git-first recipes or step replay at the level Windmill
+does.
+
+### Nango (optional)
+
+Nango self-hosted handles OAuth, token refresh and encrypted credential
+storage for 1,000+ APIs. It is a layer, not a runtime: dagnats and Windmill
+call its **proxy** over HTTP with a static Nango key and the connection id, and
+Nango injects the provider token. It adds Node + Postgres and is licensed
+under Elastic License 2.0 (free self-host for auth/proxy; some features are
+Enterprise). Confirm with the operator before installing: it is another
+service, another database and another place where client tokens live.
+
+### Channels
+
+Windmill has no n8n-style channel nodes. It sends email, Discord, Telegram,
+Slack or anything else through a script step (HTTP API, SMTP, provider SDK).
+That is enough for operator alerts, but it is code, not a catalog.

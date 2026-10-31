@@ -45,6 +45,21 @@ two orchestrators for one client. Pick one (full rule:
 
 ## Level 3 — Windmill migration (product surface)
 
+Before choosing, the one-line rule: **one orchestrator per client**. Windmill
+wins when the client needs UI/forms/apps, replay from a step, test-one-step, or
+code steps in TS/Python/Go and accepts Postgres + AGPL/EE governance. n8n wins
+for 400+ SaaS nodes and a visual builder, at the cost of weight and the SUL
+license. Dagu wins for script-shaped recurrent jobs and step retry. dagnats
+stays for typed contracts, native approvals, no arbitrary code, git-first and
+a single binary.
+
+OAuth for many SaaS APIs is a **layer**, not an orchestrator: Nango
+(self-hosted, ELv2) exposes an HTTP proxy that dagnats or Windmill can call.
+Confirm the install with the operator; it adds Postgres and a token store.
+Windmill free has no native critical alerts; alert from a flow step (HTTP or
+SMTP) plus an external dead-man switch.
+
+
 Q: needs generated UI/forms, integration catalog, team-facing apps?
 Yes → per-client migration (`docs/migrate-to-windmill.md` +
 `docs/isolating-a-client.md`). Levels 2 and 3 are alternatives —

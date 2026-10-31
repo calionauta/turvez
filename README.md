@@ -55,7 +55,9 @@ Turvez decides *where* work belongs before writing code (`docs/script-execution.
 | D | **degustia** (sister project, optional; PT-BR + en-US) | Interview → tool prescription with global free-tool coverage; free MCP (recommend/render/validate); `scripts/tool-pick.sh` ranks the same catalog locally with no network. PT-BR is a bonus, not a gate | free MCP + local ranker |
 | M | **FDEOps** ([fdeops.io](https://www.fdeops.io/), upstream methodology, MIT) | Discovery, scope, and architecture options before building; runbook/handoff after | harness-level skills |
 
-Levels 2 and 3 replace each other per client — never operate both. Degustia and
+Levels 2 and 3 replace each other per client — never operate both.
+Windmill vs n8n vs dagnats, and the optional Nango auth layer, are compared in
+`docs/script-execution.md#platform-choice-beyond-turvez`. Degustia and
 FDEOps are *inputs* (diagnose, decide), turvez is the *executor* (run, operate).
 
 ## Per-client structure and fieldbooks
