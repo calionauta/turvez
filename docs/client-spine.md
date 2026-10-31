@@ -71,15 +71,23 @@ Migrate a checkout with `./scripts/migrate-to-clients.sh --check` and then
 | Run history | NATS KV + events | job API/Postgres | file-based runs |
 | Eval source | `run inspect --json` | job result API | run log |
 
-`evals/` does not change. `select-cases.py` gains a `source` adapter
-(`dagnats` or `windmill`) that normalizes a run to:
+`evals/` does not change. `select-cases.py` stays dagnats-only; a Windmill run
+is converted into the same shape by a separate adapter,
+`scripts/windmill-job-to-run.py`, so the normalizer is explicit instead of a
+`--source` switch that would tempt one script to know two APIs:
 
 ```json
 {"run_id":"...","workflow":"acme.<wf>","status":"failed",
  "created_at":"...","steps":[{"id":"...","status":"...","output":...}]}
 ```
 
-Promptfoo keeps reading the same cases.
+```bash
+# windmill -> normalized run -> cases
+python3 scripts/windmill-job-to-run.py --job-id <id> --out run.json
+python3 scripts/select-cases.py --runs run.json --out clients/acme/evals/cases
+```
+
+Promptfoo keeps reading the same cases either way.
 
 ## Migrations
 
@@ -105,7 +113,8 @@ Promptfoo keeps reading the same cases.
 1. **Done — manifest.** `client.yaml` exists per client with `engine: dagnats`
    for everyone. Scripts read it; nothing moved.
 2. **Done — engine adapter.** A Windmill client lives under `automation/windmill/`
-   and the eval `source` adapter normalizes its jobs (`scripts/windmill-job-to-run.py`).
+   and `scripts/windmill-job-to-run.py` normalizes its jobs into the shape
+   `select-cases.py` already reads.
 3. **Done — one layout.** `workflows/<client>/` → `clients/<client>/` moved in a
    single migration (`scripts/migrate-to-clients.sh`). The test package lives in
    `clients/`; scripts, hooks, CI and docs speak one layout. `workflows/` is
