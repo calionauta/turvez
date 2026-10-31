@@ -61,6 +61,15 @@ Mitigate it:
 - keep expressions out of YAML: put them in scripts with typed inputs;
 - never hand-edit a pushed flow; edit the local file and push that one item.
 
+## Eval
+
+Normalize a flow job into the shape the selector already reads:
+
+```bash
+python3 scripts/windmill-job-to-run.py --job-id <id> --out run.json
+python3 scripts/select-cases.py --runs run.json --out evals/<client>/cases
+```
+
 ## Replay and debug
 
 - `wmill job get <id>` shows the step tree with per-step status and job ids.
