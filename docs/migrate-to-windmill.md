@@ -100,3 +100,33 @@ Windmill version in use; the data flow is the normative part.)
   script type would replace it. Prefer recipe-only solutions precisely
   to keep this table short — today it is empty (all handlers above map
   to native Windmill steps; only future *custom* handlers add cost).
+
+## Topology: one central instance or one per client?
+
+Workspaces are a **logical** boundary, not an instance boundary. One Windmill
+with a workspace per client shares the server, PostgreSQL, workers and upgrade
+window. That is fine for many clients, and cheaper to operate than N instances.
+
+| | Central + workspace per client | Instance per client |
+|---|---|---|
+| Isolation | logical: secrets, folders, ACLs, runs | process, database, network, upgrade window |
+| Ops cost | 1 Postgres, 1 server, 1 worker pool | N stacks; N backups, N upgrades |
+| Blast radius | one bad upgrade or DB incident hits all | contained to one client |
+| Noisy neighbour | shared worker pool; concurrency limits are EE | isolated |
+| Superadmin | sees every workspace | only that instance |
+| Contract fit | SMB, normal data | regulated, data residency, client-owned infra |
+
+Start central with workspaces when the clients are SMB and the contract does
+not require instance isolation. Split when any of these is true:
+
+- the client requires data residency or a separate database;
+- the client owns the infrastructure and you operate it;
+- one client's volume starves the others (worker pool, Postgres);
+- an upgrade must be scheduled per client;
+- the contract says "separate instance".
+
+Splitting is mechanical: Windmill git sync exports flows per workspace, secrets
+are recreated per workspace, and webhook URLs are repointed per client. The
+per-client checklist above still applies; the only change is the target
+instance. Do not run a central instance and a per-client instance for the same
+client.

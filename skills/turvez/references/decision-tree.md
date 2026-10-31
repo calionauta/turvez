@@ -55,7 +55,7 @@ a single binary.
 
 OAuth for many SaaS APIs is a **layer**, not an orchestrator: Nango
 (self-hosted, ELv2) exposes an HTTP proxy that dagnats or Windmill can call.
-Confirm the install with the operator; it adds Postgres and a token store.
+Confirm the install with the operator; it adds Postgres and a token store. Checklist: `references/auth-layers.md`.
 Windmill free has no native critical alerts; alert from a flow step (HTTP or
 SMTP) plus an external dead-man switch.
 
