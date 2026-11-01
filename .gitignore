@@ -7,6 +7,10 @@
 .env
 # Per-client real env — never commit (templates are env/*.env.example)
 env/*.env
+# Secret NAMES are documentation, not secrets: re-include the examples. Needed
+# because a common global ignore (`*.env.*` in core.excludesFile) would swallow
+# them, silently dropping the only file that says which secrets exist.
+!env/*.env.example
 
 # Age identities (private keys) — never commit
 *.age.key

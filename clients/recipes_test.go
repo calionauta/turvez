@@ -62,7 +62,12 @@ type workflowFile struct {
 }
 
 type triggerDef struct {
-	ID      string `json:"id"`
+	ID string `json:"id"`
+	// Enabled is *bool because dagnats defaults a missing field to false: a
+	// trigger declared without it registers DISABLED and silently never fires
+	// (the webhook still answers 200). Pointer lets the contract distinguish
+	// "absent" from an explicit false.
+	Enabled *bool `json:"enabled"`
 	Webhook *struct {
 		Path string `json:"path"`
 	} `json:"webhook"`
@@ -367,6 +372,12 @@ func TestRecipeStructure(t *testing.T) {
 			for _, tr := range wf.Triggers {
 				if tr.ID == "" {
 					t.Fatal("trigger with empty id")
+				}
+				// dagnats unmarshals a missing `enabled` to false, so a trigger
+				// declared without it registers disabled and never fires while
+				// still answering 200. Require the field explicitly.
+				if tr.Enabled == nil {
+					t.Fatalf("trigger %q: add `\"enabled\": true` — without it dagnats registers the trigger disabled and it never fires", tr.ID)
 				}
 				if !strings.HasPrefix(tr.ID, client+nm.TriggerIDSeparator) {
 					t.Fatalf("trigger id %q must start with %q%s",

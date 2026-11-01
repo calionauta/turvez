@@ -16,7 +16,9 @@
       "task": "http.request",
       "type": "normal",
       "timeout": 120000000000,
-      "depends_on": ["build-fetch"],
+      "depends_on": [
+        "build-fetch"
+      ],
       "retry": {
         "max_attempts": 3,
         "strategy": "exponential",
@@ -30,7 +32,9 @@
       "task": "transform.json",
       "type": "normal",
       "timeout": 30000000000,
-      "depends_on": ["fetch"],
+      "depends_on": [
+        "fetch"
+      ],
       "metadata": {
         "expression": "{count: (.json.results | length)}"
       }
@@ -42,7 +46,8 @@
       "cron": {
         "expression": "0 2 * * *",
         "timezone": "UTC"
-      }
+      },
+      "enabled": true
     }
   ]
 }

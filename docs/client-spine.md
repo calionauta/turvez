@@ -76,11 +76,19 @@ Ask these in order. The first **yes** decides.
 
 | # | Question | Yes → | Why |
 |---|---|---|---|
-| 1 | Does the contract demand **typed contracts, native approvals, no arbitrary code execution, or one binary**? | **dagnats** | dagnats' whole point; `go test` gates it before any run |
+| 1 | Does the contract demand **typed contracts, no arbitrary code execution, or one binary**? | **dagnats** | these are dagnats-only; it gates them with `go test` before any run |
 | 2 | Is **AGPL** a contract problem, or must the stack avoid Postgres/EE features (SSO, audit)? | **dagnats** | Windmill core is AGPL; SSO/audit/PR-gating are EE |
 | 3 | Is the client so small that **operating Postgres + workers** outweighs the automation's value? | **dagnats** | one binary vs two stateful services |
 | 4 | Does the client need **generated UI/forms/apps**, or will someone other than you operate the automation? | **Windmill** | the default already covers this |
 | 5 | Is the logic **non-trivial code** a non-Go dev must own? | **Windmill** | the default already covers this |
+
+**Human approval is NOT a dagnats criterion.** Both engines do it, and Windmill
+does it *better* for a non-technical approver: a step with `Suspend until
+approval/resume`, a secret resume URL mailed to the approver, and an approval
+page — approval by someone with no dagnats/Windmill account. dagnats'
+`request.approval` requires an external signal (`POST /runs/{id}/signal/{n}` with
+`{"approved":bool}`), so the approver needs a channel you build; it is not a
+Slack button either. Never pick dagnats "because there is an approval gate".
 
 A client that trips none of 1–3 stays on Windmill: that is the default, and
 drifting to dagnats without a reason is how a consultancy ends up maintaining

@@ -19,7 +19,9 @@
       "task": "transform.json",
       "type": "normal",
       "timeout": 30000000000,
-      "depends_on": ["check"],
+      "depends_on": [
+        "check"
+      ],
       "skip_if": {
         "step_id": "check",
         "field": "alert",
@@ -35,7 +37,9 @@
       "task": "notify.webhook",
       "type": "normal",
       "timeout": 30000000000,
-      "depends_on": ["build-alert"]
+      "depends_on": [
+        "build-alert"
+      ]
     }
   ],
   "triggers": [
@@ -44,7 +48,8 @@
       "cron": {
         "expression": "*/5 * * * *",
         "timezone": "UTC"
-      }
+      },
+      "enabled": true
     }
   ]
 }

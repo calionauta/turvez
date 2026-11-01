@@ -16,7 +16,9 @@
       "task": "http.request",
       "type": "normal",
       "timeout": 30000000000,
-      "depends_on": ["build-fetch"],
+      "depends_on": [
+        "build-fetch"
+      ],
       "retry": {
         "max_attempts": 3,
         "strategy": "exponential",
@@ -30,7 +32,9 @@
       "task": "transform.json",
       "type": "normal",
       "timeout": 30000000000,
-      "depends_on": ["fetch-lead"],
+      "depends_on": [
+        "fetch-lead"
+      ],
       "metadata": {
         "expression": "{webhook_secret: \"ACME_SLACK_WEBHOOK_URL\", message: (\"New lead: \" + (.json.properties.firstname // \"unknown\") + \" \" + (.json.properties.lastname // \"\") + \" <\" + (.json.properties.email // \"no-email\") + \">\")}"
       }
@@ -40,7 +44,9 @@
       "task": "notify.slack",
       "type": "normal",
       "timeout": 30000000000,
-      "depends_on": ["build-notify"]
+      "depends_on": [
+        "build-notify"
+      ]
     }
   ],
   "triggers": [
@@ -48,7 +54,8 @@
       "id": "example-client-lead-webhook",
       "webhook": {
         "path": "/hooks/example-client/lead"
-      }
+      },
+      "enabled": true
     }
   ]
 }

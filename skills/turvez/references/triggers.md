@@ -28,6 +28,12 @@ dagnats trigger create <client>.<wf> --subject=<subject>
   `X-Signature-256: sha256=<hex hmac of the raw body>`; invalid → `401`.
 - A disabled trigger still answers `200 ok` and does nothing (`skipped` in the
   firing history). Check `ENABLED` in `trigger list`.
+- **Always write `"enabled": true` in the recipe's `triggers` array.** dagnats
+  unmarshals a missing field to `false`, so a trigger declared without it
+  registers **disabled** and never fires — while the webhook happily answers
+  `200 ok`. This is the single most expensive silent failure in a first
+  delivery: everything validates, nothing runs. `go test ./clients/` rejects a
+  trigger without the field, and the template shows it.
 - The path is served by the dagnats HTTP port, so production needs a public
   route (cloudflared/ingress) and a path containing `<client>`.
 
