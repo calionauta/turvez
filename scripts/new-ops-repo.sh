@@ -66,6 +66,13 @@ EOF
 cat > "$DEST/AGENTS.md" <<'EOF'
 # AGENTS.md — turvez-ops (private data repo)
 
+## Playbook
+
+The consulting playbook is the **turvez skill**: `skills/turvez/SKILL.md` in the
+template checkout at `TURVEZ_PIN`. Load it before scaffolding or editing a
+client — it routes to the fieldbook, recipe/flow references and the engine
+criteria. Everything below is repo shape; the skill is the how.
+
 ## Repo type
 
 Data-only. No Go code. Engine = turvez template at `TURVEZ_PIN`.
@@ -75,16 +82,20 @@ Validate from the template checkout (go needs its module context):
 ## Layout
 
 - `clients/<client>/README.md` — fieldbook (copy from `clients/_template/FIELDBOOK.md`).
-- `clients/<client>/automation/dagnats/*.json` — recipes, names `<client>.<wf>`, triggers `<client>-…`.
-- `clients/<client>/client.yaml` — engine, runtime, target. The engine is chosen
-  per client (`docs/client-spine.md#choosing-the-engine`): `new-client.sh` for
-  Windmill (`automation/windmill/`), `--engine=dagnats` for the typed path.
+- `clients/<client>/automation/windmill/<flow>/` — **the default**: flows, `flow.yaml` + scripts.
+- `clients/<client>/automation/dagnats/*.json` — the **exception path**: recipes, names `<client>.<wf>`, triggers `<client>-…`.
+- `clients/<client>/client.yaml` — engine, runtime, target. **Windmill is the
+  default** (`engines.json`); dagnats is chosen with `--engine=dagnats` when the
+  criteria in `docs/client-spine.md#choosing-the-engine` say so, and only after
+  confirming the reason with the operator.
 - `env/<client>.env.example` — secret NAMES (commit); `env/<client>.env` — values (never).
 - `secrets/<client>/env.age` — ciphertext (commit with -f); `secrets/<client>/.recipients` — age pubkeys.
 
 ## Rules
 
-- Secrets by NAME in JSON. Never values.
+- Secrets by NAME in JSON/flows. Never values.
+- One engine per client. A client with both `automation/windmill/` and
+  `automation/dagnats/` fails the contract test on purpose.
 - `TURVEZ_CHECKOUT` env points at the template clone (validate/register/smoke run from there).
 - Never push this repo to a public remote.
 
@@ -92,9 +103,11 @@ Validate from the template checkout (go needs its module context):
 
 ```bash
 export TURVEZ_CHECKOUT=~/Development/turvez TURVEZ_OPS_DIR=$PWD
+$TURVEZ_CHECKOUT/scripts/new-client.sh <client>              # Windmill (default)
+$TURVEZ_CHECKOUT/scripts/new-client.sh <client> --engine=dagnats  # exception
 OPS=$PWD; cd $TURVEZ_CHECKOUT && WORKFLOWS_DIR=$OPS/clients go test ./clients/
-OPS=$PWD; cd $TURVEZ_CHECKOUT && WORKFLOWS_DIR=$OPS/clients ./scripts/register-workflows.sh <client>
-$TURVEZ_CHECKOUT/scripts/new-client.sh <client>  # scaffold (TURVEZ_OPS_DIR supported)
+./scripts/verify-isolation.sh                                # where does each client run?
+$TURVEZ_CHECKOUT/scripts/extract-client.py <client>          # package for its own host
 ```
 EOF
 

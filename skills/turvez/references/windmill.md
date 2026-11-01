@@ -70,6 +70,29 @@ python3 scripts/windmill-job-to-run.py --job-id <id> --out run.json
 python3 scripts/select-cases.py --runs run.json --out clients/<client>/evals/cases
 ```
 
+## Flow directories: what actually gets uploaded
+
+A flow directory is uploaded as `flow.yaml` plus the scripts it references with
+`!inline <file>`. **Any other file in that directory is NOT uploaded.** Concretely:
+
+- A sibling helper imported by another script in the same flow dir (`from .send_slack
+  import ...`) works locally and **fails on the server**. Duplicate the helper per
+  flow directory, or move it to a shared script and reference it by path.
+- So a helper you want in two flows must exist twice, or be a standalone pushed
+  script. Do not design cross-flow imports assuming the folder is a package.
+
+### Trigger and schedule files need exact suffixes
+
+`wmill trigger push` and `wmill schedule push` only accept the documented
+filenames: `<name>.http_trigger.yaml`, `<name>.schedule.yaml` (and the other
+typed suffixes). A generic `*.yaml` is silently not treated as a trigger.
+
+### `wmill flow delete` does not exist
+
+To remove a pushed flow use the REST API:
+`DELETE /api/w/<workspace>/flows/delete/<path>`. A cleanup that "worked" may have
+been a no-op — verify by listing afterwards.
+
 ## Replay and debug
 
 - `wmill job get <id>` shows the step tree with per-step status and job ids.

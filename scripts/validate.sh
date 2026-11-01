@@ -81,7 +81,16 @@ done
 
 if [ "${#wm_dirs[@]}" -gt 0 ]; then
   echo "== windmill (${#wm_dirs[@]} dir(s))"
-  "$HERE/check-windmill.sh" || failed=1
+  # The gate must lint the dirs we just found. If it reports none, it looked at
+  # the wrong checkout and would otherwise pass while validating nothing.
+  wm_out="$("$HERE/check-windmill.sh" 2>&1)" || failed=1
+  printf '%s\n' "$wm_out"
+  case "$wm_out" in
+    *"no windmill directories"*)
+      echo "validate: ${#wm_dirs[@]} windmill dir(s) found but the lint gate saw none" >&2
+      failed=1
+      ;;
+  esac
   runs=$((runs + 1))
 fi
 

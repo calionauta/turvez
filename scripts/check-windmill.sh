@@ -16,7 +16,14 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
+
+# Lint the CALLER's checkout, not this script's template. An ops repo invokes
+# the template's scripts with TURVEZ_OPS_DIR set; cd'ing to $ROOT unconditionally
+# made the gate report "no windmill directories" for a repo full of flows and
+# still exit 0 — a green result that validated nothing.
+LINT_ROOT="${TURVEZ_OPS_DIR:-$ROOT}"
+[ -d "$LINT_ROOT" ] || LINT_ROOT="$ROOT"
+cd "$LINT_ROOT"
 
 DIRS="$(find clients workflows -type d -name windmill -prune -print 2>/dev/null | sort || true)"
 # `workflows` is the legacy root; `find` prints a warning when it is missing,

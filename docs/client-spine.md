@@ -151,7 +151,8 @@ Promptfoo keeps reading the same cases either way.
 - **One engine per client**: `go test ./clients/` (TestClientManifests) reads
   every `client.yaml` and fails when a client has two engine directories, when
   the populated directory disagrees with `engine:`, when `client:` differs from
-  the folder name, or when the engine is not one of `dagnats|windmill|dagu`.
+  the folder name, or when the engine is not one of the names in `engines.json`
+  (`windmill`, `dagnats`, `dagu` today).
   A folder with no engine source yet is only logged: it is a draft, not a
   violation.
 - **Client extraction**: a dedicated server is a deployment target, not a repo
@@ -169,19 +170,21 @@ Promptfoo keeps reading the same cases either way.
    single migration (`scripts/migrate-to-clients.sh`). The test package lives in
    `clients/`; scripts, hooks, CI and docs speak one layout. `workflows/` is
    accepted for reading only, so an ops repo can migrate when it wants.
-4. **Current — two engines, one per client, no default.** The engine is a
-   **per-client decision**, not a rank order: `client.yaml` records it and the
-   criteria live in § "Choosing the engine". dagnats remains the default for
-   the work it was built for (typed contracts, native approvals, a single
-   binary, a `go test` gate); Windmill is the answer when the client needs
-   UI/forms, step-level replay, test-one-step, or code steps in TS/Python/Go.
-   Neither engine is deprecated by fiat.
+4. **Current — two engines, Windmill default, dagnats by exception.** The
+   engine is a per-client decision recorded in `client.yaml`; the criteria live in
+   § "Choosing the engine". **Windmill is the declared default** (`engines.json`):
+   an FDE consultancy wants a client to land on the mature, centralised system
+   from day one. **dagnats is the exception**, chosen
+
+   explicitly with `--engine=dagnats` and **confirmed with the operator** when the
+   contract needs typed contracts, no arbitrary code, one binary, or AGPL/Postgres
+   is a constraint.
 
    The windmill pilot (`spike`, measured against pre-decided weighted criteria)
    found Windmill materially better at **diagnosis and step replay** — exactly
    where an LLM-authored flow is most likely to be wrong — and dagnats better
-   at the **pre-run test gate, footprint and licensing**. That is a reason to
-   offer both per client, not to flip a default.
+   at the **pre-run test gate, footprint and licensing**. That is why both remain
+   supported; the default is a starting point, not a rank order.
 
    **Retirement trigger (unchanged):** the dagnats runtime goes away only when
    no client uses it, in a single commit — worker, handlers, `docker-compose`

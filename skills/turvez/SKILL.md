@@ -33,12 +33,21 @@ Read `clients/<client>/client.yaml` when the client exists.
 | `dagnats` (exception) | the build loop below — recipes under `automation/dagnats/` |
 | `dagu` | level 2 only, `docs/script-execution.md` |
 
-No `client.yaml` yet → `scripts/new-client.sh` scaffolds Windmill. Switch to
-dagnats only when `docs/client-spine.md#choosing-the-engine` says so (typed
-contract, native approvals, no arbitrary code, one binary, AGPL problem), then
-record `engine: dagnats` in the manifest.
+No `client.yaml` yet → **Windmill, unless you confirm dagnats with the operator
+first.** Windmill is the default; dagnats is the exception and needs an explicit
+go-ahead, not a silent judgement call:
 
-Never migrate an engine unasked, and never run two engines for one client.
+1. State the criterion that applies (`typed contracts` | `no arbitrary code` |
+   `one binary` | `AGPL/EE constraint` | `client too small for Postgres`).
+2. Say what it costs and what Windmill would do instead.
+3. Ask the operator to confirm — then scaffold with `--engine=dagnats` and record
+   the reason in `client.yaml`.
+
+Do not scaffold dagnats on your own initiative, even when the criteria look
+satisfied: the operator owns the trade-off. **Approval gates are not a dagnats
+criterion** — both engines have them (Windmill's is better for a non-technical
+approver). Never migrate an engine unasked, and never run two engines for one
+client.
 
 ## Q0b.1 — changing a client's engine
 
