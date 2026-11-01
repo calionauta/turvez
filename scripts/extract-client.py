@@ -74,7 +74,13 @@ def definitions_for(cdir, engine):
         return found + sorted(cdir.glob("*.json"))  # legacy flat layout
     if engine == "windmill":
         wm = cdir / "automation" / "windmill"
-        return sorted(p for p in wm.glob("*") if p.is_dir()) if wm.is_dir() else []
+        if not wm.is_dir():
+            return []
+        # A flow directory is one that has a flow.yaml. Anything else in there
+        # (.ruff_cache, __pycache__, a stray dir) is tooling noise — treating it
+        # as a flow produced `wmill flow push .../.ruff_cache` commands.
+        return sorted(p for p in wm.iterdir()
+                      if p.is_dir() and (p / "flow.yaml").is_file())
     if engine == "dagu":
         return sorted((cdir / "automation" / "dagu").glob("*.yaml"))
     return []
