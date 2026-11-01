@@ -79,6 +79,19 @@ for root in "${ROOTS[@]}"; do
   done < <(find "$root" -type d -name windmill -prune -print 2>/dev/null)
 done
 
+# --- dagu ----------------------------------------------------------------
+# dagu is a declared engine (engines.json) but was never collected, so a dagu
+# client fell through to "no automation source" and failed validation — the
+# engine existed in the scaffold and the contract test while the gate that
+# decides whether a client is valid did not know it.
+dagu_dags=()
+for root in "${ROOTS[@]}"; do
+  [ -d "$root" ] || continue
+  while IFS= read -r f; do
+    [ -n "$f" ] && dagu_dags+=("$f")
+  done < <(find "$root" -path '*/automation/dagu/*' \( -name '*.yaml' -o -name '*.yml' \) -print 2>/dev/null | sort)
+done
+
 if [ "${#wm_dirs[@]}" -gt 0 ]; then
   echo "== windmill (${#wm_dirs[@]} dir(s))"
   # The gate must lint the dirs we just found. If it reports none, it looked at
@@ -91,6 +104,49 @@ if [ "${#wm_dirs[@]}" -gt 0 ]; then
       failed=1
       ;;
   esac
+  runs=$((runs + 1))
+fi
+
+if [ "${#dagu_dags[@]}" -gt 0 ]; then
+  echo "== dagu (${#dagu_dags[@]} DAG(s))"
+  # No dagu binary is assumed (level 2 only, docs/script-execution.md). The gate
+  # checks the two things that actually break: the file is valid YAML and it has
+  # the steps dagu needs to be a DAG at all.
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "validate: ${#dagu_dags[@]} dagu DAG(s) found but python3 is missing for the YAML check" >&2
+    failed=1
+  else
+    for f in "${dagu_dags[@]}"; do
+      if out="$(python3 - "$f" <<'PY' 2>&1
+import sys
+try:
+    import yaml
+except ImportError:
+    print("SKIP")
+    sys.exit(0)
+try:
+    doc = yaml.safe_load(open(sys.argv[1]))
+except Exception as exc:
+    print("invalid YAML: %s" % exc)
+    sys.exit(1)
+if not isinstance(doc, dict):
+    print("not a mapping")
+    sys.exit(1)
+if not doc.get("steps"):
+    print("no steps")
+    sys.exit(1)
+PY
+)"; then
+        case "$out" in
+          SKIP) : ;;
+          *) echo "  ok $f" ;;
+        esac
+      else
+        echo "  $f: $out"
+        failed=1
+      fi
+    done
+  fi
   runs=$((runs + 1))
 fi
 

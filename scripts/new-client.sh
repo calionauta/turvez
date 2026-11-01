@@ -159,12 +159,49 @@ case "$ENGINE" in
     echo "  evals: $EV  (generate cases: scripts/select-cases.py --dagnats --out $EV/cases; label: scripts/label-cases.py --dir $EV)"
     ;;
   windmill)
+    # An example flow, so the default engine is not born empty. An empty
+    # automation/windmill/ lints "ok" (there is nothing to check), which reads as
+    # a passing gate while validating nothing.
+    mkdir -p "$WMW/example-flow"
+    cat > "$WMW/example-flow/flow.yaml" <<'WMFLOWEOF'
+# Example flow — replace with the real one.
+# `input_transforms` is REQUIRED by the flow schema even when a step takes no
+# arguments; omitting it makes `wmill lint` reject the whole flow.
+summary: "TODO replace with the real flow summary"
+value:
+  modules:
+    - id: step_one
+      summary: first step
+      value:
+        type: rawscript
+        language: python3
+        input_transforms: {}
+        content: '!inline step_one.py'
+WMFLOWEOF
+    cat > "$WMW/example-flow/step_one.py" <<'WMPYEOF'
+def main():
+    # Replace with the real work. Keep secrets in workspace variables, not here.
+    return {"ok": True}
+WMPYEOF
     echo "  put the flows under $WMW (wmill flow push one item at a time)"
     echo "  read skills/turvez/references/windmill.md first: never \`wmill sync push\`"
     echo "  ./scripts/check-windmill.sh   # lint gate, then wmill flow preview"
     echo "  evals: $EV  (normalize a job: scripts/windmill-job-to-run.py --job-id <id> --out run.json)"
     ;;
   dagu)
+    # A DAG example, because a client folder with an empty automation/dagu/ fails
+    # validation (there is nothing to validate) and the operator would not know
+    # whether the scaffold or their work was wrong.
+    cat > "$C/automation/dagu/nightly.yaml" <<'DAGUEOF'
+# Example DAG — replace with the real one. Level 2 only: script-shaped recurrent
+# jobs (docs/script-execution.md). dagu is not a product surface.
+steps:
+  - name: fetch
+    command: echo "replace with the real command"
+  - name: report
+    command: echo "replace with the real command"
+    depends: [fetch]
+DAGUEOF
     echo "  put the DAGs under $C/automation/dagu (level 2: docs/script-execution.md)"
     echo "  evals: $EV"
     ;;
