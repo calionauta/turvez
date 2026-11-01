@@ -29,7 +29,6 @@
 ### Code Refactoring
 
 * **naming:** single-source workflow names via naming.json ([d00eba2](https://github.com/calionauta/turvez/commit/d00eba2f4f8f72861e522fc65161c0e8d0912e30))
-* one client spine, dagnats declared legacy (phases 3-4) ([9959fa5](https://github.com/calionauta/turvez/commit/9959fa52c73a0fac5a83093191504b8f3694a5da))
 
 
 ### Documentation
