@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.4](https://github.com/calionauta/turvez/compare/v0.1.3...v0.1.4) (2026-11-01)
+
+
+### Features
+
+* cut the delivery cost 38% with a fast path, and make env examples committable ([74cb1a9](https://github.com/calionauta/turvez/commit/74cb1a945d0f6d14ea612e876f349fcaad32abb2))
+
+
+### Bug Fixes
+
+* both migration scripts produced output that could not be used ([50deaae](https://github.com/calionauta/turvez/commit/50deaaea723c33d251dfa9d839588c448a013c23))
+* dagu could never pass validation, and the default engine scaffolded empty ([4bcc2f2](https://github.com/calionauta/turvez/commit/4bcc2f2b73815c63fafc6197f7b539453dbe0399))
+
+
+### Documentation
+
+* map the next bottleneck — a local gate that catches what wmill lint passes ([fda97e9](https://github.com/calionauta/turvez/commit/fda97e9d8a4b6f46ab69fdfdbb470d1fcbb92303))
+
 ## [0.1.3](https://github.com/calionauta/turvez/compare/v0.1.2...v0.1.3) (2026-11-01)
 
 
