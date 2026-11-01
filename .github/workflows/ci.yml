@@ -80,12 +80,14 @@ jobs:
         run: |
           go install github.com/danmestas/dagnats/cmd/dagnats@$(go list -m -f '{{.Version}}' github.com/danmestas/dagnats)
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+      - name: Install the Windmill CLI
+        # Same binary that scaffolds a Windmill client, so its own scaffold must
+        # lint with it. The template ships Windmill flows (clients/_template is
+        # excluded from the recipe contract but not from the lint gate's reach),
+        # and test-engines.sh shells out to it, so install unconditionally.
+        run: npm install -g windmill-cli
       - name: Validate every engine in this checkout
-        run: |
-          if find clients workflows -type d -name windmill -print -quit 2>/dev/null | grep -q .; then
-            npm install -g windmill-cli
-          fi
-          make validate
+        run: make validate
       - name: Every declared engine scaffolds and validates
         # dagu was declared in engines.json, new-client.sh and the contract test
         # while validate.sh did not know it, so a dagu client could never pass.
