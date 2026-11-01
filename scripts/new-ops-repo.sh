@@ -54,11 +54,17 @@ env/*.env
 .env
 *.age.key
 *identity*.txt
+# Secret NAMES are documentation, not secrets: re-include the examples, because a
+# common global ignore (`*.env.*` in core.excludesFile) would otherwise swallow
+# them and silently drop the only file that says which secrets exist.
+!env/*.env.example
 # Editor / OS noise
 .DS_Store
 .idea/
 .vscode/
 *.swp
+__pycache__/
+*.pyc
 # Local agent memory
 .engram/
 EOF
@@ -66,12 +72,32 @@ EOF
 cat > "$DEST/AGENTS.md" <<'EOF'
 # AGENTS.md — turvez-ops (private data repo)
 
+## Fast path (90% of engagements)
+
+Do these five things before reading anything else. Only open the playbook's
+detail files when a step actually fails or the client is unusual.
+
+```bash
+export TURVEZ_CHECKOUT=~/Development/turvez TURVEZ_OPS_DIR=$PWD
+$TURVEZ_CHECKOUT/scripts/new-client.sh <client>        # scaffolds Windmill (default)
+# ... write flows under clients/<client>/automation/windmill/<flow>/
+$TURVEZ_CHECKOUT/scripts/validate.sh                   # lint + contract + isolation
+OPS=$PWD; cd $TURVEZ_CHECKOUT && WORKFLOWS_DIR=$OPS/clients go test ./clients/
+# ... then propose the deploy commands and WAIT (see Confirm policy)
+```
+
+The ops repo has no `scripts/` of its own — every script is invoked from
+`$TURVEZ_CHECKOUT` with `TURVEZ_OPS_DIR` pointing here.
+
+Windmill is the default. dagnats is the exception and needs the operator's
+explicit go-ahead — state the criterion, state the cost, ask, then record it.
+
 ## Playbook
 
 The consulting playbook is the **turvez skill**: `skills/turvez/SKILL.md` in the
-template checkout at `TURVEZ_PIN`. Load it before scaffolding or editing a
-client — it routes to the fieldbook, recipe/flow references and the engine
-criteria. Everything below is repo shape; the skill is the how.
+template checkout at `TURVEZ_PIN`. Load it when the fast path above does not
+cover the situation — a new engine, an eval loop, client intake, or anything
+ambiguous. Everything below is repo shape; the skill is the how.
 
 ## Repo type
 

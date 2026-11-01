@@ -1,5 +1,21 @@
 # Windmill (when a client needs UI, replay or code steps)
 
+## Traps that cost the most time (read before your first push)
+
+Four things fail in ways that look like success. Each one cost a real session
+multiple round-trips to diagnose:
+
+1. **A flow dir uploads only `flow.yaml` + `!inline` files.** A sibling helper
+   imported as `from .send_slack import ...` works locally and **fails on the
+   server**. Duplicate the helper per flow, or push it as a standalone script.
+2. **Trigger/schedule pushes need the typed suffix** — `*.http_trigger.yaml`,
+   `*.schedule.yaml`. A plain `*.yaml` is silently not treated as a trigger.
+3. **`wmill flow delete` does not exist.** Use
+   `DELETE /api/w/<ws>/flows/delete/<path>`. The wrong endpoint answers 404, so a
+   cleanup that "worked" was a no-op — always re-list to confirm.
+4. **A `.env` file is not read at runtime.** Recreate values as workspace
+   variables/resources; the age file is bootstrap only.
+
 Read `docs/script-execution.md#platform-choice-beyond-turvez` and
 `docs/client-spine.md` first. Windmill is a per-client choice, not a second
 engine for a dagnats client.
