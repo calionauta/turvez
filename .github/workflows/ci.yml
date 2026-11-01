@@ -73,12 +73,6 @@ jobs:
         run: |
           python3 -m pip install --quiet pyyaml
           python3 scripts/test-convert-to-windmill.py
-      - name: Every declared engine scaffolds and validates
-        # dagu was declared in engines.json, new-client.sh and the contract test
-        # while validate.sh did not know it, so a dagu client could never pass.
-        # windmill — the default — scaffolded an EMPTY automation/windmill/ that
-        # linted "ok" while checking nothing. This test refuses both states.
-        run: ./scripts/test-engines.sh
       - name: Install the pinned engine CLIs
         # dagnats for recipes, wmill for Windmill flows. Each gate is skipped
         # when the checkout has no source for that engine (scripts/validate.sh),
@@ -92,3 +86,13 @@ jobs:
             npm install -g windmill-cli
           fi
           make validate
+      - name: Every declared engine scaffolds and validates
+        # dagu was declared in engines.json, new-client.sh and the contract test
+        # while validate.sh did not know it, so a dagu client could never pass.
+        # windmill — the default — scaffolded an EMPTY automation/windmill/ that
+        # linted "ok" while checking nothing. This test refuses both states.
+        #
+        # It runs AFTER the engine CLIs are installed: validate.sh legitimately
+        # fails when a recipe's engine CLI is missing, and testing before the
+        # install would report that as a scaffold bug.
+        run: ./scripts/test-engines.sh
