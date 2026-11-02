@@ -21,11 +21,13 @@
 
 | System | Use | Secret NAME |
 |---|---|---|
-| HubSpot | GET contacts | `ACME_HUBSPOT_TOKEN` |
+| HubSpot | leads, via Nango integration `hubspot` / connection `example-client` | `NANGO_SECRET_KEY` |
 | Slack | notify | `ACME_SLACK_WEBHOOK_URL` |
+| Internal API | nightly contacts sync | `ACME_INTERNAL_API_TOKEN` |
 | Billing | refund/invoice | `ACME_BILLING_TOKEN`, `ACME_REFUND_API_TOKEN` |
 | Warehouse | nightly push | `ACME_WAREHOUSE_TOKEN` |
 
+Provider OAuth/API keys live in Nango, never in this repo (`docs/nango.md`).
 Values in `env/example-client.env` (local, gitignored) — see `env/example-client.env.example`.
 
 ## 4. Recipes and triggers

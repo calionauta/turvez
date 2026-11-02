@@ -8,7 +8,7 @@
       "type": "normal",
       "timeout": 30000000000,
       "metadata": {
-        "expression": "{method: \"GET\", url: \"https://api.example.com/contacts?limit=100\", auth_secret: \"ACME_HUBSPOT_TOKEN\", auth_scheme: \"Bearer\", response_json: true}"
+        "expression": "{method: \"GET\", url: \"https://api.example.com/contacts?limit=100\", auth_secret: \"ACME_INTERNAL_API_TOKEN\", auth_scheme: \"Bearer\", response_json: true}"
       }
     },
     {

@@ -29,10 +29,13 @@ How they decide: (e.g. Slack #sales, 4h business-hours SLA)
 
 | System | Use | Secret NAME | Value owner |
 |---|---|---|---|
-| HubSpot | deals stage=qualified | `TODO_HUBSPOT_TOKEN` | client via 1Password |
+| HubSpot | deals stage=qualified, via Nango integration `hubspot` | `NANGO_SECRET_KEY` | operator via Nango |
 | Slack #sales | notify | `TODO_SLACK_WEBHOOK_URL` | us via age |
 
-Rule: value only in `env/TODO-CLIENT.env` (local) or `secrets/TODO-CLIENT/env.age`.
+Rule: provider OAuth/API keys live in **Nango** as a connection named after the
+client (`docs/nango.md`), authorised with
+`./scripts/nango-connect.sh TODO-CLIENT --provider <slug>` — never pasted here.
+Value only in `env/TODO-CLIENT.env` (local) or `secrets/TODO-CLIENT/env.age`.
 
 ## 4. Recipes and triggers
 
@@ -59,10 +62,15 @@ dagnats trigger disable <client>-<id>  # rollback: enable back
 
 Alerts: `on_failure` → notify (layer 1) + `ops.dlq-watchdog` (layer 2) + external `GET /health` probe (layer 3). See `docs/alerting.md`.
 
+Windmill clients (`engine: windmill`): the commands above are the dagnats path.
+Use `wmill flow preview <dir>` then `wmill flow push <dir> "f/<client>/<flow>"`
+one item at a time — never `wmill sync push` (`skills/turvez/references/windmill.md`).
+
 ## 6. Decisions (log, 1 line each)
 
 - 2026-10-24: approval threshold = 10000 because… (who asked)
 - …: new handler? no — `transform.json` + `skip_if` covered it
+- …: node language? Go (the policy) — TS/Python only for a WAC orchestrator
 - …: what became reusable? (new template in `clients/_template/`? pattern that
   becomes a handler? — productize: what this client taught that the next one gets for free)
 

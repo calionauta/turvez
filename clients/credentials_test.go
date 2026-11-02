@@ -10,6 +10,9 @@ package clients
 //     flow reading client B's mailbox;
 //  3. a Provider-Config-Key carrying a client prefix, so the same provider is
 //     registered N times and a renewal fixes only one of them.
+//
+// Both checks follow WORKFLOWS_DIR, so reviewing a private ops repo runs them
+// over that repo's clients and env examples instead of only the template's.
 
 import (
 	"os"
@@ -37,20 +40,67 @@ var credSuffix = []string{"_TOKEN", "_API_KEY", "_SECRET", "_CLIENT_SECRET", "_O
 // key. Nango cannot refresh or revoke it, so it stays in env/age.
 var endpointSuffix = []string{"_WEBHOOK_URL", "_WEBHOOK_SECRET", "_SIGNING_KEY"}
 
+// clientDirs lists the client folders of the checkout under test. It reuses
+// clientRoots() (recipes_test.go) so a WORKFLOWS_DIR override validates the
+// private ops repo, not just the public template sitting next to the tests.
 func clientDirs(t *testing.T) []string {
 	t.Helper()
+	seen := map[string]bool{}
 	var out []string
-	for _, root := range []string{"../clients", "../workflows"} {
-		entries, err := os.ReadDir(root)
+	for _, root := range clientRoots() {
+		entries, err := filepath.Glob(filepath.Join(root, "*"))
 		if err != nil {
-			continue
+			t.Fatal(err)
 		}
-		for _, e := range entries {
-			if !e.IsDir() || strings.HasPrefix(e.Name(), "_") || e.Name() == "ops" {
+		for _, d := range entries {
+			fi, err := os.Stat(d)
+			if err != nil || !fi.IsDir() {
 				continue
 			}
-			out = append(out, filepath.Join(root, e.Name()))
+			base := filepath.Base(d)
+			if strings.HasPrefix(base, "_") || base == "ops" {
+				continue
+			}
+			abs, err := filepath.Abs(d)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if seen[abs] {
+				continue
+			}
+			seen[abs] = true
+			out = append(out, d)
 		}
+	}
+	return out
+}
+
+// envExampleRoots lists the directories that may hold env/*.env.example.
+// When WORKFLOWS_DIR points at an ops repo, the examples live beside its
+// clients/ directory; a guard that only read ../env would miss every real
+// client and pass a scaffold that still ships a provider token.
+func envExampleRoots() []string {
+	seen := map[string]bool{}
+	var out []string
+	add := func(dir string) {
+		fi, err := os.Stat(dir)
+		if err != nil || !fi.IsDir() {
+			return
+		}
+		abs, err := filepath.Abs(dir)
+		if err != nil || seen[abs] {
+			return
+		}
+		seen[abs] = true
+		out = append(out, dir)
+	}
+	add(filepath.Join("..", "env"))
+	if os.Getenv("WORKFLOWS_DIR") != "" {
+		opsRoot := filepath.Dir(filepath.Clean(resolveRoot(workflowsRoot())))
+		add(filepath.Join(opsRoot, "env"))
+	}
+	if ops := os.Getenv("TURVEZ_OPS_DIR"); ops != "" {
+		add(filepath.Join(ops, "env"))
 	}
 	return out
 }
@@ -117,7 +167,11 @@ func TestNangoConnectionIsTheClientSlug(t *testing.T) {
 // TestProviderCredentialsLiveInNango rejects a SaaS credential in an env
 // example: it must be a Nango connection instead.
 func TestProviderCredentialsLiveInNango(t *testing.T) {
-	files, _ := filepath.Glob("../env/*.env.example")
+	var files []string
+	for _, dir := range envExampleRoots() {
+		matches, _ := filepath.Glob(filepath.Join(dir, "*.env.example"))
+		files = append(files, matches...)
+	}
 	if len(files) == 0 {
 		t.Skip("no env examples in this checkout (ops repo keeps them too)")
 	}

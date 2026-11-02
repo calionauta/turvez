@@ -115,7 +115,7 @@ fi
 
 # Fieldbook from template (placeholder swap; portable upper-case for macOS bash 3.2).
 UPPER="$(echo "$CLIENT" | tr 'a-z' 'A-Z')"
-sed "s/TODO-CLIENT/$CLIENT/g; s/TODO_HUBSPOT_TOKEN/${UPPER}_HUBSPOT_TOKEN/g; s/TODO_SLACK_WEBHOOK_URL/${UPPER}_SLACK_WEBHOOK_URL/g" \
+sed "s/TODO-CLIENT/$CLIENT/g; s/TODO_SLACK_WEBHOOK_URL/${UPPER}_SLACK_WEBHOOK_URL/g" \
   "$TEMPLATES/FIELDBOOK.md" > "$C/README.md"
 
 # Starter recipe (dagnats engine only): copy the cron-job skeleton with the
@@ -139,7 +139,14 @@ UPPER_ENV="$(echo "$CLIENT" | tr 'a-z' 'A-Z')"
 cat > "$ROOT/env/$CLIENT.env.example" <<EOF
 # Secret NAMES for $CLIENT. Copy to env/$CLIENT.env (gitignored) and fill values,
 # or encrypt: age -r age1YOURPUBLICKEY -o secrets/$CLIENT/env.age env/$CLIENT.env
-${UPPER_ENV}_HUBSPOT_TOKEN=
+#
+# SaaS OAuth and provider API keys do NOT go here: register the client as a
+# Nango connection and let the operator authorise it (docs/nango.md):
+#   ./scripts/nango-connect.sh $CLIENT --provider <slug> --open
+# This file holds the Nango key plus secrets that are ours (webhook URLs,
+# internal APIs), never a provider credential.
+NANGO_HOST=
+NANGO_SECRET_KEY=
 ${UPPER_ENV}_SLACK_WEBHOOK_URL=
 EOF
 

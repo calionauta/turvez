@@ -399,7 +399,7 @@ Here is how Nango scales coherently with that architecture:
 ### 8.3 Migration Lifecycle: Moving a Client from Shared to Dedicated
 
 Because Turvez recipes and scripts use environment variables and the client slug:
-- In Windmill/Dagnats: `url = f"{os.environ['NANGO_HOST']}/proxy/..."`
+- In a Go node or dagnats input: `os.Getenv("NANGO_HOST") + "/proxy/..."`
 - Header: `Connection-Id: <client>`
 
 **Zero workflow code changes are required** when moving a client to a dedicated host! Only environment configuration moves.
