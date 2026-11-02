@@ -176,6 +176,24 @@ right for one model is wrong for another. The design bounds the failure; it
 does not eliminate it. Measure worst-case tokens, reranker p95 and refusal
 rate.
 
+### Production limits (starting points)
+
+These are defaults, not universal constants; the eval sets the final numbers.
+
+| Limit | Default | Where enforced |
+|---|---|---|
+| Reading unit | chapter; its sections when the chapter exceeds ~4k tokens | indexer |
+| Context budget | 40-60% of the window, minus output and prefix reserve | router, target tokenizer |
+| Query rewrites | ≤3, cache by query hash, 1-3s timeout | orchestrator |
+| Candidates | ≤20 per rewrite, ≤60 after dedupe | router |
+| Reranker | batch of 16, 2s per-call timeout, BM25 fallback | inference service + node |
+| Refusal | cutoff calibrated per model; no cloud call when nothing passes | orchestrator |
+| Eval | 30-50 questions + 5-10 refusals | ship gate |
+
+A fixed threshold such as 0.35 is not a default: cross-encoder scores are
+model-specific (logits vs sigmoid) and query-dependent. Calibrate it on the
+refusal set and log the score of every dropped unit.
+
 ### Code sketch (Windmill Go node)
 
 The node is a Go script (`language: go`), so the compiler checks the signature
@@ -258,7 +276,8 @@ Corrected placement:
 
 1. **Expand** — glossary first; an optional SLM rewrite behind an eval, with a
    timeout and a deterministic fallback. Cache the rewrite by query hash.
-2. **Route** — Bleve returns **whole documents/chapters**, not 20-50 snippets.
+2. **Route** — Bleve returns **whole documents/chapters** after dedupe and the
+   candidate cap, not 20-50 snippets.
 3. **Rerank (optional)** — a cross-encoder scores **units** (chapter, or
    section when a chapter is too long), then the budget is filled in order.
 4. **Read** — long context over the selected units; sections only when a unit
@@ -294,8 +313,8 @@ flow: answer-question
   hundreds of ms to a few seconds on CPU, not tens of ms.
 - Reranker: MiniLM-class for latency, `bge-reranker-v2-m3` for quality; both
   are heavier than a BM25 pass. Measure on the target host.
-- `top 30` candidates are **units/sections**, not arbitrary chunks. Top-5 is a
-  budget outcome; do not fix it as a rule.
+- The candidate set is ≤3 rewrites × ≤20 units, deduped, then ≤60 units before
+  reranking. `top 30` is a starting point; top-5 is a budget outcome, not a rule.
 - A **Go/ONNX** inference service is the default: infrastructure, not a script
   node, called over HTTP by a Go node. Python/FastEmbed is an exception only
   for a model the Go path does not have. In-process ONNX adds cgo/native libs
@@ -308,6 +327,8 @@ Fallback matrix:
 | rewrite timeout/error | route the original question through Bleve |
 | reranker timeout/error | keep BM25 order and fill the token budget |
 | inference service down | skip the semantic layer; route-then-read still answers |
+| no unit clears the calibrated cutoff | return the explicit "not found" answer; no cloud call |
+| the budget cannot fit even one unit | return "not found"; never truncate mid-sentence |
 | flow step fails after retries | flow error handler notifies; the run keeps its step outputs |
 
 When it is worth it: the client needs paraphrase recall or multilingual query

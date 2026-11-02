@@ -25,15 +25,32 @@ run both engines for one client.
 
 ## Q0.8 — is the ask "answer questions over our data"?
 
-Split **documents** from **systems of record** before choosing anything
-(`references/retrieval.md`): a system of record is a tool call through Nango (the
-fixed proxy in a recipe/flow; an agent session/MCP only when an agent must
-choose tools, which is Q1.5). A document corpus follows **route-then-read**:
-long context → Bleve selects whole documents/chapters within a token budget →
-the LLM reads them in long context; expand with a glossary → OpenWN-PT →
-FastText only behind an eval, and add vectors to Bleve only when the eval proves
-lexical + synonyms miss. Chunks are not the default retrieval unit, and a
-vector DB is never the first answer.
+Ask in order; stop at the first branch that answers. Full playbook:
+`references/retrieval.md`, rationale `docs/retrieval.md`.
+
+1. **System of record** (CRM, ERP, ticketing, wiki with an API) → a tool call
+   through Nango: the fixed HTTP proxy in a recipe/flow. An Agent Session/MCP
+   only when an agent must choose tools (Q1.5). Do not index a stale copy.
+2. **A handful of pages that fit one prompt** → long context with a stable
+   prefix; no index, no pipeline.
+3. **Documents** → **route-then-read**:
+   - unit = chapter; section when it exceeds the index cap (start 4k tokens);
+     300-500 token chunks are the degraded mode, not the default;
+   - expand with the glossary → OpenWN-PT → FastText only behind an eval;
+   - Bleve returns whole units; dedupe by `doc_id:unit_id`;
+   - caps: hard token budget with the target tokenizer + output reserve, ≤3
+     rewrites × ≤20 units, ≤60 candidates, reranker timeout + BM25 fallback;
+   - a cutoff calibrated per model (never a copied 0.35) chooses read vs the
+     explicit "not found" answer; no cloud call when nothing passes;
+   - eval 30-50 questions + 5-10 refusals; add vectors inside Bleve only when
+     the eval proves lexical + synonyms miss.
+4. **Synthesis across more than fits one context** → hierarchy/map-reduce, or
+   vectors; not a bigger prompt.
+5. **Open-domain, paraphrase-heavy, cross-lingual** → semantic retrieval is the
+   right tool; still gate it with the eval.
+
+"Bounded, not immune": measure worst-case tokens, reranker p95 and false
+refusals. A vector DB is never the first answer, and "top 5" is not a limit.
 
 Then, **for a dagnats client only**, ask the levels below in order. First
 "yes" wins. Full rationale: `docs/script-execution.md`. A Windmill client stops

@@ -24,7 +24,7 @@ credentials and agent tools, an **LLM gateway** for model calls, and optional
 | **Dagu** — level 2 | YAML DAGs over commands the client already has | recurrent script/SSH/Docker/backup jobs | separate binary, no DB, no repo integration |
 | **Nango** — credential/tool layer | OAuth store, HTTP proxy, Agent Sessions (MCP) | SaaS auth without raw tokens; tool discovery for agents | Node + Postgres; self-hosted or Cloud |
 | **LLM gateway** | OpenAI-compatible endpoint behind `llm.complete` | one auditable model-call surface, per-client keys/cost | per deployment profile |
-| **Retrieval** — per-client capability | long context, or Go + [Bleve](https://github.com/blevesearch/bleve) routing to **whole documents/chapters** (`docs/retrieval.md`) | answering from documents; the LLM reads whole units, not chunks | alongside the client's engine |
+| **Retrieval** — per-client capability | long context, or Go + [Bleve](https://github.com/blevesearch/bleve) routing to **whole units** under hard token/candidate caps (`docs/retrieval.md`) | answering from documents; a calibrated cutoff refuses rather than filling the prompt with noise | alongside the client's engine |
 | **Local inference** — optional, eval-gated | Ollama/vLLM (1-3B query rewrite) + ONNX reranker (MiniLM/BGE) | semantic expansion/reranking without sending content to a third party | shared service on the internal network; one per environment |
 | **Evals** | promptfoo + `select-cases.py` / `windmill-job-to-run.py` | quality gate before and after a change | local / CI |
 | **Sandbox** | `scripts/sandbox-run.sh` | one-off scripts, zero residue | local Docker |
@@ -60,13 +60,21 @@ Q2. Where does it run?
     profiles: A embedded / B managed (SMB default) / C multi-tenant (product)
 
 Q3. Is the ask "answer questions over our data"?
-    system of record (CRM, ERP, wiki API) -> call it through Nango
+    system of record (CRM, ERP, wiki API) -> call it through Nango;
+      a tool-choosing agent -> Agent Session (MCP), not a recipe
+    a few pages that fit one prompt        -> long context; no index
     documents (PDFs, contracts, manuals)   -> route-then-read:
-      expand (glossary -> OpenWN-PT -> FastText behind an eval) ->
-      Bleve routes to WHOLE documents/chapters within a token budget ->
-      LLM reads them in long context; optional rewrite/rerank scores UNITS
-      (external service, eval-gated), never snippets; vectors only if the
-      eval demands it (inside Bleve, not a separate vector DB)
+      unit: chapter; section when above maxUnitTokens (start 4k);
+            chunking is the degraded mode, not the default
+      expand: glossary -> OpenWN-PT -> FastText (only behind an eval)
+      route: Bleve returns WHOLE units; dedupe by doc_id:unit_id
+      caps: hard token budget (target tokenizer + output reserve),
+            <=3 rewrites x <=20 units, <=60 candidates,
+            reranker batch + timeout, BM25 fallback
+      read: whole units in long context, question last, citations checked
+      refuse: cutoff calibrated per model (never a copied 0.35) -> explicit
+              "not found", no cloud call
+      eval: 30-50 questions + 5-10 refusals; vectors only inside Bleve
 
 Q4. Is it a one-off script?
     yes -> sandbox-run.sh, read it, run isolated, delete it. Never a recipe.
@@ -241,7 +249,7 @@ curl -X POST localhost:8090/ops/approvals/<run-id> \
 - `docs/handlers-reference.md` — task inputs/outputs, metadata keys
 - `docs/language-policy.md` — **Go script nodes**; TS/Python only for a dispatch-only WAC orchestrator
 - `docs/nango.md` — credential layer: OAuth proxy, naming/enforcement, Agent Sessions (MCP)
-- `docs/retrieval.md` — answering over documents vs systems of record; lexical-first ladder; eval gate
+- `docs/retrieval.md` — documents vs systems of record; route-then-read; hard token/candidate caps; calibrated refusal; eval gate
 - `docs/secrets.md` — per-client age encryption, JIT runtime
 - `docs/alerting.md` — `on_failure`, DLQ watchdog, external uptime probe
 - `docs/tenancy-evolution.md` — stages 1→3 without redesign

@@ -151,10 +151,14 @@ flowchart TD
     S -->|"system of record"| P["Nango HTTP proxy (fixed call)<br/>or Agent Session MCP (agent picks tools)"]
     S -->|"documents"| L{"Corpus fits one prompt?"}
     L -->|"yes"| LC["Long context, stable cached prefix"]
-    L -->|"no"| RT["Route-then-read:<br/>Bleve selects WHOLE docs/chapters"]
-    RT --> BUD{"Fits the reading budget?"}
+    L -->|"no"| RT["Route-then-read:<br/>Bleve selects WHOLE units"]
+    RT --> CAP["Dedupe + cap candidates<br/>3 rewrites x 20, max 60 units"]
+    CAP --> BUD{"Hard token budget?<br/>target tokenizer + output reserve"}
     BUD -->|"no"| SEC["Section-level units<br/>or map-reduce summaries"]
-    BUD -->|"yes"| READ["LLM reads whole units<br/>in long context"]
+    SEC -->|"nothing fits"| REF["Explicit 'not found'<br/>(no cloud call)"]
+    BUD -->|"yes"| REL{"Reranked above the<br/>calibrated cutoff?"}
+    REL -->|"no"| REF
+    REL -->|"yes"| READ["LLM reads whole units<br/>in long context"]
     SEC --> READ
     RT --> EV{"Eval recall@unit good enough?"}
     EV -->|"no"| WN["+ glossary / OpenWN-PT / FastText<br/>only behind an eval"]
@@ -170,7 +174,9 @@ Full rationale, traps and the ship gate: `docs/retrieval.md`. A system of
 record is a freshness problem (call it); a document corpus is a retrieval
 problem (route to whole units, then read them). Nango is not a document index.
 The default unit is the **chapter**, not the chunk; chunking is a fallback for
-a unit that does not fit the reading budget.
+a unit that does not fit the reading budget. The cutoff node exists only when
+the optional reranker is on; BM25-only mode goes from the budget straight to
+reading. "Top 5" is not a limit — the hard token budget is.
 
 ## 6.1 Windmill topology for the optional semantic layer
 
@@ -188,14 +194,16 @@ flowchart LR
 
 One inference service per environment on the internal network (never a model
 load per step), health-checked, with the model version pinned. The reranker
-scores units/sections, not arbitrary snippets; 30 candidates and top-5 are
-budget outcomes, and the funnel is bounded by a hard token budget, a candidate
-cap and a calibrated refusal threshold. A **Go/ONNX** inference service is the
-default — infrastructure, not a script node, called over HTTP by a Go node.
-Python/FastEmbed is an exception only for a model the Go path does not have.
-Fallbacks: original query when the
-rewrite fails, BM25 order when the reranker fails, and route-then-read when the
-service is down.
+scores units/sections, not arbitrary snippets. The funnel is: ≤3 rewrites, ≤20
+units per rewrite, dedupe by `doc_id:unit_id`, ≤60 candidates, then a hard token
+budget counted with the target tokenizer and an output reserve. A cutoff
+calibrated per model on the eval set (never a copied 0.35) chooses between
+reading and the explicit "not found" answer; no cloud call when nothing passes.
+A **Go/ONNX** inference service is the default — infrastructure, not a script
+node, called over HTTP by a Go node. Python/FastEmbed is an exception only for
+a model the Go path does not have. Fallbacks: original query when the rewrite
+fails, BM25 order when the reranker fails, route-then-read when the service is
+down, and the explicit refusal when no unit clears the cutoff.
 
 ## Formats: pick by role, not by taste
 

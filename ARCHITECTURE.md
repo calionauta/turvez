@@ -145,7 +145,9 @@ never change the repo shape.
   the naming and follows `WORKFLOWS_DIR` into an ops repo.
 - **Retrieval is lexical-first and reads whole units.** Bleve routes to
   chapters, the LLM reads them; glossary before WordNet, before FastText,
-  before vectors; each step needs an eval that justifies it.
+  before vectors; each step needs an eval that justifies it. The funnel is
+  bounded by a hard token budget, a candidate cap and a calibrated refusal —
+  and "bounded" is not "immune".
 - **Env + age, no vault** (solo). Process env in prod, age files for versioned
   backups; revisit with a second operator or compliance pressure.
 - **Engine sleeps, not worker sleeps.** Multi-day waits are `sleep`/`approval`

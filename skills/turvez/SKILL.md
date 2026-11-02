@@ -139,23 +139,40 @@ upgrade window, or a contract requiring a separate database.
 ## Q0e — answer a question over the client's data
 
 "Can it answer questions about our contracts / ERP / CRM?" is two jobs
-(`references/retrieval.md`, rationale `docs/retrieval.md`):
+(`references/retrieval.md`, rationale `docs/retrieval.md`). Ask in order:
 
-- **System of record** (CRM, ERP, wiki with an API) → call it through Nango.
-  A fixed endpoint in a recipe/flow is the **HTTP proxy**; an interactive agent
-  that must discover tools is a Nango **Agent Session (MCP)** — an agent loop,
-  not a recipe (decision-tree Q1.5). Nango is not a document index.
-- **Documents** → **route-then-read**: expand the query locally (glossary →
-  OpenWN-PT → FastText only behind an eval), let Bleve select **whole
-  documents/chapters** within a token budget, then read them in long context.
-  Chunk-level vector RAG is not the default; add vectors to Bleve only if the
-  eval proves lexical + synonyms miss.
+1. **System of record** (CRM, ERP, wiki with an API) → call it through Nango.
+   A fixed endpoint in a recipe/flow is the **HTTP proxy**; an interactive agent
+   that must discover tools is a Nango **Agent Session (MCP)** — an agent loop,
+   not a recipe (decision-tree Q1.5). Never index a copy that goes stale.
+2. **A handful of pages that fit one prompt** → long context with a stable
+   cached prefix; no index.
+3. **Documents** → **route-then-read**:
+   - **Unit:** chapter; use its sections when a chapter exceeds the index cap
+     (start at 4k tokens). 300-500 token chunks are the degraded mode, never
+     the default.
+   - **Expand:** glossary → OpenWN-PT → FastText only behind an eval.
+   - **Route:** Bleve returns whole units; dedupe by `doc_id:unit_id` (plus a
+     content hash for boilerplate).
+   - **Cap the funnel:** hard token budget counted with the target tokenizer
+     plus output reserve; ≤3 rewrites × ≤20 units, ≤60 candidates; reranker
+     batch + timeout with BM25 fallback.
+   - **Read or refuse:** whole units in long context, question last, citations
+     checked. A cutoff calibrated per model (never a copied 0.35) decides
+     between reading and the explicit "not found" answer. No cloud call when
+     nothing passes.
+   - **Eval:** 30-50 real questions with expected document ids + 5-10 that must
+     be refused; measure worst-case tokens, `recall@unit`, citation validity,
+     reranker p95 and false refusals.
 
 A 200-term glossary beats a 300 MB FastText model for the client's own
-vocabulary; use the model only as an evaluated experiment. Route-then-read
-replaces chunked vector RAG for bounded, terminology-rich corpora, not semantic
-retrieval universally. Never promise "RAG" without a 30-50 question eval with
-expected document ids.
+vocabulary. Route-then-read replaces chunked vector RAG for bounded,
+terminology-rich corpora, not semantic retrieval universally; add vectors
+inside Bleve only when the eval proves lexical + synonyms miss. Never promise
+"RAG" without the eval — and never "top 5" as a safety limit.
+
+**Bounded, not immune:** tokenizer drift, tables in PDFs, reranker memory and
+model-specific scores still fail. Measure; do not claim immunity.
 
 ## When to use
 
@@ -176,7 +193,7 @@ Methodology questions (discover, scope, runbook): see `references/methodology.md
 | `scripts/setup-nango.sh [--up/--down]` | check or spin up Nango auth layer |
 | `scripts/nango-connect.sh <client> --provider <slug> [--open]` | operator authorises a provider in Nango; prints the link + the exact names |
 | `scripts/verify-isolation.sh` | where every client runs (`runtime`/`target`), read-only; in `make validate` |
-| `docs/retrieval.md`, `references/retrieval.md` | documents vs systems of record, the lexical-first RAG ladder, Nango MCP vs proxy, eval gate |
+| `docs/retrieval.md`, `references/retrieval.md` | documents vs systems of record; route-then-read; hard token/candidate caps; calibrated refusal; Nango MCP vs proxy; eval gate |
 | `scripts/extract-client.py <client>` | package one client for its own server — prints the plan, never executes |
 | `scripts/convert-to-windmill.py <client>` | dagnats recipes → Windmill **skeleton** in `converted-windmill/`; TODOs, never a port |
 | `scripts/register-workflows.sh` | validate + register (confirm first, dagnats engine) |

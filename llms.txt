@@ -46,8 +46,8 @@
   skills/turvez/references/windmill.md + docs/script-execution.md
   + `./scripts/check-windmill.sh` (lint gate, no worker)
 - Answering questions over client data: docs/retrieval.md — split documents
-  (route-then-read: glossary expansion → Bleve routes to whole
-  documents/chapters within a token budget → LLM reads them in long context;
+  (route-then-read: glossary expansion → Bleve routes to whole units under a
+  hard token budget + candidate cap → calibrated refusal or long-context read;
   vectors only behind an eval, inside Bleve) from systems of record (Nango
   proxy; Agent Sessions MCP only for an agent that chooses tools). Agent
   playbook: skills/turvez/references/retrieval.md
