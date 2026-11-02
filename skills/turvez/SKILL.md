@@ -136,6 +136,23 @@ upgrade window, or a contract requiring a separate database.
   SSO/audit. Read `docs/deployment-profiles.md#engine-implications-per-profile`
   before promising a dedicated Windmill instance.
 
+## Q0e — answer a question over the client's data
+
+"Can it answer questions about our contracts / ERP / CRM?" is two jobs
+(`references/retrieval.md`, rationale `docs/retrieval.md`):
+
+- **System of record** (CRM, ERP, wiki with an API) → call it through Nango.
+  A fixed endpoint in a recipe/flow is the **HTTP proxy**; an interactive agent
+  that must discover tools is a Nango **Agent Session (MCP)** — an agent loop,
+  not a recipe (decision-tree Q1.5). Nango is not a document index.
+- **Documents** → ladder, cheapest first: long context → Bleve BM25 in Go +
+  a curated glossary → OpenWN-PT → FastText only behind an eval. Embeddings
+  only if the eval proves lexical + synonyms insufficient.
+
+A 200-term glossary beats a 300 MB FastText model for the client's own
+vocabulary; use the model only as an evaluated experiment. Never promise "RAG"
+without a 30-50 question eval with expected document ids.
+
 ## When to use
 
 Any "automate X" request — personal (`personal/`) or client (`<client>/`).
@@ -155,6 +172,7 @@ Methodology questions (discover, scope, runbook): see `references/methodology.md
 | `scripts/setup-nango.sh [--up/--down]` | check or spin up Nango auth layer |
 | `scripts/nango-connect.sh <client> --provider <slug> [--open]` | operator authorises a provider in Nango; prints the link + the exact names |
 | `scripts/verify-isolation.sh` | where every client runs (`runtime`/`target`), read-only; in `make validate` |
+| `docs/retrieval.md`, `references/retrieval.md` | documents vs systems of record, the lexical-first RAG ladder, Nango MCP vs proxy, eval gate |
 | `scripts/extract-client.py <client>` | package one client for its own server — prints the plan, never executes |
 | `scripts/convert-to-windmill.py <client>` | dagnats recipes → Windmill **skeleton** in `converted-windmill/`; TODOs, never a port |
 | `scripts/register-workflows.sh` | validate + register (confirm first, dagnats engine) |

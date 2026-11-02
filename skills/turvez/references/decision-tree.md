@@ -23,6 +23,16 @@ Q0.7: engine change requested? dagnats → Windmill has a converter
 `converted-windmill/`). The reverse has none. Never migrate unasked, and never
 run both engines for one client.
 
+## Q0.8 — is the ask "answer questions over our data"?
+
+Split **documents** from **systems of record** before choosing anything
+(`references/retrieval.md`): a system of record is a tool call through Nango (the
+fixed proxy in a recipe/flow; an agent session/MCP only when an agent must
+choose tools, which is Q1.5). A document corpus follows the ladder: long context
+→ Bleve BM25 in Go + a curated glossary → OpenWN-PT → FastText only behind an
+eval. Embeddings only when the eval proves lexical + synonyms insufficient.
+A vector DB is never the first answer.
+
 Then, **for a dagnats client only**, ask the levels below in order. First
 "yes" wins. Full rationale: `docs/script-execution.md`. A Windmill client stops
 at `references/windmill.md` — the level questions are dagnats-shaped.

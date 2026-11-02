@@ -422,3 +422,37 @@ Because Turvez recipes and scripts use environment variables and the client slug
    ```
    Now the client is 100% isolated, and [`scripts/verify-isolation.sh`](file:///Users/cali/Development/dagnats-automation/scripts/verify-isolation.sh) verifies that the client is coherent.
 
+---
+
+## 9. Nango MCP (Agent Sessions): tools for an agent, not a document retriever
+
+Nango also ships a built-in MCP server per **agent session**. Your backend calls
+`POST /sessions` and gets back a `mcp_url` and a `session_token`; any MCP-capable
+agent connects with the token. The session fixes:
+
+- the **tenant** (which connection the agent acts on, selected by connection
+  tags or pinned ids);
+- the **toolset** (catalog actions, your custom actions, and tools from the
+  client's connected MCP servers such as Notion or Linear), with
+  `allow`/`deny`/`pinned_tools`;
+- the **meta tools**: `nango_tool_search` and `nango_execute` are on by default;
+  `nango_proxy` is **off** and bypasses allow/deny when enabled.
+
+Which surface to use:
+
+| Need | Surface |
+|---|---|
+| A recipe/flow knows the endpoint | **HTTP proxy** (sections 3 and 4): deterministic and testable |
+| An interactive agent must discover and choose tools | **Agent Session (MCP)** |
+| PDFs, contracts, a document knowledge base | **neither** — index the documents (`docs/retrieval.md`) |
+
+Limits and traps: tool calls are synchronous, capped at 60s and 5MB; the tool
+list is a snapshot taken at session creation; a session token is a secret with
+an expiry (treat it like a credential); `nango_proxy` reaches any endpoint of a
+connected integration. On self-hosted Nango, confirm the pinned version supports
+agent sessions (the published docs use `api.nango.dev`).
+
+An MCP agent that loops until done is a platform decision, not a recipe — see
+the agent-loop gate (`skills/turvez/references/decision-tree.md`, Q1.5). The
+retrieval decision guide is `docs/retrieval.md`.
+
