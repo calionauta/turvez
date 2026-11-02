@@ -63,8 +63,9 @@ Q3. Is the ask "answer questions over our data"?
     documents (PDFs, contracts, manuals)   -> route-then-read:
       expand (glossary -> OpenWN-PT -> FastText behind an eval) ->
       Bleve routes to WHOLE documents/chapters within a token budget ->
-      LLM reads them in long context; vectors only if the eval demands it
-      (inside Bleve, not a separate vector DB)
+      LLM reads them in long context; optional rewrite/rerank scores UNITS
+      (external service, eval-gated), never snippets; vectors only if the
+      eval demands it (inside Bleve, not a separate vector DB)
 
 Q4. Is it a one-off script?
     yes -> sandbox-run.sh, read it, run isolated, delete it. Never a recipe.

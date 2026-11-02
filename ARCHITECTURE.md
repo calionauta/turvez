@@ -78,7 +78,9 @@ never change the repo shape.
 - **Retrieval.** A per-client capability, not a runtime: **route-then-read**.
   Bleve selects whole documents/chapters (not chunks) within a token budget,
   and the LLM reads them in long context; a curated glossary expands the query
-  before routing. Vectors, if the eval ever demands them, live in Bleve itself.
+  before routing. An optional, eval-gated rewrite/rerank layer scores **units**
+  (never snippets) as an external inference service; vectors, if the eval ever
+  demands them, live in Bleve itself.
   Systems of record are called at the source through Nango; documents get an
   index and an eval (`docs/retrieval.md`).
 - **Evals.** `evals/` is engine-agnostic. `select-cases.py` reads dagnats runs;

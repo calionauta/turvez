@@ -182,6 +182,48 @@ Mitigations, not denials:
 **More context is not free accuracy.** Long context is a capability, not a
 quality guarantee.
 
+## Evaluated proposal: local SLM rewrite + cross-encoder reranking
+
+A common upgrade is: rewrite the question with a local 3-8B SLM, search Bleve
+for 20-50 snippets, rerank them with a local cross-encoder (BGE-reranker), and
+send the top 5 to the cloud LLM. It is coherent, but it is **not a strict
+upgrade** over route-then-read. Place each piece by what it actually fixes:
+
+| Claim | Reality | Correct placement |
+|---|---|---|
+| SLM rewrite is milliseconds on CPU | a 3-8B model on CPU is seconds per rewrite and 5-8 GB of RAM; vLLM is GPU-first, Ollama runs on CPU more slowly | eval-gated, external service, cache by query hash; glossary first |
+| the reranker is ultra-light | a cross-encoder over 50 candidates is hundreds of ms to seconds on CPU, plus the model in memory | fine as a service; rerank **units/sections**, not snippets |
+| top-5 snippets beat whole chapters | it reintroduces chunk boundaries and loses multi-paragraph context; the reranker only reorders what Bleve found | only when the token budget cannot fit the units; prefer unit-level rerank |
+| selective prompt caching helps | with top-5 snippets there is no stable prefix to cache; caching is orthogonal to this stage | do not count it as a retrieval stage; measure hit rate |
+| it replaces a vector database | it improves precision, not recall; Bleve still has to return the document | if paraphrase recall misses, add embeddings to Bleve's kNN index |
+
+Corrected placement:
+
+1. **Expand** — glossary first; an optional SLM rewrite behind an eval, with a
+   timeout and a deterministic fallback. Cache the rewrite by query hash.
+2. **Route** — Bleve returns **whole documents/chapters**, not 20-50 snippets.
+3. **Rerank (optional)** — a cross-encoder scores **units** (chapter, or
+   section when a chapter is too long), then the budget is filled in order.
+4. **Read** — long context over the selected units; sections only when a unit
+   exceeds the budget.
+5. **Cache** — stable prefix; measure the hit rate.
+
+Rules:
+
+- Never make the deterministic path depend on an 8B model. If the inference
+  service is down or slow, fall back to glossary + BM25 + whole-unit reading.
+- A local model is an **external inference service**, not a script node: a Go
+  node calls it over HTTP (`docs/language-policy.md`).
+- The simplest semantic upgrade is often a small embedding model + Bleve kNN,
+  not an 8B rewrite model. Compare them in the eval before adding either.
+- "Zero token cost" is not zero infrastructure cost: account for the CPU/GPU,
+  RAM, model weights, service uptime and the added latency.
+
+When it is worth it: the client needs paraphrase recall or multilingual query
+coverage that the glossary cannot give, **and** the eval shows the gain beats
+its latency/cost. When it is not: jargon-heavy corpora, strict latency, or an
+operator who does not want another local service.
+
 ## Prompt caching: what it does and does not buy
 
 - Route-then-read makes caching more likely to pay, because whole chapters
@@ -272,8 +314,9 @@ Do not ship retrieval without a question set:
    - answer correctness (blind label);
    - tokens sent per query and cache hit rate;
    - p50/p95 latency and cost per query.
-3. Compare against tier 0 (whole corpus) **and** a chunked baseline on the same
-   set. Route-then-read must win on accuracy or cost, not on novelty.
+3. Compare against tier 0 (whole corpus), a chunked baseline, **and** a
+   rewrite+rerank variant on the same set. Route-then-read must win on accuracy
+   or cost, not on novelty.
 4. If lexical routing misses, add vectors **in Bleve** and re-run; do not adopt
    a vector database as a separate service by reflex.
 5. Re-run when the corpus or glossary changes. A retrieval system without an
@@ -286,6 +329,10 @@ Do not ship retrieval without a question set:
 - No token budget, then silently truncating a chapter.
 - Assuming prompt caching hits when every query selects different documents.
 - A separate vector DB before the eval; Bleve can hold the vectors.
+- An 8B rewrite plus a reranker as the default when a glossary and BM25 pass
+  the eval.
+- Reranking snippets when the unit is a chapter; that is how chunk RAG comes
+  back through the side door.
 - Embeddings first, eval never.
 - Indexing a system of record instead of calling it.
 - Letting the model decide access control; filter by `acl` at query time.

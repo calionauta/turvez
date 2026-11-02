@@ -91,6 +91,23 @@ in the selected set.
   last. Long context degrades for text in the middle ("Lost in the Middle"), so
   keep the selected set small and structured.
 
+## If someone proposes SLM rewrite + reranker
+
+A local 3-8B rewrite plus a cross-encoder is a valid **eval-gated** layer, not
+a default. Keep the unit:
+
+- Bleve routes to whole documents/chapters; the reranker scores **units** (or
+  sections when a chapter is too long), not 20-50 snippets.
+- A rewrite model on CPU is **seconds and 5-8 GB**, not milliseconds; run it as
+  an external service with a timeout, cache by query hash, and fall back to
+  glossary + BM25 if it is down.
+- Top-5 snippets reintroduce chunk boundaries; only drop to sections when the
+  reading budget cannot fit the unit.
+- "Zero token cost" is not zero infrastructure cost. Compare against the
+  cheapest semantic upgrade: a small embedding model + Bleve kNN.
+- A Python/TS reranker is an external service called by a Go node, never a
+  script node (`docs/language-policy.md`).
+
 ## Nango MCP: when it is the right answer
 
 | Need | Use |

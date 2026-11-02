@@ -19,6 +19,10 @@ No JavaScript, no Bash for logic, no PHP, no Rust in a script node. If a client
 needs a language the engine supports but this table does not, that is an operator
 decision, not an agent decision — stop and ask.
 
+A local model (SLM rewrite, cross-encoder reranker, embeddings) is an
+**external inference service**, not a script node: a Go node calls it over HTTP.
+There is no Python/TS node for inference, and the gate rejects one.
+
 ## Why Go for the nodes
 
 The failure this prevents is specific: an LLM writes a Python step, the flow
@@ -41,9 +45,10 @@ at *build* time, locally, in under a second.
 ## The exception: Windmill's graph is TypeScript or Python
 
 Windmill's workflows-as-code are TypeScript or Python only
-(`docs/core_concepts/workflows_as_code`: `workflow()`, `task()`, `step()`,
-`sleep()`, `waitForApproval()`, `parallel()`, and `taskScript()`/`taskFlow()` for
-dispatching to existing scripts and flows by path). There is no Go WAC surface.
+(https://www.windmill.dev/docs/core_concepts/workflows_as_code: `workflow()`,
+`task()`, `step()`, `sleep()`, `waitForApproval()`, `parallel()`, and
+`taskScript()`/`taskFlow()` for dispatching to existing scripts and flows by
+path). There is no Go WAC surface.
 Fighting that produces a worse system than using it deliberately.
 
 So the graph is allowed — and it is **thin by contract**:
