@@ -162,6 +162,11 @@ case "$ENGINE" in
     # An example flow, so the default engine is not born empty. An empty
     # automation/windmill/ lints "ok" (there is nothing to check), which reads as
     # a passing gate while validating nothing.
+    #
+    # The node is Go on purpose: script nodes are Go in this repo
+    # (docs/language-policy.md). Windmill infers the input schema and the
+    # generated UI from `func main`'s signature, so the types are checked by the
+    # compiler instead of guessed by an LLM.
     mkdir -p "$WMW/example-flow"
     cat > "$WMW/example-flow/flow.yaml" <<'WMFLOWEOF'
 # Example flow — replace with the real one.
@@ -174,18 +179,26 @@ value:
       summary: first step
       value:
         type: rawscript
-        language: python3
+        language: go
         input_transforms: {}
-        content: '!inline step_one.py'
+        content: '!inline step_one.go'
 WMFLOWEOF
-    cat > "$WMW/example-flow/step_one.py" <<'WMPYEOF'
-def main():
-    # Replace with the real work. Keep secrets in workspace variables, not here.
-    return {"ok": True}
-WMPYEOF
+    cat > "$WMW/example-flow/step_one.go" <<'WMGOEOF'
+package inner
+
+// main is the step entrypoint. Its parameters become the step's input schema
+// and generated UI; it must return (interface{}, error).
+// Secrets stay in workspace variables — read them with the Windmill Go client,
+// never inline here.
+func main() (interface{}, error) {
+	return map[string]any{"ok": true}, nil
+}
+WMGOEOF
     echo "  put the flows under $WMW (wmill flow push one item at a time)"
+    echo "  script nodes are Go; TS/Python only for a WAC orchestrator (docs/language-policy.md)"
     echo "  read skills/turvez/references/windmill.md first: never \`wmill sync push\`"
     echo "  ./scripts/check-windmill.sh   # lint gate, then wmill flow preview"
+    echo "  ./scripts/lint-scripts.sh     # compile + binding gate, no server needed"
     echo "  evals: $EV  (normalize a job: scripts/windmill-job-to-run.py --job-id <id> --out run.json)"
     ;;
   dagu)

@@ -8,10 +8,14 @@ step per source step, plus scripts where the mapping is unambiguous.
 It does NOT claim a working port. Three things are deliberately left as TODOs,
 because guessing them would produce a flow that looks migrated and is not:
 
-  * `transform.json` expressions — jq is not JavaScript. The expression is
-    carried verbatim into a comment so a human rewrites it with intent.
+  * `transform.json` expressions — jq is not Go. The expression is carried
+    verbatim into a comment so a human rewrites it with intent.
   * `condition` predicates — same reason.
   * Any step type not in the mapping table below.
+
+Step bodies are Go, because script nodes are Go in this repo
+(`docs/language-policy.md`). TypeScript/Python is reserved for a workflow-as-code
+orchestrator that dispatches to those Go scripts.
 
 It never writes into `automation/windmill/`. Output goes to a staging directory
 (default `<client>/converted-windmill/`) so a half-converted flow can never be
@@ -36,7 +40,7 @@ TEMPLATE = HERE.parent
 # What each source step becomes, and whether a human must finish it.
 MAPPING = {
     "http.request": ("script", False, "HTTP call — method/url/headers/body map 1:1"),
-    "transform.json": ("script", True, "jq expression must be rewritten as TS/Python"),
+    "transform.json": ("script", True, "jq expression must be rewritten as Go"),
     "condition": ("branch", True, "predicate must be rewritten as if/else"),
     "skip_if": ("branch", True, "predicate must be rewritten as if/else"),
     "map": ("forloop", True, "for-loop / parallel map over the input array"),
@@ -134,8 +138,8 @@ def emit_flow(recipe, client):
         # no arguments: omitting it makes `wmill lint` reject every generated
         # flow. Empty map is the schema-valid no-input form.
         flow_yaml.append("        input_transforms: {}")
-        flow_yaml.append("        language: deno")
-        flow_yaml.append("        content: '!inline %s.ts'" % sid)
+        flow_yaml.append("        language: go")
+        flow_yaml.append("        content: '!inline %s.go'" % sid)
 
     files.append(("flow.yaml", "\n".join(flow_yaml) + "\n"))
 
@@ -144,35 +148,40 @@ def emit_flow(recipe, client):
         task = step.get("task", "")
         kind, needs_human, why = MAPPING.get(task, ("script", True, "unmapped task"))
         body = ["// Converted skeleton — NOT a port.",
-                "// See clients/%s/converted-windmill/REPORT.md" % client,
-                ""]
+                "// See clients/%s/converted-windmill/REPORT.md" % client]
         body.extend(step_notes(step, kind, needs_human, why))
         body.append("")
+        body.append("package inner")
+        body.append("")
+        body.append("// TODO(human): declare the step's inputs as parameters — Windmill")
+        body.append("// infers the step's input schema and generated UI from this signature,")
+        body.append("// e.g. func main(leadID string) (interface{}, error).")
         if task == "transform.json":
             expr = (step.get("metadata") or {}).get("expression", "")
-            body.append("// jq expression carried verbatim (jq is not JavaScript):")
+            body.append("//")
+            body.append("// jq expression carried verbatim (jq is not Go):")
             body.append("// %s" % expr)
-            body.append("export function main(input: any) {")
-            body.append("  // TODO(human): express the jq above in TypeScript.")
-            body.append("  return input;")
+            body.append("func main() (interface{}, error) {")
+            body.append("\t// TODO(human): express the jq above in Go.")
+            body.append("\treturn map[string]any{}, nil")
             body.append("}")
         elif task == "http.request":
-            body.append("export async function main(input: any) {")
-            body.append("  // TODO: fill from the metadata above (method/url/headers/body).")
-            body.append("  const res = await fetch('https://example.invalid/', { method: 'GET' });")
-            body.append("  return await res.json();")
+            body.append("func main() (interface{}, error) {")
+            body.append("\t// TODO: fill from the metadata above (method/url/headers/body)")
+            body.append("\t// with net/http, then return the decoded response.")
+            body.append("\treturn map[string]any{}, nil")
             body.append("}")
         elif task in ("condition", "skip_if"):
-            body.append("export function main(input: any) {")
-            body.append("  // TODO(human): rewrite the predicate as a boolean.")
-            body.append("  return true;")
+            body.append("func main() (interface{}, error) {")
+            body.append("\t// TODO(human): rewrite the predicate as a boolean.")
+            body.append("\treturn true, nil")
             body.append("}")
         else:
-            body.append("export function main(input: any) {")
-            body.append("  // TODO(human): %s" % why)
-            body.append("  return input;")
+            body.append("func main() (interface{}, error) {")
+            body.append("\t// TODO(human): %s" % why)
+            body.append("\treturn map[string]any{}, nil")
             body.append("}")
-        files.append(("%s.ts" % sid, "\n".join(body) + "\n"))
+        files.append(("%s.go" % sid, "\n".join(body) + "\n"))
 
     return name, files, steps
 
@@ -203,16 +212,21 @@ def build_report(client, converted, skipped):
         L.append("")
 
     L += ["## What the converter will not do", "",
-          "1. **jq → TypeScript.** The expression is carried in a comment. Rewrite it",
+          "1. **jq → Go.** The expression is carried in a comment. Rewrite it",
           "   with intent; a wrong translation that looks migrated is worse than a TODO.",
           "2. **Condition predicates.** Same reason.",
           "3. **Custom Go handlers.** If a recipe used one, it appears as an unmapped",
           "   step. Each is the long pole of a migration — budget it explicitly.",
           "",
+          "The step bodies are Go skeletons on purpose: script nodes are Go in this",
+          "repo (`docs/language-policy.md`). TypeScript/Python is reserved for a WAC",
+          "orchestrator, and only when the flow needs one.",
+          "",
           "## Before pushing anything", "",
           "```bash",
           "# 1. finish the TODOs above, then lint locally",
           "wmill flow preview <flow-dir>",
+          "./scripts/lint-scripts.sh     # compiles the Go nodes, checks the bindings",
           "# 2. push ONE flow at a time. Never `wmill sync push` (it deletes",
           "#    remote items missing locally).",
           'wmill flow push <flow-dir> "f/%s/<flow>"' % client,

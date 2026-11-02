@@ -20,7 +20,7 @@ pushed by accident.
 
 What it deliberately will not do — do not expect otherwise:
 
-- **jq → TypeScript.** The expression is carried verbatim into a comment and
+- **jq → Go.** The expression is carried verbatim into a comment and
   marked `TODO(human)`. A wrong translation that looks migrated is worse than a
   TODO.
 - **`condition` / `skip_if` predicates.** Same reason.
@@ -41,15 +41,19 @@ historical run logs — only definitions, triggers, and secret *names*.
 
 | Our step type | Windmill target |
 |---------------|-----------------|
-| http.request | HTTP script step or native HTTP action (method, url, headers, body map 1:1) |
-| transform.json | TypeScript/Python step with jq-equivalent (`jq` lib or JSON ops); the `expression` becomes the step body |
-| condition / skip_if | if/else branches in the flow, or early return in a script step; `field/op/value` becomes the branch predicate |
+| http.request | Go script step or native HTTP action (method, url, headers, body map 1:1) |
+| transform.json | Go step with the jq-equivalent (`encoding/json` + typed structs); the `expression` becomes the step body |
+| condition / skip_if | if/else branches in the flow, or early return in a Go step; `field/op/value` becomes the branch predicate |
 | map (engine `type: map` or `map` task) | for-loop step, or parallel map/branch-per-item in the flow |
 | delay / sleep | sleep step, or scheduled continuation per Windmill suspend/resume patterns |
 | request.approval / approval | Windmill approval step, or form + suspend/resume; `OPS_*` shim becomes a Windmill webhook trigger URL |
-| notify.webhook / slack / telegram / discord | HTTP POST step to the webhook URL (same payload shape) |
-| dlq.check | scheduled script reading the dead-letter queue depth (API/CLI equivalent) |
-| custom Go handler | rewrite as a Windmill script (TypeScript/Python/Go); list each handler with its inputs/outputs — it is the long pole |
+| notify.webhook / slack / telegram / discord | Go step doing the HTTP POST (same payload shape) |
+| dlq.check | scheduled Go script reading the dead-letter queue depth (API/CLI equivalent) |
+| custom Go handler | rewrite as a **Go** Windmill script; list each handler with its inputs/outputs — it is the long pole |
+
+Script nodes are Go (`docs/language-policy.md`). TypeScript/Python is only for a
+workflow-as-code orchestrator that dispatches to those nodes, and only when the
+graph needs loops or fan-out that `flow.yaml` expresses badly.
 
 ## Per-client checklist
 
@@ -68,56 +72,87 @@ historical run logs — only definitions, triggers, and secret *names*.
 5. Cut over per client, keep dagnats running until the Windmill flow
    shows green runs; rollback = repoint webhooks back.
 
-## Example: lead pipeline rewritten (illustrative TypeScript)
+## Example: lead pipeline rewritten (Go nodes, thin graph)
 
 Source: `clients/example-client/automation/dagnats/hubspot-lead-to-slack.json`
 (build-fetch → fetch-lead → build-notify → notify).
 
-```typescript
-// Windmill flow "example-client.hubspot-lead-to-slack", 4 script steps.
-// Secrets (wmill resources): ACME_HUBSPOT_TOKEN, ACME_SLACK_WEBHOOK_URL.
+Each step becomes a Go script in `automation/windmill/<flow>/`; the flow wires
+them by `!inline`. The step signature is the contract: Windmill derives the input
+schema and the generated UI from `func main(...)`.
 
-type LeadInput = { lead_id: string } | { data: { lead_id: string } };
+```go
+// clients/<client>/automation/windmill/lead-pipeline/build_fetch.go
+package inner
 
 // Step 1 — build-fetch (was: transform.json metadata.expression).
-export async function buildFetch(input: LeadInput) {
-  const lead_id = (input as any).data?.lead_id ?? (input as any).lead_id;
-  return {
-    method: "GET",
-    url: `https://api.hubapi.com/crm/v3/objects/contacts/${lead_id}?properties=firstname,lastname,email`,
-    headers: { Authorization: `Bearer ${ACME_HUBSPOT_TOKEN}` },
-  };
+// The envelope tolerance from the recipe becomes a plain struct.
+type LeadInput struct {
+	LeadID string `json:"lead_id"`
 }
 
-// Step 2 — fetch-lead (was: http.request). Native HTTP action equivalent.
-export async function fetchLead(req: { method: string; url: string; headers: any }) {
-  const res = await fetch(req.url, { method: req.method, headers: req.headers });
-  if (!res.ok) throw new Error(`hubspot ${res.status}: ${await res.text()}`);
-  return await res.json();
-}
-
-// Step 3 — build-notify (was: transform.json).
-export async function buildNotify(lead: any) {
-  const p = lead.properties ?? {};
-  return {
-    text: `New lead: ${p.firstname ?? "unknown"} ${p.lastname ?? ""} <${p.email ?? "no-email"}>`,
-  };
-}
-
-// Step 4 — notify (was: notify.slack).
-export async function notify(msg: { text: string }) {
-  const res = await fetch(ACME_SLACK_WEBHOOK_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(msg),
-  });
-  if (!res.ok) throw new Error(`slack ${res.status}`);
-  return { ok: true };
+func main(in LeadInput) (interface{}, error) {
+	return map[string]any{
+		"method": "GET",
+		"url":    "https://api.hubapi.com/crm/v3/objects/contacts/" + in.LeadID,
+	}, nil
 }
 ```
 
-(Pseudo-code: adapt resource/secret access and HTTP helpers to the
-Windmill version in use; the data flow is the normative part.)
+```go
+// clients/<client>/automation/windmill/lead-pipeline/build_notify.go
+package inner
+
+// Step 3 — build-notify (was: transform.json).
+type Lead struct {
+	Properties struct {
+		Firstname string `json:"firstname"`
+		Lastname  string `json:"lastname"`
+		Email     string `json:"email"`
+	} `json:"properties"`
+}
+
+func main(lead Lead) (interface{}, error) {
+	p := lead.Properties
+	return map[string]any{
+		"text": "New lead: " + p.Firstname + " " + p.Lastname + " <" + p.Email + ">",
+	}, nil
+}
+```
+
+```yaml
+# clients/<client>/automation/windmill/lead-pipeline/flow.yaml
+summary: "lead pipeline"
+value:
+  modules:
+    - id: build_fetch
+      value:
+        type: rawscript
+        language: go
+        input_transforms: {}
+        content: '!inline build_fetch.go'
+    # fetch_lead, build_notify, notify follow the same shape
+```
+
+Fetching and posting are `net/http` in Go, and the credentials come from the
+workspace (or from Nango — `docs/nango.md`), never from the script body.
+
+If the same pipeline needs per-item parallelism that `flow.yaml` expresses badly,
+add **one** thin orchestrator that only dispatches:
+
+```typescript
+// clients/<client>/automation/windmill/lead_pipeline.ts
+import { parallel, taskScript, workflow } from "windmill-client";
+
+const runOne = taskScript("f/<client>/lead_pipeline");
+
+export const main = workflow(async (leads: string[]) => {
+  return await parallel(leads, (lead) => runOne({ lead }), { concurrency: 3 });
+});
+```
+
+That file is the only place TypeScript/Python is allowed, and it contains no
+logic of its own (`docs/language-policy.md`).
 
 ## Portability rule (applies NOW, not at migration time)
 

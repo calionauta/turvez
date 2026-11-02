@@ -45,6 +45,10 @@
   **Windmill is the default** (`engines.json`), dagnats is the exception path:
   skills/turvez/references/windmill.md + docs/script-execution.md
   + `./scripts/check-windmill.sh` (lint gate, no worker)
+- Language policy: docs/language-policy.md — **script nodes are Go** in both
+  engines. TypeScript/Python only for a Windmill WAC orchestrator that
+  dispatches to Go scripts with `taskScript()`/`taskFlow()`. Gate:
+  `./scripts/lint-scripts.sh` (compiles the Go, checks the bindings)
 - Client isolation status: `./scripts/verify-isolation.sh` (reads runtime/target,
   read-only). Package one client for its own host: `scripts/extract-client.py`
   (prints the plan + commands, never executes them)

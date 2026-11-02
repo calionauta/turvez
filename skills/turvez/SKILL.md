@@ -9,7 +9,7 @@ Repo: consultancy automation runtime. One **client spine** (repo layout,
 fieldbook, recipes, evals) and **two engines, chosen per client**
 (`docs/client-spine.md#choosing-the-engine`): **Windmill is the default** —
 chosen for FDE work so a client lands on the mature, centralised system from
-day one (UI/forms, step-level replay, code steps in TS/Python/Go). **dagnats**
+day one (UI/forms, step-level replay, code steps in Go). **dagnats**
 is the exception path (Go worker + 12 typed handlers, one binary, `go test`
 gate), chosen when the contract needs typed contracts, native approvals, no
 arbitrary code, or AGPL/Postgres is a problem.
@@ -29,9 +29,28 @@ Read `clients/<client>/client.yaml` when the client exists.
 
 | `engine` | Path |
 |---|---|
-| `windmill` (default) | `references/windmill.md` — flows under `automation/windmill/`, gate `./scripts/check-windmill.sh` |
+| `windmill` (default) | `references/windmill.md` — flows under `automation/windmill/`, gates `./scripts/check-windmill.sh` + `./scripts/lint-scripts.sh` |
 | `dagnats` (exception) | the build loop below — recipes under `automation/dagnats/` |
 | `dagu` | level 2 only, `docs/script-execution.md` |
+
+### Language: Go for the nodes (no exceptions)
+
+`docs/language-policy.md` is normative. Both engines: **script nodes are Go**.
+
+- Windmill step → `language: go`, `func main(...) (interface{}, error)`. The
+  signature is the contract: the compiler checks it, and Windmill derives the
+  input schema and generated UI from it.
+- dagnats recipe → JSON over the 12 Go tasks; a new capability is a new Go
+  handler (`internal/handlers/`), never "run this script".
+- **The only exception:** a Windmill workflow-as-code orchestrator, in
+  TypeScript or Python, because Windmill implements `workflow()` /
+  `taskScript()` / `taskFlow()` in those languages only. It must contain no
+  logic — it sequences Go scripts and branches on their results. `flow.yaml` is
+  the default graph; reach for WAC only when YAML expresses the graph badly.
+- Never JS/TS/Python/Bash for a node. `./scripts/lint-scripts.sh` fails the build
+  on a violation: it compiles the Go, checks `func main`, cross-checks the step's
+  `input_transforms`, and rejects a non-Go file that is not a WAC orchestrator.
+
 
 No `client.yaml` yet → **Windmill, unless you confirm dagnats with the operator
 first.** Windmill is the default; dagnats is the exception and needs an explicit
@@ -57,7 +76,7 @@ Only when the operator asks, or the criteria visibly changed. Order matters:
    reverse has no converter — rewrite by hand into recipes). It writes to
    `clients/<client>/converted-windmill/` and **never** to `automation/windmill/`.
 2. Read the generated `REPORT.md`. Steps marked `TODO(human)` are real work:
-   jq→TypeScript and condition predicates are never guessed, and each custom Go
+   jq→Go and condition predicates are never guessed, and each custom Go
    handler is the long pole — budget it explicitly with the operator.
 3. Finish the TODOs, then `wmill flow preview <dir>` per flow.
 4. Push **one flow at a time**: `wmill flow push <dir> "f/<client>/<flow>"`.
@@ -132,6 +151,8 @@ Methodology questions (discover, scope, runbook): see `references/methodology.md
 | `scripts/new-ops-repo.sh`, `scripts/new-client.sh` | ops repo and client scaffold (confirm first) |
 | `scripts/clients-root.sh`, `scripts/eval-dir.sh` | resolve the client / eval dir (clients or legacy workflows) |
 | `scripts/check-windmill.sh` | Windmill lint gate, no worker needed |
+| `scripts/lint-scripts.sh` | local script gate: compiles Go nodes, checks `func main`, flow bindings, and the Go-only language policy (no server) |
+| `scripts/setup-nango.sh [--up/--down]` | check or spin up Nango auth layer |
 | `scripts/verify-isolation.sh` | where every client runs (`runtime`/`target`), read-only; in `make validate` |
 | `scripts/extract-client.py <client>` | package one client for its own server — prints the plan, never executes |
 | `scripts/convert-to-windmill.py <client>` | dagnats recipes → Windmill **skeleton** in `converted-windmill/`; TODOs, never a port |
@@ -160,6 +181,7 @@ rubric only when no label is possible. The eval layer is engine-agnostic:
   client stay in the build loop below — no per-write confirm.
 - New Go handler: propose only, human lands (table tests required).
 - Secrets by NAME only. Never print values.
+- SaaS OAuth integrations: use **Nango** (`references/nango.md`), never raw tokens in Windmill variables or dagnats recipes.
 
 ## Build loop (level 0 — dagnats engine)
 
@@ -190,7 +212,7 @@ in `.data`. With a secret, the caller signs the raw body with
 `X-Signature-256: sha256=<hex>`. A disabled trigger answers `200 ok` and does
 nothing. Propose `create`/`update`/`enable`/`disable`/`delete` and wait;
 `list`, `history` and `test` are read-only. Details:
-`references/triggers.md`. OAuth/API keys for many APIs: `references/auth-layers.md`.
+`references/triggers.md`. OAuth/API keys for SaaS APIs: `references/nango.md` and `references/auth-layers.md`.
 Windmill clients: `references/windmill.md` (test gate, Go scripts, YAML, replay).
 
 ## Eval loop (after the automation runs)

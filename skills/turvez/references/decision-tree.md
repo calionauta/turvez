@@ -71,7 +71,7 @@ two orchestrators for one client. Pick one (full rule:
 
 Before choosing, the one-line rule: **one orchestrator per client**. Windmill
 wins when the client needs UI/forms/apps, replay from a step, test-one-step, or
-code steps in TS/Python/Go and accepts Postgres + AGPL/EE governance. n8n wins
+code steps in Go and accepts Postgres + AGPL/EE governance. n8n wins
 for 400+ SaaS nodes and a visual builder, at the cost of weight and the SUL
 license. Dagu wins for script-shaped recurrent jobs and step retry. dagnats
 stays for typed contracts, native approvals, no arbitrary code, git-first and
@@ -79,7 +79,10 @@ a single binary.
 
 OAuth for many SaaS APIs is a **layer**, not an orchestrator: Nango
 (self-hosted, ELv2) exposes an HTTP proxy that dagnats or Windmill can call.
-Confirm the install with the operator; it adds Postgres and a token store. Checklist: `references/auth-layers.md`.
+Never put raw OAuth tokens in Windmill variables or dagnats recipes.
+Scaling strategy: default to shared Nango on consultancy host for SMBs (`runtime: shared`);
+dedicated Nango instance only for isolated clients (`runtime: dedicated`).
+Guide: `docs/nango.md`; agent patterns: `references/nango.md`; checklist: `references/auth-layers.md`.
 Windmill free has no native critical alerts; alert from a flow step (HTTP or
 SMTP) plus an external dead-man switch. Rules and test gate: `references/windmill.md`.
 

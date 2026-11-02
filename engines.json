@@ -6,7 +6,7 @@
       "source_dir": "automation/windmill",
       "validate": "scripts/check-windmill.sh",
       "needs_cli": "wmill",
-      "summary": "Default. UI/forms, step-level replay, non-trivial code steps (TS/Python/Go). Costs Postgres, AGPL self-host, EE for SSO/audit."
+      "summary": "Default. UI/forms, step-level replay, code steps in Go (TS/Python only for a WAC orchestrator, docs/language-policy.md). Costs Postgres, AGPL self-host, EE for SSO/audit."
     },
     "dagnats": {
       "source_dir": "automation/dagnats",

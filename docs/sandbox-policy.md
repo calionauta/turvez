@@ -38,7 +38,9 @@ It does not enter dagnats. Two exits, both free:
 
 - **One-off / test:** `scripts/sandbox-run.sh` (restricted local docker).
 - **Recurring:** it became automation → decide in `docs/script-execution.md`
-  (Dagu vs Windmill vs wrapping in a handler).
+  (Dagu vs Windmill vs wrapping in a handler). Once it is automation, a Windmill
+  node is rewritten in **Go** — the sandbox language never ships
+  (`docs/language-policy.md`).
 
 ## What NOT to do
 
