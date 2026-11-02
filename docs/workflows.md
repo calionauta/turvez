@@ -158,7 +158,7 @@ flowchart TD
     SEC -->|"nothing fits"| REF["Explicit 'not found'<br/>(no cloud call)"]
     BUD -->|"yes"| REL{"Reranked above the<br/>calibrated cutoff?"}
     REL -->|"no"| REF
-    REL -->|"yes"| READ["LLM reads whole units<br/>in long context"]
+    REL -->|"yes"| READ["Read parent sections<br/>of top chunks<br/>in long context"]
     SEC --> READ
     RT --> EV{"Eval recall@unit good enough?"}
     EV -->|"no"| WN["+ glossary / OpenWN-PT / FastText<br/>only behind an eval"]
@@ -173,10 +173,13 @@ flowchart TD
 Full rationale, traps and the ship gate: `docs/retrieval.md`. A system of
 record is a freshness problem (call it); a document corpus is a retrieval
 problem (route to whole units, then read them). Nango is not a document index.
-The default unit is the **chapter**, not the chunk; chunking is a fallback for
-a unit that does not fit the reading budget. The cutoff node exists only when
-the optional reranker is on; BM25-only mode goes from the budget straight to
-reading. "Top 5" is not a limit — the hard token budget is.
+The 2026 default is **lexical for identifiers, hybrid (BM25 + small dense + RRF)
+for natural language, optional cross-encoder rerank of units, and the parent
+section/chapter as the reading unit.** The chunk is the indexing unit (~256-512
+tokens + overlap); the chapter is the reading unit only when it fits the budget;
+top-5 snippets is not the reading unit when the parent section fits. The cutoff
+node exists only when the optional reranker is on; BM25-only mode goes from the
+budget straight to reading. "Top 5" is not a limit — the hard token budget is.
 
 ## 6.1 Windmill topology for the optional semantic layer
 

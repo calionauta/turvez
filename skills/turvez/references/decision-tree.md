@@ -34,16 +34,20 @@ Ask in order; stop at the first branch that answers. Full playbook:
 2. **A handful of pages that fit one prompt** → long context with a stable
    prefix; no index, no pipeline.
 3. **Documents** → **route-then-read**:
-   - unit = chapter; section when it exceeds the index cap (start 4k tokens);
-     300-500 token chunks are the degraded mode, not the default;
+   - classify the query first: identifiers → BM25 lexical only; natural language
+     → BM25 + small dense hybrid (RRF over units) with an optional cross-encoder
+     rerank of units;
+   - the **routing unit** is a chunk (~256-512 tokens, 50-100 overlap) that
+     remembers its parent section/chapter; the **reading unit** is the parent,
+     not the chunk and not the whole chapter;
    - expand with the glossary → OpenWN-PT → FastText only behind an eval;
-   - Bleve returns whole units; dedupe by `doc_id:unit_id`;
-   - caps: hard token budget with the target tokenizer + output reserve, ≤3
-     rewrites × ≤20 units, ≤60 candidates, reranker timeout + BM25 fallback;
-   - a cutoff calibrated per model (never a copied 0.35) chooses read vs the
-     explicit "not found" answer; no cloud call when nothing passes;
+   - dedupe by `doc_id:unit_id`; caps: ≤3 rewrites × ≤20 units, ≤60 candidates,
+     reranker batch + timeout + BM25 fallback;
+   - hard token budget with the target tokenizer + output reserve; a cutoff
+     calibrated per model (never a copied 0.35) chooses read vs the explicit
+     "not found" answer; no cloud call when nothing passes;
    - eval 30-50 questions + 5-10 refusals; add vectors inside Bleve only when
-     the eval proves lexical + synonyms miss.
+     lexical + synonyms measurably miss.
 4. **Synthesis across more than fits one context** → hierarchy/map-reduce, or
    vectors; not a bigger prompt.
 5. **Open-domain, paraphrase-heavy, cross-lingual** → semantic retrieval is the
@@ -51,6 +55,8 @@ Ask in order; stop at the first branch that answers. Full playbook:
 
 "Bounded, not immune": measure worst-case tokens, reranker p95 and false
 refusals. A vector DB is never the first answer, and "top 5" is not a limit.
+A chapter is not the only index unit for long documents; top-5 snippets is not
+the reading unit when the parent section fits the budget.
 
 Then, **for a dagnats client only**, ask the levels below in order. First
 "yes" wins. Full rationale: `docs/script-execution.md`. A Windmill client stops

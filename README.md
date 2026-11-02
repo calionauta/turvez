@@ -64,17 +64,26 @@ Q3. Is the ask "answer questions over our data"?
       a tool-choosing agent -> Agent Session (MCP), not a recipe
     a few pages that fit one prompt        -> long context; no index
     documents (PDFs, contracts, manuals)   -> route-then-read:
-      unit: chapter; section when above maxUnitTokens (start 4k);
-            chunking is the degraded mode, not the default
-      expand: glossary -> OpenWN-PT -> FastText (only behind an eval)
-      route: Bleve returns WHOLE units; dedupe by doc_id:unit_id
-      caps: hard token budget (target tokenizer + output reserve),
+      classify first: identifiers -> BM25 lexical only;
+            natural language -> BM25 + small dense hybrid (RRF over units),
+            optional cross-encoder rerank of units
+      expand: glossary -> OpenWN-PT -> FastText (only behind an eval);
+            optional SLM rewrite cache by query hash, fallback
+      route: Bleve returns whole units (chapter, or section when too long);
+            dedupe by doc_id:unit_id; lex only for identifiers, hybrid for NL
+      caps: hard token budget (target tokenizer + output reserve);
             <=3 rewrites x <=20 units, <=60 candidates,
             reranker batch + timeout, BM25 fallback
-      read: whole units in long context, question last, citations checked
+      read: parent section/chapter of top chunks in long context,
+            question last, citations checked;
+            drop to subsections when the parent exceeds the budget
       refuse: cutoff calibrated per model (never a copied 0.35) -> explicit
               "not found", no cloud call
       eval: 30-50 questions + 5-10 refusals; vectors only inside Bleve
+
+2026 defaults: lexical for identifiers, hybrid for NL, the parent is the
+reading unit, HardTokenBudget over top-k, query rewrite is optional inside the
+hybrid route, and vectors stay in Bleve if the eval ever needs them.
 
 Q4. Is it a one-off script?
     yes -> sandbox-run.sh, read it, run isolated, delete it. Never a recipe.

@@ -148,18 +148,20 @@ upgrade window, or a contract requiring a separate database.
 2. **A handful of pages that fit one prompt** → long context with a stable
    cached prefix; no index.
 3. **Documents** → **route-then-read**:
-   - **Unit:** chapter; use its sections when a chapter exceeds the index cap
-     (start at 4k tokens). 300-500 token chunks are the degraded mode, never
-     the default.
+   - **Classify the query first:** identifiers → BM25 lexical only; natural
+     language → BM25 + small dense hybrid (RRF over units), optional cross-encoder
+     rerank of the units.
+   - **Routing unit** = chunk (~256-512 tokens, 50-100 overlap) that remembers
+     its parent section/chapter; the **reading unit** is the parent, not the
+     chunk and not the whole chapter. 300-500 token chunks are the indexing unit,
+     not the default reading unit.
    - **Expand:** glossary → OpenWN-PT → FastText only behind an eval.
-   - **Route:** Bleve returns whole units; dedupe by `doc_id:unit_id` (plus a
-     content hash for boilerplate).
+   - **Route:** Bleve returns parent units; dedupe by `doc_id:unit_id` (plus a
+     content hash for boilerplate); caps ≤3 rewrites × ≤20 units, ≤60 candidates;
+     reranker batch + timeout with BM25 fallback.
    - **Cap the funnel:** hard token budget counted with the target tokenizer
-     plus output reserve; ≤3 rewrites × ≤20 units, ≤60 candidates; reranker
-     batch + timeout with BM25 fallback.
-   - **Read or refuse:** whole units in long context, question last, citations
-     checked. A cutoff calibrated per model (never a copied 0.35) decides
-     between reading and the explicit "not found" answer. No cloud call when
+     plus output reserve; a cutoff calibrated per model (never a copied 0.35)
+     decides between reading and the explicit "not found" answer. No cloud call when
      nothing passes.
    - **Eval:** 30-50 real questions with expected document ids + 5-10 that must
      be refused; measure worst-case tokens, `recall@unit`, citation validity,
@@ -169,7 +171,9 @@ A 200-term glossary beats a 300 MB FastText model for the client's own
 vocabulary. Route-then-read replaces chunked vector RAG for bounded,
 terminology-rich corpora, not semantic retrieval universally; add vectors
 inside Bleve only when the eval proves lexical + synonyms miss. Never promise
-"RAG" without the eval — and never "top 5" as a safety limit.
+"RAG" without the eval — and never "top 5" as a safety limit. A chapter is not
+the only index unit for long documents; top-5 snippets is not the reading unit
+when the parent section fits the budget.
 
 **Bounded, not immune:** tokenizer drift, tables in PDFs, reranker memory and
 model-specific scores still fail. Measure; do not claim immunity.

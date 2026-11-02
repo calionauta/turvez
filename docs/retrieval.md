@@ -19,105 +19,167 @@ index of HubSpot that answers with last month's deal stage.
 
 ## Route, then read (the default shape)
 
-The default is **not** "embed everything, fetch five chunks, stuff them in the
-prompt". It is three stages:
+The default is **not** "embed everything, fetch `k` chunks, stuff them in the
+prompt". It is four decisions, in order: the **routing unit** you index, how
+you answer a **natural-language query** vs an **identifier query**, whether
+you **rerank**, and what the reader actually reads. Call the result
+**route-then-read**: the index is a router, not the answer, and the reader
+is what produces the answer.
+
+The 2026 default is neither "lexical only" nor "vectors first." For a
+bounded, terminology-rich corpus it is **lexical for identifiers, hybrid
+(BM25 + a small dense model) for natural-language queries**, an optional
+cross-encoder rerank of the candidates, and **reading the parent** of the
+chunk that matched rather than the chunk alone.
 
 ```
 [question]
    │
    ▼
-1. LOCAL EXPANSION        glossary → OpenWN-PT → FastText (only behind an eval)
-   │                       ms, $0, auditable
+1. CLASSIFY                 identifier (code, clause, id, quoted phrase)
+   │                        vs natural-language query
+   │
+   ├── identifier ──► BLEVE BM25          exact term / keyword field
+   │                                            (no dense, no fusion)
+   │
+   └── natural language ─► HYBRID          BM25 + small dense embeddings,
+                                                RRF over units, optional rerank
+                                                (25-50 candidates)
+   │
    ▼
-2. BLEVE ROUTING          retrieve WHOLE documents / chapters, not chunks
-   │                       the index is a router, not the answer
+2. EXPAND                  glossary → OpenWN-PT → FastText (only behind an eval)
+   │                        apply synonym OR on the lexical side before search;
+   │                        optional SLM rewrite cache by query hash, with fallback
    ▼
-3. LONG-CONTEXT READING   send the selected units whole, in order, within a
-                          token budget; stable prefix for prompt caching
+3. BLEVE ROUTING          retrieve whole units (chapter/section),
+   │                        not 500-token chunks; hybrid augments recall
+                          for paraphrase-heavy queries
+   ▼
+4. LONG-CONTEXT READING   re-expand to the parent section/chapter,
+                          send selected units within a token budget,
+                          stable prefix for prompt caching
 ```
 
-Why the unit changes:
+Why **hybrid** rather than lexical-only or vector-only:
 
-- **Chunking is a workaround for a small reader window.** When the model can
-  read a chapter, the chapter is the right unit. No answer split across chunk
-  boundaries, no five fragments of the same page, and citations point at a
-  section a human can open.
-- **Lexical search only has to be right at document granularity.** Bleve's job
-  is to get the reader into the right document/chapter; the model does the
-  fine-grained reading.
-- **It removes a layer.** No embedding model, no vector database, no chunk-level
-  reranker by default.
+- **BM25 is still a strong baseline.** In a 2026 finance-domain benchmark
+  (23,088 queries over 7,318 documents with text and tables), BM25 beats dense
+  retrieval on Recall@5 (0.644 vs 0.587), and wins on exact-match identifiers
+  (rank 1 on 40/40 BM25 vs 14/40 dense).
+- **Hybrid is the recommended baseline.** Bi-orthogonal RRF over BM25 + dense
+  lifts Recall@5 to 0.695, and hybrid + a cross-encoder rerank reaches 0.816
+  with MRR@3 around 0.605. The authors recommend hybrid as the minimum RAG
+  baseline; dense-only underperforms it.
+- **Dense-only underrecalls exact terms and is opaque.** Exact clause numbers,
+  codes, quoted phrases and names surface first with BM25; embeddings blur and
+  hide why a document was scored.
+- **Vectors are still useful** when a query rephrases the corpus's vocabulary.
+  They augment recall; they do not replace a reviewer's vocabulary for the
+  client's own terms.
 
-This is still RAG. What changes is the **retrieval unit** and the **reader**.
-Call it **route-then-read**; whether it replaces a vector database depends on
-the corpus, not on the name.
+Why the **routing unit** is a section/chunk that remembers its parent, not a
+whole chapter and not a bare 500-token chunk:
 
-## Verdict: does it replace vector databases and RAG?
+- **Chunking is the workaround for a small reader window.** When the model can
+  afford a section or chapter, that bigger unit is what you read. The chunk is
+  the **indexing unit** only; the **reading unit** is its parent.
+- **BM25 only has to be right coarse enough to route.** Bleve's job is to get
+  you to the right section; the model does the fine-grained reading.
+- **Section-level indexing lets you re-expand to the parent.** You keep chunk
+  boundaries (so citations are precise) **and** the surrounding section context
+  (so the reader does not lose the argument split across chunks). This is the
+  practical shape of small-to-big / parent-document retrieval.
+- **A 300-500 token chunk is the indexing unit for long documents; the chapter
+  is the reading unit when it fits the budget.** Do not confuse the two or treat
+  either as "the unit".
 
-**Yes for the common consultancy case; no as a universal replacement.**
+This is still RAG. What changed between this and the 2024 default is the
+**routing shape** (lexical for identifiers, hybrid for natural language,
+cross-encoder rerank of units, parent-as-reading-unit) and the **defaults**
+(lexical-first-with-hybrid-baseline instead of lexical-until-it-fails and
+vector-database-first). Whether it replaces a separate vector database still
+depends on the corpus, not on the name.
 
-| Case | Route-then-read? | Why |
+### Lexical vs hybrid vs dense — when each route wins
+
+| Query type | Best route | Why | Risk if you pick wrong |
+|---|---|---|---|
+| Identifier: article/contract/clause number, code, exact quoted phrase, named entity, exact product spec | **BM25 lexical on a keyword/exact field** | exact match is faster, cheaper, auditable and almost always rank 1 | dense can miss the literal string; RRF can dilute an exact hit |
+| Natural language, paraphrase, "does our policy cover X" type queries | **Hybrid BM25 + small dense, RRF over units, optional rerank** | paraphrasing and vocabulary mismatch are exactly what dense adds | lexical-only under-recalls; dense-only loses exact identifiers |
+| Mixed (identifier + intent) | **Hybrid** | keeps the exact hit and adds paraphrase recall | |
+| Very small, static corpus that fits one prompt | **Long context, no index** | no routing needed | routing adds work |
+| Large, paraphrase-heavy, cross-lingual, open-domain | **Semantic dense (vector DB or heavy embedding model)** | lexical and small hybrid cannot recover the right document | lexical-first will miss |
+
+The practical default on the router: **if the query looks like an identifier,
+answer with lexical only; otherwise run hybrid and let the rerank (if you have
+one) and the parent reading absorb the rest.**
+
+### Where the query rewrite / reranker fit
+
+If someone proposes adding a **query rewrite step** before the route, treat it
+as a measured improvement, not a default. A local Small Language Model
+(rewriting the question in one more semantic form) plus a cross-encoder rerank
+can improve recall on a paraphrase-heavy corpus, but it also adds: a local
+inference dependency, CPU cost, a timeout, a cache by query hash, and a
+fan-out you have to bound. In the Go/Windmill shape this runtime favors, the
+practical compromise is usually **one rewrite, cached**, with the rest of the
+funnel kept small. Multiple rewrites are a precision tool for a corpus that
+needs it, not a starting default.
+
+The more important fork is hybrid vs lexical-first on the router itself: in Go,
+a single query against the same Bleve index can target both the lexical and
+vector fields, and RRF / cutoff logic stays in the router, not in the index.
+
+### The retrieval unit: chunk in, section out
+
+This is the biggest point of confusion and the one most likely to be wrong:
+
+- What you **index** for a long document is a **chunk of ~256-512 tokens**
+  (recursive chunking with ~50-100 token overlap is a solid 2026 default;
+  whole-page or semantic chunking are alternatives in narrower cases).
+- What you **retrieve** is a candidate list of those chunks, sorted and
+  deduped.
+- What you **read** is the **parent section/chapter** of the top candidate(s),
+  not the chunk alone. The chunk localises; the section explains.
+
+That means the index stores `doc_id`, `unit_id`, `heading_path`,
+`parent_section_id`, `offset`, `tokens`, and the chunk text. The router
+returns chunks; the reader expands them to parents. This is why "top 5
+chunks" is the wrong answer but "5 sections that contain the matched chunks"
+is the right one: the chunks find the signal, the section supplies the context.
+
+It is also why a **chapter as the only index unit is usually too coarse**: if
+your corpus is 60 pages of contracts, indexing a single huge "chapter" record
+loses the localisation that made route-then-read useful in the first place, and
+your citations point at something a human still has to hunt through.
+
+Defaults to start from (tune with the eval):
+
+| Limit | Starting default | Where enforced |
 |---|---|---|
-| Bounded corpus (hundreds to a few thousand documents), terminology-rich (contracts, policies, manuals, ERP/legal/health) | **Replace chunked vector RAG; drop the separate vector DB** | exact terms, codes and clause numbers are the strongest signal; whole-unit reading beats chunk stitching; $0 for retrieval |
-| Answer requires synthesising across many documents that do not fit one context | **Partial** — hierarchical/map-reduce, or vectors | the reader cannot see everything at once |
-| Open-domain, very large, paraphrase-heavy, cross-lingual | **No** — keep semantic retrieval | lexical routing cannot recover a document whose vocabulary never matches the query |
-| High QPS, tight latency/cost budget | **Usually no** | reading 30-60k tokens per query is slower and costlier than 5k of chunks, even with caching |
-| You still want embeddings later | **Yes, without a new service** | Bleve has vector fields and kNN; add vectors to the same index when the eval demands it |
+| Indexing unit | ~256-512 tokens, 50-100 token overlap; recursive chunking | indexer |
+| Reading unit | parent section/chapter of the matched chunk; if the section/chapter exceeds the reading budget, use its subsections | router + reader |
+| Retrieval candidates | 25-50 retained per query, hybrid if natural-language | router |
+| Rerank candidates | 25-50, batch, timeout, BM25-order fallback | reranker (optional) |
+| Context budget | 40-60% of the window, minus output and prefix reserve | reader, target tokenizer |
+| Query rewrites | 0 or 1, cache by query hash, 1-3s timeout | orchestrator |
+| Fan-out cap | ≤1 rewrite × ≤50 units each → ≤50 candidates before rerank | router |
+| Refusal | cutoff calibrated per model on the eval set; no cloud call when nothing passes | orchestrator |
+| Eval | 30-50 questions + 5-10 refusals, per-query-type labels | ship gate |
 
-The honest limit: **route-then-read cannot recover a document that stage 1-2
-never retrieved.** Expansion is the recall ceiling. If the eval shows paraphrase
-misses, add vectors — inside Bleve, not as a second database — and score
-hybrid.
-
-## The ladder
-
-Ask in this order. The first rung that passes the eval wins; do not skip a rung
-because a newer technique is more interesting.
-
-| # | Approach | Use when | Cost/query | Failure mode |
-|---|---|---|---|---|
-| 0 | Long context, whole corpus | corpus < ~100-150k tokens, changes slowly; gateway supports prompt caching | one big prompt, no infra | cost per call; context rot; citations only if the model returns ids |
-| 1 | **Route-then-read**: Bleve selects whole documents/chapters, LLM reads them | bounded, terminology-rich corpus; citations matter | ~ms for routing + reading tokens | lexical recall; token budget; context rot |
-| 2 | Tier 1 + curated glossary expansion | legal, accounting, health, legacy ERP: the domain has its own vocabulary | ~ms, $0, auditable | a bad glossary widens noise; log which term expanded |
-| 3 | Tier 2 + OpenWN-PT (or a corporate thesaurus) | general Portuguese where the glossary is thin | ~ms, $0 | WordNet coverage is general, not domain |
-| 4 | FastText query expansion | **only after an eval** shows tiers 1-3 miss | model size + cgo + load time | distributional neighbours are not synonyms; can blur "cancelamento"/"rescisão" |
-| 5 | Embeddings / hybrid | eval shows lexical + synonyms still miss; corpus is large and paraphrastic | embedding + vectors + reindex | new infra, opaque ranking, cost |
-
-Tiers 1-2 are the default for a consultancy delivery: deterministic, testable,
-no model to host, and citations that point at a real offset.
-
-## Documents: the pipeline in Go
-
-1. **Ingest** (batch, never per query): extract text and keep `doc_id`,
-   `title`, `updated_at`, `acl`, `lang`.
-2. **Segment into reading units**: document → chapter → section. Prefer the
-   chapter; if a chapter exceeds the reading budget, use its sections. Never
-   split mid-sentence to hit a token count. Store `unit_id`, the heading path,
-   `offset`, `tokens`.
-3. **Index one record per unit** with
-   [Bleve](https://github.com/blevesearch/bleve): BM25, a Portuguese analyzer
-   (lowercase, stopwords, Snowball stemmer — Bleve ships language analyzers;
-   confirm the package for the pinned version), a `keyword` field for codes/IDs
-   (exact, boosted), title/heading boosts, and a synonym filter built from the
-   glossary. The index is a build artifact: keep it on disk or in an object
-   store, never in the run KV.
-4. **Route**: expand the query with the glossary (query-time OR of synonyms),
-   apply `acl`/date/type filters, search units, group by document, dedupe, then
-   fit a **token budget** (not a fixed top-k). Order by score, then by document
-   order so a chapter reads naturally.
-5. **Read**: build the prompt in a prior step (observability rule). Stable
-   prefix (system + rules + output schema), then the whole units with clear
-   delimiters and ids, then the question. Ask for JSON:
-   `{answer, citations: [{doc_id, unit_id, offset}]}`.
-6. **Verify**: reject an answer whose citations are not in the selected set.
-   That is a cheap hallucination gate and it costs no extra model call.
+Do not treat `30` or `50` as universal. In a 2026 local measurement on a
+~560M cross-encoder, 25 candidates took ~71 ms, 50 ~138 ms, 100 ~271 ms, and
+200 ~540 ms — the knee is around 50. If you keep a rewrite step at all, one
+rewrite is usually the practical cap in the Go/Windmill shape this runtime favors,
+because each rewrite multiplies both candidates and token budget.
 
 ### Budget, not top-k
 
 - Define `CONTEXT_BUDGET` as a fraction of the model window (start at 40-60%).
-- Add units by relevance until the budget is reached; do not truncate a unit
-  silently.
-- If one unit alone exceeds the budget, fall back to its sections.
+- Add **reading units** by relevance until the budget is reached; do not
+  truncate a unit silently.
+- If the relevant chunk's parent unit alone exceeds the budget, fall back to
+  its subsections.
 - If the answer needs more than the budget, use a map-reduce pass: summarise
   each unit against the question, then answer over the summaries. That is a
   second mode, not the default.
@@ -132,10 +194,12 @@ const (
 	maxUnitTokens = 4000  // bigger units are split at index time
 )
 
-func fillBudget(units []Unit, budget int) []Unit {
-	out := make([]Unit, 0, len(units))
+// fillBudget fills the context budget with whole reading units, not chunks.
+// parentUnits come from expanding the top chunks to their parent sections.
+func fillBudget(parentUnits []Unit, budget int) []Unit {
+	out := make([]Unit, 0, len(parentUnits))
 	used := 0
-	for _, u := range units {
+	for _, u := range parentUnits {
 		if u.Tokens > maxUnitTokens || used+u.Tokens > budget {
 			continue
 		}
@@ -146,29 +210,26 @@ func fillBudget(units []Unit, budget int) []Unit {
 }
 ```
 
-`maxUnitTokens` is enforced at **index** time: a chapter larger than that is
-stored as its sections, not as one 10k-token record. That is the structural fix
+`maxUnitTokens` is enforced at **index time**: a section larger than that is
+stored as subsections, not as one 10k-token record. That is the structural fix
 for "one result is 10,000 tokens"; the budget is the runtime backstop.
 
-### Bounding the funnel
+Bounding the funnel before the cloud call:
 
-"Top 5" is not a limit. Enforce four caps before the cloud call:
-
-1. **Units, not chunks.** A result is a chapter or section with a known token
-   count. 300-500 token chunks are the degraded mode (when the reader cannot
-   fit a unit), not the default.
-2. **Fan-out cap.** At most 3 rewrites, at most 20 units per rewrite, dedupe by
-   `doc_id:unit_id` (and a content hash for boilerplate), then cap the candidate
-   set at ~60 before reranking. Four rewrites x top 50 = 200 candidates is how
-   the local reranker times out.
+1. **Identify the query type first.** Identifiers go lexical; natural language
+goes hybrid. Do not route everything through dense because the corpus is
+"semantic enough."
+2. **Keep the candidate count bounded.** 25-50 per query, hybrid only when the
+query is natural language. Four rewrites × top 50 = 200 candidates is how the
+local reranker times out.
 3. **Reranker budget.** Batch the candidates, set a per-call timeout, and keep a
-   BM25-order fallback. Measure p95 on the target CPU; a MiniLM-class model on
-   30 short units is not the same as `bge-reranker-v2-m3` on 200 long ones.
+BM25-order fallback. Measure p95 on the target CPU; a MiniLM-class model on
+short units is not the same as `bge-reranker-v2-m3` on 50 long ones.
 4. **Calibrated threshold, not a magic number.** Cross-encoder scores are not
-   comparable across models (`bge` logits vs MiniLM sigmoid), and 0.35 is not a
-   universal cutoff. Calibrate on the eval set for a precision target; if no
-   unit passes, return the explicit "not found in the corpus" answer without
-   calling the cloud model. Log the scores so a false refusal is diagnosable.
+comparable across models (`bge` logits vs MiniLM sigmoid), and 0.35 is not a
+universal cutoff. Calibrate on the eval set for a precision target; if no unit
+passes, return the explicit "not found in the corpus" answer without calling
+the cloud model. Log the scores so a false refusal is diagnosable.
 
 **Bounded, not immune.** Tokenizers differ from your estimate, PDFs contain
 tables that blow up a section, the reranker can OOM, and a threshold that is
@@ -177,6 +238,27 @@ does not eliminate it. Measure worst-case tokens, reranker p95 and refusal
 rate.
 
 ### Production limits (starting points)
+
+The tiers are a cost/correctness ladder, not a menu. The 2026 version of this
+ladder makes three clear points versus earlier defaults:
+
+1. **Split the ladder by query type, not just by cost.** Identifiers stay
+   lexical (BM25 on a keyword/exact field). Natural-language, paraphrase, and
+   vocabulary-mismatch queries get a hybrid route at the same cost tier: the same
+   index, a small dense embedding model over the same indexing units, RRF, optional
+   cross-encoder rerank of units, and the same parent-as-reading-unit shape.
+2. **Query rewrite is an optional step inside the hybrid route, not a default
+   rung.** A local Small Language Model rewriting the question can help on a
+   paraphrase-heavy corpus, but it also adds a local inference dependency, CPU
+   cost, a timeout, a cache by query hash, and a fan-out you have to bound. In the
+   Go/Windmill shape this runtime favors, the practical compromise is usually one
+   rewrite, cached, with the rest of the funnel kept small.
+3. **Editing the index is a normal stop, not a novelty.** If the term mismatch
+   is predictable and expensive, build it into the index (lexical field, synonym
+   filter, hybrid field) rather than asking the orchestrator to solve it at
+   query time every call.
+
+
 
 These are defaults, not universal constants; the eval sets the final numbers.
 
@@ -275,13 +357,13 @@ upgrade** over route-then-read. Place each piece by what it actually fixes:
 Corrected placement:
 
 1. **Expand** — glossary first; an optional SLM rewrite behind an eval, with a
-   timeout and a deterministic fallback. Cache the rewrite by query hash.
-2. **Route** — Bleve returns **whole documents/chapters** after dedupe and the
-   candidate cap, not 20-50 snippets.
-3. **Rerank (optional)** — a cross-encoder scores **units** (chapter, or
-   section when a chapter is too long), then the budget is filled in order.
-4. **Read** — long context over the selected units; sections only when a unit
-   exceeds the budget.
+   timeout and a deterministic fallback. Cache the rewrite by query hash.2. **Route** — Bleve returns whole units after dedupe and the candidate cap
+(hybrid when the query is natural language; lexical-only for identifiers), not
+20-50 snippets.
+3. **Rerank (optional)** — a cross-encoder scores **units** (section, or its
+parent when the section fits), then the budget is filled in reading order.
+4. **Read** — long context over the selected **parent sections/chapters**; drop
+to subsections when a reading unit exceeds the budget.
 5. **Cache** — stable prefix; measure the hit rate.
 
 Rules:
@@ -302,9 +384,9 @@ Keep inference out of the worker and out of the request path's failure domain:
 ```text
 flow: answer-question
   step 1 expand   Go node -> HTTP  inference service (Ollama/vLLM, 1-3B rewrite)
-  step 2 route    Go node -> Bleve (top N units/sections, ACL filters)
+  step 2 route    Go node -> Bleve (top N units/sections, ACL filters, hybrid if NL)
   step 3 rerank   Go node -> HTTP  reranker (ONNX MiniLM or bge-reranker-v2-m3)
-  step 4 read     llm.complete (stable prefix, whole units, token budget)
+  step 4 read     llm.complete (stable prefix, parent sections, token budget)
 ```
 
 - One inference service per environment on the internal Docker network; never
@@ -319,6 +401,8 @@ flow: answer-question
   node, called over HTTP by a Go node. Python/FastEmbed is an exception only
   for a model the Go path does not have. In-process ONNX adds cgo/native libs
   to the worker and is not the default.
+- The reader reads **parent sections**, not chunks. If a section exceeds the
+  budget, read its subsections.
 
 Fallback matrix:
 
@@ -459,13 +543,8 @@ Do not ship retrieval without a question set:
 - Putting raw client documents in the run KV (`docs/observability.md`).
 - A 300 MB FastText model to expand five words.
 
-## Sources (checked 2026-11-02)
+## Source note
 
-- Bleve repository: https://github.com/blevesearch/bleve
-- Bleve vectors and kNN: https://github.com/blevesearch/bleve/blob/master/docs/vectors.md
-- Bleve docs (BM25, analyzers, synonym filter): https://blevesearch.com/docs/
-- "Lost in the Middle: How Language Models Use Long Contexts": https://arxiv.org/abs/2307.03172
-- Nango Agent Sessions: https://nango.dev/docs/guides/agent-sessions
-- Nango MCP & Tools: https://nango.dev/platform/mcp/
-- OpenWN-PT: https://github.com/own-pt/openwordnet-pt/
-- Go WordNet parser: https://pkg.go.dev/github.com/fluhus/gostuff/nlp/wordnet
+Same facts are mirrored in `docs/retrieval.md` and `skills/turvez/references/retrieval.md`;
+the script mirrors the docs, not a pasted substack. If the LLM source below conflicts with
+this file, this file wins.

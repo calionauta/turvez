@@ -76,13 +76,18 @@ never change the repo shape.
   profile. Prompt caching, when present, is the gateway's behaviour
   (`docs/retrieval.md`).
 - **Retrieval.** A per-client capability, not a runtime: **route-then-read**.
-  Bleve selects whole documents/chapters (not chunks) within a token budget,
-  and the LLM reads them in long context; a curated glossary expands the query
-  before routing. An optional, eval-gated rewrite/rerank layer scores **units**
-  (never snippets) as an external inference service — one per environment,
-  health-checked, never a model load per step. The funnel is bounded by a hard
-  token budget, a candidate cap and a calibrated refusal threshold; vectors, if
-  the eval ever demands them, live in Bleve itself.
+  The 2026 default is lexical for identifiers and hybrid (BM25 + a small dense
+  model over the same indexing units, RRF, optional cross-encoder rerank of
+  units) for natural-language queries, not vectors-first. Bleve returns whole
+  units (chapter, or section when a chapter is too long) within a token budget,
+  and the LLM reads the parent of the matched chunk, not the chunk alone.
+  Chunking is the workaround for a small reader window; when the model can read
+  a section or chapter, that is the unit. A curated glossary expands the query
+  before routing; a query rewrite is an optional step inside the hybrid route,
+  not a default rung. The funnel is bounded by a hard token budget, a candidate
+  cap and a calibrated refusal threshold; the reranker scores units, never
+  snippets. The eval gates the whole shape before it is used with clients.
+  Vectors, if the eval ever demands them, live in Bleve itself.
   Systems of record are called at the source through Nango; documents get an
   index and an eval (`docs/retrieval.md`).
 - **Evals.** `evals/` is engine-agnostic. `select-cases.py` reads dagnats runs;

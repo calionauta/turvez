@@ -83,6 +83,8 @@ def definitions_for(cdir, engine):
                       if p.is_dir() and (p / "flow.yaml").is_file())
     if engine == "dagu":
         return sorted((cdir / "automation" / "dagu").glob("*.yaml"))
+    if engine == "retrieval":
+        return sorted((cdir / "automation" / "retrieval").glob("*.go"))
     return []
 
 
