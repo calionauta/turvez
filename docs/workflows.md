@@ -199,16 +199,17 @@ flowchart LR
 
 One inference service per environment on the internal network (never a model
 load per step), health-checked, with the model version pinned. The reranker
-scores units/sections, not arbitrary snippets. The funnel is: ≤3 rewrites, ≤20
-units per rewrite, dedupe by `doc_id:unit_id`, ≤60 candidates, then a hard token
-budget counted with the target tokenizer and an output reserve. A cutoff
-calibrated per model on the eval set (never a copied 0.35) chooses between
-reading and the explicit "not found" answer; no cloud call when nothing passes.
-A **Go/ONNX** inference service is the default — infrastructure, not a script
-node, called over HTTP by a Go node. Python/FastEmbed is an exception only for
-a model the Go path does not have. Fallbacks: original query when the rewrite
-fails, BM25 order when the reranker fails, route-then-read when the service is
-down, and the explicit refusal when no unit clears the cutoff.
+scores units/sections, not arbitrary snippets. The default funnel is: 0 rewrites
+unless the eval justifies a rewrite step, and if one is added, keep it to 1 cached
+rewrite with a fallback to the original query; hybrid candidate cap 25-50; dedupe
+by `doc_id:unit_id`; then a hard token budget counted with the target tokenizer
+and an output reserve. A cutoff calibrated per model on the eval set (never a
+copied 0.35) chooses between reading and the explicit "not found" answer; no
+cloud call when nothing passes. A **Go/ONNX** inference service is the default —
+infrastructure, not a script node, called over HTTP by a Go node. Python/FastEmbed
+is an exception only for a model the Go path does not have. Fallbacks: original
+query when the rewrite fails, BM25 order when the reranker fails, route-then-read
+when the service is down, and the explicit refusal when no unit clears the cutoff.
 
 ## Formats: pick by role, not by taste
 
