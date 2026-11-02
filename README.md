@@ -203,8 +203,9 @@ curl -X POST localhost:8090/ops/approvals/<run-id> \
 
 - Automation code = workflow JSON. New Go handler = last resort + tests
   + human review. No arbitrary script execution from JSON.
-- Secrets by name in JSON (`"auth_secret": "ACME_HUBSPOT_TOKEN"`),
-  values in env/age files only.
+- Secrets by name in JSON (`"auth_secret": "ACME_INTERNAL_API_TOKEN"`),
+  values in env/age files only. Provider OAuth/API keys go to Nango as a
+  connection (`"auth_secret": "NANGO_SECRET_KEY"`, `docs/nango.md`).
 - Durations in JSON are integer nanoseconds (`30000000000` = 30s) or Go
   duration strings (`"30s"`).
 - Secrets are age-encrypted from day one (`secrets/<client>/env.age`,

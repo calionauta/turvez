@@ -34,7 +34,7 @@ Call any HTTP API. Auth header value comes from a secret name.
 ```json
 {"method": "GET", "url": "https://…", "headers": {"Accept": "application/json"},
  "body": {"k": "v"}, "timeout_ms": 15000,
- "auth_secret": "ACME_HUBSPOT_TOKEN", "auth_scheme": "Bearer",
+ "auth_secret": "ACME_INTERNAL_API_TOKEN", "auth_scheme": "Bearer",
  "response_json": true}
 ```
 
