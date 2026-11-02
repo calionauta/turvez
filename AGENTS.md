@@ -48,6 +48,12 @@
   unexpressible via recipe + generic tasks; needs typed I/O, env secrets,
   timeouts, table tests, human review. Never arbitrary script exec from JSON.
 - Secrets by NAME in JSON (`"auth_secret": "ACME_X"`); values only in env/age.
+- Script nodes are **Go** in both engines. TypeScript/Python only for a Windmill
+  WAC orchestrator that dispatches to Go scripts (`taskScript`/`taskFlow`) —
+  `docs/language-policy.md`, gate `./scripts/lint-scripts.sh`.
+- Client SaaS keys/OAuth: authorise in **Nango**, never paste a value.
+  `./scripts/nango-connect.sh <client> --provider <slug>` prints the link and
+  the exact names; `clients/credentials_test.go` enforces the naming.
 - Tenancy: names `<client>.<wf>` (separator in `naming.json`), trigger ids `<client>-…`, webhook paths contain
   `<client>` (`ops/` reserved for platform). No shared names. Register per client.
 - Alerts: every production recipe gets `on_failure` → notify; `ops/dlq-watchdog`

@@ -9,7 +9,7 @@ Repo: consultancy automation runtime. One **client spine** (repo layout,
 fieldbook, recipes, evals) and **two engines, chosen per client**
 (`docs/client-spine.md#choosing-the-engine`): **Windmill is the default** —
 chosen for FDE work so a client lands on the mature, centralised system from
-day one (UI/forms, step-level replay, code steps in TS/Python/Go). **dagnats**
+day one (UI/forms, step-level replay, code steps in Go). **dagnats**
 is the exception path (Go worker + 12 typed handlers, one binary, `go test`
 gate), chosen when the contract needs typed contracts, native approvals, no
 arbitrary code, or AGPL/Postgres is a problem.
@@ -29,9 +29,28 @@ Read `clients/<client>/client.yaml` when the client exists.
 
 | `engine` | Path |
 |---|---|
-| `windmill` (default) | `references/windmill.md` — flows under `automation/windmill/`, gate `./scripts/check-windmill.sh` |
+| `windmill` (default) | `references/windmill.md` — flows under `automation/windmill/`, gates `./scripts/check-windmill.sh` + `./scripts/lint-scripts.sh` |
 | `dagnats` (exception) | the build loop below — recipes under `automation/dagnats/` |
 | `dagu` | level 2 only, `docs/script-execution.md` |
+
+### Language: Go for the nodes (no exceptions)
+
+`docs/language-policy.md` is normative. Both engines: **script nodes are Go**.
+
+- Windmill step → `language: go`, `func main(...) (interface{}, error)`. The
+  signature is the contract: the compiler checks it, and Windmill derives the
+  input schema and generated UI from it.
+- dagnats recipe → JSON over the 12 Go tasks; a new capability is a new Go
+  handler (`internal/handlers/`), never "run this script".
+- **The only exception:** a Windmill workflow-as-code orchestrator, in
+  TypeScript or Python, because Windmill implements `workflow()` /
+  `taskScript()` / `taskFlow()` in those languages only. It must contain no
+  logic — it sequences Go scripts and branches on their results. `flow.yaml` is
+  the default graph; reach for WAC only when YAML expresses the graph badly.
+- Never JS/TS/Python/Bash for a node. `./scripts/lint-scripts.sh` fails the build
+  on a violation: it compiles the Go, checks `func main`, cross-checks the step's
+  `input_transforms`, and rejects a non-Go file that is not a WAC orchestrator.
+
 
 No `client.yaml` yet → **Windmill, unless you confirm dagnats with the operator
 first.** Windmill is the default; dagnats is the exception and needs an explicit
@@ -57,7 +76,7 @@ Only when the operator asks, or the criteria visibly changed. Order matters:
    reverse has no converter — rewrite by hand into recipes). It writes to
    `clients/<client>/converted-windmill/` and **never** to `automation/windmill/`.
 2. Read the generated `REPORT.md`. Steps marked `TODO(human)` are real work:
-   jq→TypeScript and condition predicates are never guessed, and each custom Go
+   jq→Go and condition predicates are never guessed, and each custom Go
    handler is the long pole — budget it explicitly with the operator.
 3. Finish the TODOs, then `wmill flow preview <dir>` per flow.
 4. Push **one flow at a time**: `wmill flow push <dir> "f/<client>/<flow>"`.
@@ -117,6 +136,49 @@ upgrade window, or a contract requiring a separate database.
   SSO/audit. Read `docs/deployment-profiles.md#engine-implications-per-profile`
   before promising a dedicated Windmill instance.
 
+## Q0e — answer a question over the client's data
+
+"Can it answer questions about our contracts / ERP / CRM?" is two jobs
+(`references/retrieval.md`, rationale `docs/retrieval.md`). Ask in order:
+
+1. **System of record** (CRM, ERP, wiki with an API) → call it through Nango.
+   A fixed endpoint in a recipe/flow is the **HTTP proxy**; an interactive agent
+   that must discover tools is a Nango **Agent Session (MCP)** — an agent loop,
+   not a recipe (decision-tree Q1.5). Never index a copy that goes stale.
+2. **A handful of pages that fit one prompt** → long context with a stable
+   cached prefix; no index.
+3. **Documents** → **route-then-read**:
+   - **Classify the query first:** identifiers → BM25 lexical only; natural
+     language → BM25 + small dense hybrid (RRF over units), optional cross-encoder
+     rerank of the units.
+   - **Routing unit** = chunk (~256-512 tokens, 50-100 overlap) that remembers
+     its parent section/chapter; the **reading unit** is the parent, not the
+     chunk and not the whole chapter. 300-500 token chunks are the indexing unit,
+     not the default reading unit.
+   - **Expand:** glossary → OpenWN-PT → FastText only behind an eval.
+   - **Route:** Bleve returns parent units; dedupe by `doc_id:unit_id` (plus a
+     content hash for boilerplate); caps 0 rewrites by default, or 1 cached rewrite
+     with a fallback to the original query; hybrid candidate cap 25-50; reranker
+     batch + timeout with BM25 fallback.
+   - **Cap the funnel:** hard token budget counted with the target tokenizer
+     plus output reserve; a cutoff calibrated per model (never a copied 0.35)
+     decides between reading and the explicit "not found" answer. No cloud call when
+     nothing passes.
+   - **Eval:** 30-50 real questions with expected document ids + 5-10 that must
+     be refused; measure worst-case tokens, `recall@unit`, citation validity,
+     reranker p95 and false refusals.
+
+A 200-term glossary beats a 300 MB FastText model for the client's own
+vocabulary. Route-then-read replaces chunked vector RAG for bounded,
+terminology-rich corpora, not semantic retrieval universally; add vectors
+inside Bleve only when the eval proves lexical + synonyms miss. Never promise
+"RAG" without the eval — and never "top 5" as a safety limit. A chapter is not
+the only index unit for long documents; top-5 snippets is not the reading unit
+when the parent section fits the budget.
+
+**Bounded, not immune:** tokenizer drift, tables in PDFs, reranker memory and
+model-specific scores still fail. Measure; do not claim immunity.
+
 ## When to use
 
 Any "automate X" request — personal (`personal/`) or client (`<client>/`).
@@ -132,7 +194,11 @@ Methodology questions (discover, scope, runbook): see `references/methodology.md
 | `scripts/new-ops-repo.sh`, `scripts/new-client.sh` | ops repo and client scaffold (confirm first) |
 | `scripts/clients-root.sh`, `scripts/eval-dir.sh` | resolve the client / eval dir (clients or legacy workflows) |
 | `scripts/check-windmill.sh` | Windmill lint gate, no worker needed |
+| `scripts/lint-scripts.sh` | local script gate: compiles Go nodes, checks `func main`, flow bindings, and the Go-only language policy (no server) |
+| `scripts/setup-nango.sh [--up/--down]` | check or spin up Nango auth layer |
+| `scripts/nango-connect.sh <client> --provider <slug> [--open]` | operator authorises a provider in Nango; prints the link + the exact names |
 | `scripts/verify-isolation.sh` | where every client runs (`runtime`/`target`), read-only; in `make validate` |
+| `docs/retrieval.md`, `references/retrieval.md` | documents vs systems of record; route-then-read; hard token/candidate caps; calibrated refusal; Nango MCP vs proxy; eval gate |
 | `scripts/extract-client.py <client>` | package one client for its own server — prints the plan, never executes |
 | `scripts/convert-to-windmill.py <client>` | dagnats recipes → Windmill **skeleton** in `converted-windmill/`; TODOs, never a port |
 | `scripts/register-workflows.sh` | validate + register (confirm first, dagnats engine) |
@@ -160,6 +226,7 @@ rubric only when no label is possible. The eval layer is engine-agnostic:
   client stay in the build loop below — no per-write confirm.
 - New Go handler: propose only, human lands (table tests required).
 - Secrets by NAME only. Never print values.
+- SaaS OAuth integrations: use **Nango** (`references/nango.md`), never raw tokens in Windmill variables or dagnats recipes. Client keys/tokens: ask the operator to authorise via `./scripts/nango-connect.sh <client> --provider <slug> --open`, never "send me the token".
 
 ## Build loop (level 0 — dagnats engine)
 
@@ -190,7 +257,7 @@ in `.data`. With a secret, the caller signs the raw body with
 `X-Signature-256: sha256=<hex>`. A disabled trigger answers `200 ok` and does
 nothing. Propose `create`/`update`/`enable`/`disable`/`delete` and wait;
 `list`, `history` and `test` are read-only. Details:
-`references/triggers.md`. OAuth/API keys for many APIs: `references/auth-layers.md`.
+`references/triggers.md`. OAuth/API keys for SaaS APIs: `references/nango.md` and `references/auth-layers.md`.
 Windmill clients: `references/windmill.md` (test gate, Go scripts, YAML, replay).
 
 ## Eval loop (after the automation runs)

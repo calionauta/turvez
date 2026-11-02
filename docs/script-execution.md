@@ -204,7 +204,7 @@ question "should this client use turvez at all" needs a second cut:
 | Need | Choose | Why |
 |---|---|---|
 | Typed API automation, native approvals, no arbitrary code, light footprint, Apache-2.0 | **dagnats** | contract + tests + git; 1 binary |
-| Client-facing UI/forms/apps, replay from a step, test one step, code steps in TS/Python/Go | **Windmill** | flow editor, step results, restart from node |
+| Client-facing UI/forms/apps, replay from a step, test one step, code steps in Go | **Windmill** | flow editor, step results, restart from node |
 | 400+ SaaS nodes, visual builder, client team edits the flow | **n8n** | catalog and UI; heavier, SUL license |
 | Recurrent script/SSH/Docker job, step-level retry, one binary | **Dagu** | script-shaped work; GPLv3 |
 | One command on a schedule, nothing else | **cron** | zero new surface |

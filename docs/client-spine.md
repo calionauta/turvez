@@ -64,7 +64,7 @@ Migrate a checkout with `./scripts/migrate-to-clients.sh --check` and then
 
 **Default: Windmill.** This is an FDE consultancy: a new client should land on
 the mature, centralised system from day one — one instance with a workspace per
-client, real UI/apps, step-level replay, and code steps in TS/Python/Go. Starting
+client, real UI/apps, step-level replay, and code steps in Go. Starting
 on the heavier platform means no migration later for the majority of work, and
 `engines.json` (`"default": "windmill"`) is the single place that policy lives.
 
@@ -117,6 +117,7 @@ That verdict is why both remain supported: it is not a reason to delete either.
 | Source | `automation/dagnats/*.json` | `automation/windmill/*.flow/` | `automation/dagu/*.yaml` |
 | Deploy | `workflow register` | `wmill flow push` | dags dir + `dagu start-all` |
 | Secrets | env + age | Variables/Resources per workspace | host env |
+| SaaS Auth | Nango Proxy (`docs/nango.md`) | Nango Proxy (`docs/nango.md`) | Nango Proxy / host env |
 | Triggers | `dagnats trigger` | schedules/webhooks | schedule YAML |
 | Run history | NATS KV + events | job API/Postgres | file-based runs |
 | Eval source | `run inspect --json` | job result API | run log |

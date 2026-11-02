@@ -23,6 +23,43 @@ Q0.7: engine change requested? dagnats → Windmill has a converter
 `converted-windmill/`). The reverse has none. Never migrate unasked, and never
 run both engines for one client.
 
+## Q0.8 — is the ask "answer questions over our data"?
+
+Ask in order; stop at the first branch that answers. Full playbook:
+`references/retrieval.md`, rationale `docs/retrieval.md`.
+
+1. **System of record** (CRM, ERP, ticketing, wiki with an API) → a tool call
+   through Nango: the fixed HTTP proxy in a recipe/flow. An Agent Session/MCP
+   only when an agent must choose tools (Q1.5). Do not index a stale copy.
+2. **A handful of pages that fit one prompt** → long context with a stable
+   prefix; no index, no pipeline.
+3. **Documents** → **route-then-read**:
+   - classify the query first: identifiers → BM25 lexical only; natural language
+     → BM25 + small dense hybrid (RRF over units) with an optional cross-encoder
+     rerank of units;
+   - the **routing unit** is a chunk (~256-512 tokens, 50-100 overlap) that
+     remembers its parent section/chapter; the **reading unit** is the parent,
+     not the chunk and not the whole chapter;
+   - expand with the glossary → OpenWN-PT → FastText only behind an eval;
+   - dedupe by `doc_id:unit_id`;
+     caps: 0 rewrites by default, or 1 cached rewrite with a fallback to the
+     original query; hybrid candidate cap 25-50; reranker batch + timeout +
+     BM25 fallback;
+   - hard token budget with the target tokenizer + output reserve; a cutoff
+     calibrated per model (never a copied 0.35) chooses read vs the explicit
+     "not found" answer; no cloud call when nothing passes;
+   - eval 30-50 questions + 5-10 refusals; add vectors inside Bleve only when
+     lexical + synonyms measurably miss.
+4. **Synthesis across more than fits one context** → hierarchy/map-reduce, or
+   vectors; not a bigger prompt.
+5. **Open-domain, paraphrase-heavy, cross-lingual** → semantic retrieval is the
+   right tool; still gate it with the eval.
+
+"Bounded, not immune": measure worst-case tokens, reranker p95 and false
+refusals. A vector DB is never the first answer, and "top 5" is not a limit.
+A chapter is not the only index unit for long documents; top-5 snippets is not
+the reading unit when the parent section fits the budget.
+
 Then, **for a dagnats client only**, ask the levels below in order. First
 "yes" wins. Full rationale: `docs/script-execution.md`. A Windmill client stops
 at `references/windmill.md` — the level questions are dagnats-shaped.
@@ -71,7 +108,7 @@ two orchestrators for one client. Pick one (full rule:
 
 Before choosing, the one-line rule: **one orchestrator per client**. Windmill
 wins when the client needs UI/forms/apps, replay from a step, test-one-step, or
-code steps in TS/Python/Go and accepts Postgres + AGPL/EE governance. n8n wins
+code steps in Go and accepts Postgres + AGPL/EE governance. n8n wins
 for 400+ SaaS nodes and a visual builder, at the cost of weight and the SUL
 license. Dagu wins for script-shaped recurrent jobs and step retry. dagnats
 stays for typed contracts, native approvals, no arbitrary code, git-first and
@@ -79,7 +116,10 @@ a single binary.
 
 OAuth for many SaaS APIs is a **layer**, not an orchestrator: Nango
 (self-hosted, ELv2) exposes an HTTP proxy that dagnats or Windmill can call.
-Confirm the install with the operator; it adds Postgres and a token store. Checklist: `references/auth-layers.md`.
+Never put raw OAuth tokens in Windmill variables or dagnats recipes.
+Scaling strategy: default to shared Nango on consultancy host for SMBs (`runtime: shared`);
+dedicated Nango instance only for isolated clients (`runtime: dedicated`).
+Guide: `docs/nango.md`; agent patterns: `references/nango.md`; checklist: `references/auth-layers.md`.
 Windmill free has no native critical alerts; alert from a flow step (HTTP or
 SMTP) plus an external dead-man switch. Rules and test gate: `references/windmill.md`.
 

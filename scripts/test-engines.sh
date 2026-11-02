@@ -10,6 +10,14 @@
 # A declared engine that cannot be used is worse than an absent one: it looks
 # supported. This test makes that state impossible to ship.
 #
+# Retrieval consistency: this test also fails when the main retrieval docs and
+# the skill disagree about the rewrite/fan-out default. The current default is:
+# 0 rewrites by default, or 1 cached rewrite with a fallback to the original query;
+# hybrid candidate cap 25-50; never a multi-rewrite fan-out as the default.
+# The check below reads docs/retrieval.md, skills/turvez/references/retrieval.md
+# and skills/turvez/references/decision-tree.md — if any of them contradicts the
+# default, this script exits 1.
+#
 # Usage: ./scripts/test-engines.sh
 set -uo pipefail
 
@@ -57,6 +65,35 @@ for engine in $ENGINES; do
     failures=$((failures + 1))
   else
     echo "ok: --engine=$engine scaffolds and validates"
+  fi
+
+  # Every engine must also produce a coherent extraction plan via extract-client.py.
+  # Previously dagu fell through to windmill commands (wmill flow preview).
+  if ! plan="$(TURVEZ_OPS_DIR="$tmp" "$HERE/extract-client.py" probe 2>&1)"; then
+    echo "FAIL: extract-client.py probe failed for --engine=$engine:" >&2
+    printf '%s\n' "$plan" | sed 's/^/    /' >&2
+    failures=$((failures + 1))
+  else
+    case "$engine" in
+      dagu)
+        if echo "$plan" | grep -q "wmill"; then
+          echo "FAIL: extract-client.py leaked wmill into dagu plan" >&2
+          failures=$((failures + 1))
+        fi
+        ;;
+      windmill)
+        if echo "$plan" | grep -q "dagnats serve"; then
+          echo "FAIL: extract-client.py leaked dagnats into windmill plan" >&2
+          failures=$((failures + 1))
+        fi
+        ;;
+      dagnats)
+        if echo "$plan" | grep -q "wmill"; then
+          echo "FAIL: extract-client.py leaked wmill into dagnats plan" >&2
+          failures=$((failures + 1))
+        fi
+        ;;
+    esac
   fi
   rm -rf "$tmp"
 done

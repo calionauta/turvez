@@ -104,6 +104,15 @@ if [ "${#wm_dirs[@]}" -gt 0 ]; then
       failed=1
       ;;
   esac
+  # Local script gate: catches undefined variables, unused imports, and flow-to-script
+  # signature mismatches that wmill lint passes (docs/spike-local-script-gate.md).
+  echo "== windmill scripts"
+  if ! script_out="$(TURVEZ_OPS_DIR="$ROOT" "$HERE/lint-scripts.sh" 2>&1)"; then
+    printf '%s\n' "$script_out" >&2
+    failed=1
+  else
+    printf '%s\n' "$script_out"
+  fi
   runs=$((runs + 1))
 fi
 

@@ -1,6 +1,6 @@
 # Spike: a local gate that catches what `wmill lint` passes
 
-Status: proposal, not started.
+Status: implemented (scripts/lint-scripts.sh, scripts/lint-scripts.py, wired into validate.sh and CI).
 Evidence: measured 2026-11-01 against the live `ai-agents` workspace.
 
 ## The gap
@@ -93,10 +93,32 @@ F821 Undefined name `CONFIG_FOLDER`
 F821 Undefined name `missing_fn`
 ```
 
-The walker is weaker on unused imports (`F401`) and much weaker on real name
-resolution (it will accept a typo as long as anything with that name was ever
-bound). `ruff` is the better tool if a dev dependency is fine; the walker is the
-zero-dependency floor. Decide before the spike starts, not during it.
+## Resolution
+
+Implemented in `scripts/lint-scripts.sh` and `scripts/lint-scripts.py`:
+- Hybrid approach for the graph: prefers `ruff check --select F821,F401,F811,E9 --config 'builtins = ["wmill", "context"]'` when `ruff` is available (installed in CI via pip); falls back automatically to a zero-dependency Python `ast` walker when `ruff` is not installed.
+- Flow-to-script contract validation: parses `flow.yaml` and checks that required parameters in `def main(...)` are satisfied by `input_transforms`, and that `input_transforms` does not pass unexpected arguments.
+- Gated in `scripts/validate.sh` whenever Windmill directories are present, and tested by `scripts/test-lint-scripts.py`.
+
+## Update: the language policy turned the same gate into a compiler check
+
+The spike above was written when the delivered scripts were Python, so the best
+available check was a linter. `docs/language-policy.md` removes that ceiling:
+script **nodes are Go**, so the gate now runs `gofmt -e`, compiles the file in a
+throwaway module, requires `func main` to exist and return
+`(interface{}, error)`, and cross-checks its parameters against the step's
+`input_transforms`.
+
+The bug class from the original delivery — `CONFIG_FOLDER` undefined, an input
+never passed — cannot survive `go build`. The Python/TS path still exists, but
+only for a workflow-as-code orchestrator (Windmill implements `workflow()` /
+`taskScript()` / `taskFlow()` in those languages only), and the same file is
+rejected unless it is dispatch-only. `scripts/test-lint-scripts.py` pins both
+halves: the Go checks and the policy violations.
+
+The open question below (`ruff` as a dev dependency) is now narrow: it guards the
+graph, not the nodes. The zero-dependency `ast` walker remains the fallback, so a
+checkout without `ruff` still fails on an undefined name.
 
 ---
 

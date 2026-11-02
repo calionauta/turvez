@@ -31,13 +31,18 @@ def run(cmd: list[str], cwd: Path | None = None) -> None:
     subprocess.run(cmd, cwd=str(cwd) if cwd else None, check=True)
 
 
-def select_cases(root: Path, include_ok: int) -> None:
-    run([
+def select_cases(root: Path, include_ok: int, dagnats: bool = True) -> None:
+    cmd = [
         sys.executable, str(SCRIPTS / "select-cases.py"),
-        "--dagnats",
         "--out", str(root / "cases"),
         "--include-ok", str(include_ok),
-    ])
+    ]
+    if dagnats:
+        cmd.append("--dagnats")
+    else:
+        cmd.append("--runs")
+        cmd.append(str(root / "cases" / "runs.json"))
+    run(cmd)
 
 
 def label_cases(root: Path) -> None:
@@ -81,6 +86,16 @@ def summarize(root: Path, cfg: dict, strict: bool) -> int:
     if breaks:
         print("failing assertions: " + ", ".join(f"{k} {v}" for k, v in breaks.items()))
 
+    if evalconfig.retrieval_enabled(cfg):
+        print("\nretrieval fields:")
+        for field in evalconfig.retrieval_fields(cfg):
+            _print_labeled_accuracy(rows, field)
+        print(f"\nresults: {path}")
+        print("view:   make eval-client-view CLIENT=<client> TURVEZ_OPS_DIR=...")
+        if strict and (failed or breaks):
+            return 1
+        return 0
+
     for field in evalconfig.fields(cfg):
         var, name = field["var"], field["name"]
         labeled = [r for r in rows if r.get("testCase", {}).get("vars", {}).get(var)]
@@ -104,6 +119,27 @@ def summarize(root: Path, cfg: dict, strict: bool) -> int:
     return 0
 
 
+def _print_labeled_accuracy(rows: list[dict], field: dict) -> None:
+    name, var = field["name"], field["var"]
+    labeled = [r for r in rows if r.get("testCase", {}).get("vars", {}).get(var)]
+    print(f"  {name}: {len(labeled)} labeled")
+    if not labeled:
+        return
+    counts: Counter[str] = Counter()
+    for row in labeled:
+        try:
+            output = json.loads(row.get("response", {}).get("output") or "")
+        except json.JSONDecodeError:
+            counts["(unparseable)"] += 1
+            continue
+        if isinstance(output, dict) and name in output:
+            counts[output[name]] += 1
+        else:
+            counts["(missing)"] += 1
+    for value in field["values"]:
+        print(f"    {value!r}: {counts.get(value, 0)}")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(
         description="Ingest run history, label, evaluate and summarize one client.",
@@ -122,7 +158,12 @@ see skills/turvez/references/eval-loop.md.""")
     ap.add_argument("--skip-eval", action="store_true", help="stop after generating cases")
     ap.add_argument("--yes", action="store_true", help="skip the eval confirmation")
     ap.add_argument("--strict", action="store_true", help="exit 1 when any case fails")
+    ap.add_argument("--dagnats", action="store_true", default=True,
+                    help="read live dagnats run history (default)")
+    ap.add_argument("--no-dagnats", action="store_true",
+                    help="use the frozen runs.json instead of the live CLI")
     args = ap.parse_args()
+    args.dagnats = args.dagnats and not args.no_dagnats
 
     root = Path(args.dir)
     cfg_path = evalconfig.default_path(root)
@@ -131,7 +172,92 @@ see skills/turvez/references/eval-loop.md.""")
         return 1
     cfg = evalconfig.load(cfg_path)
 
-    select_cases(root, args.include_ok)
+    select_cases(root, args.include_ok, dagnats=args.dagnats)
+    if args.skip_eval:
+        return 0
+
+    if args.skip_label:
+        print("labeling: skipped (--skip-label)", flush=True)
+    elif sys.stdin.isatty():
+        label_cases(root)
+    else:
+        print("labeling: skipped (stdin is not a terminal; run label-cases.py manually)", flush=True)
+
+    if not args.yes and sys.stdin.isatty():
+        answer = input("run the eval? judge tokens may be spent [y/N]: ").strip().lower()
+        if answer not in ("y", "yes"):
+            print("eval: skipped")
+            return 0
+
+    run_eval(root, cfg)
+    return summarize(root, cfg, args.strict)
+    args = ap.parse_args()
+    args.dagnats = args.dagnats and not args.no_dagnats
+
+    root = Path(args.dir)
+    cfg_path = evalconfig.default_path(root)
+    if not cfg_path.exists():
+        print(f"no {cfg_path}; run: python3 scripts/label-cases.py --dir {root} --setup")
+        return 1
+    cfg = evalconfig.load(cfg_path)
+
+    select_cases(root, args.include_ok, dagnats=args.dagnats)
+    if args.skip_eval:
+        return 0
+
+    if args.skip_label:
+        print("labeling: skipped (--skip-label)", flush=True)
+    elif sys.stdin.isatty():
+        label_cases(root)
+    else:
+        print("labeling: skipped (stdin is not a terminal; run label-cases.py manually)", flush=True)
+
+    if not args.yes and sys.stdin.isatty():
+        answer = input("run the eval? judge tokens may be spent [y/N]: ").strip().lower()
+        if answer not in ("y", "yes"):
+            print("eval: skipped")
+            return 0
+
+    run_eval(root, cfg)
+    return summarize(root, cfg, args.strict)
+    args = ap.parse_args()
+    args.dagnats = args.dagnats and not args.no_dagnats
+
+    root = Path(args.dir)
+    cfg_path = evalconfig.default_path(root)
+    if not cfg_path.exists():
+        print(f"no {cfg_path}; run: python3 scripts/label-cases.py --dir {root} --setup")
+        return 1
+    cfg = evalconfig.load(cfg_path)
+
+    select_cases(root, args.include_ok, dagnats=args.dagnats)
+    if args.skip_eval:
+        return 0
+
+    if args.skip_label:
+        print("labeling: skipped (--skip-label)", flush=True)
+    elif sys.stdin.isatty():
+        label_cases(root)
+    else:
+        print("labeling: skipped (stdin is not a terminal; run label-cases.py manually)", flush=True)
+
+    if not args.yes and sys.stdin.isatty():
+        answer = input("run the eval? judge tokens may be spent [y/N]: ").strip().lower()
+        if answer not in ("y", "yes"):
+            print("eval: skipped")
+            return 0
+
+    run_eval(root, cfg)
+    return summarize(root, cfg, args.strict)
+
+    root = Path(args.dir)
+    cfg_path = evalconfig.default_path(root)
+    if not cfg_path.exists():
+        print(f"no {cfg_path}; run: python3 scripts/label-cases.py --dir {root} --setup")
+        return 1
+    cfg = evalconfig.load(cfg_path)
+
+    select_cases(root, args.include_ok, dagnats=args.dagnats)
     if args.skip_eval:
         return 0
 

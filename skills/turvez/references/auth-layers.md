@@ -25,19 +25,21 @@ Not worth it for one static API key in `env/<client>.env`.
 
 ## Nango pattern
 
-Nango stores the connection and injects the token; the recipe never sees it.
+Nango stores the connection and injects the token; the recipe/flow never sees it.
+Full guide: `docs/nango.md`; quick agent reference: `skills/turvez/references/nango.md`.
 
 ```
 # dagnats: http.request
-url: http://nango:3003/proxy/<provider>/<path>
-headers: { "Connection-Id": "<client>-<provider>", "Provider-Config-Key": "<provider>" }
+url: http://localhost:8088/proxy/<path>
+headers: { "Connection-Id": "<client>", "Provider-Config-Key": "<provider>" }
 auth_secret: "NANGO_SECRET_KEY"
 
-# Windmill: a script step does the same HTTP call
+# Windmill: a Go node (language: go) makes the request with net/http through the
+# same proxy. Never the TS/Python SDK (docs/language-policy.md).
 ```
 
 `NANGO_SECRET_KEY` is a secret in the runtime (env/age for dagnats, Variables
-for Windmill). The connection id is not a secret; the token is.
+for Windmill). The connection id (`<client>`) is not a secret; the token is.
 
 ## Confirm before installing
 

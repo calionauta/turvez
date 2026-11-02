@@ -45,6 +45,19 @@
   **Windmill is the default** (`engines.json`), dagnats is the exception path:
   skills/turvez/references/windmill.md + docs/script-execution.md
   + `./scripts/check-windmill.sh` (lint gate, no worker)
+- Answering questions over client data: docs/retrieval.md — split documents
+  (route-then-read: 2026 default is lexical for identifiers and hybrid BM25 + small
+  dense + RRF + optional rerank of units for natural language; glossary expansion;
+  routing unit = chunk that remembers its parent section/chapter; reading unit =
+  parent, not chunk or whole chapter; hard token budget + candidate cap +
+  calibrated refusal; rewrite is not a default rung — 0 or 1 cached rewrites unless
+  the eval justifies it; vectors only behind an eval, inside Bleve) from systems of
+  record (Nango proxy; Agent Sessions MCP only for an agent that chooses tools).
+  Agent playbook: skills/turvez/references/retrieval.md
+- Language policy: docs/language-policy.md — **script nodes are Go** in both
+  engines. TypeScript/Python only for a Windmill WAC orchestrator that
+  dispatches to Go scripts with `taskScript()`/`taskFlow()`. Gate:
+  `./scripts/lint-scripts.sh` (compiles the Go, checks the bindings)
 - Client isolation status: `./scripts/verify-isolation.sh` (reads runtime/target,
   read-only). Package one client for its own host: `scripts/extract-client.py`
   (prints the plan + commands, never executes them)
@@ -60,4 +73,14 @@
   then `scripts/rename-workflows.sh --apply`.
 - Durations in JSON accept integer nanoseconds or Go duration strings
   (`"30s"`); `$schema` is accepted but optional.
+- Script nodes are Go in both engines; TypeScript/Python only for a Windmill
+  WAC orchestrator that dispatches to Go scripts with `taskScript()`/`taskFlow()`
+  (`docs/language-policy.md`, gate `./scripts/lint-scripts.sh`).
+- Client SaaS keys/OAuth: authorise in Nango, never paste the value.
+  `./scripts/nango-connect.sh <client> --provider <slug>` prints the link and
+  the exact names; `clients/credentials_test.go` rejects a provider token in
+  `env/` and a `Connection-Id` that is not the client (`docs/nango.md`).
+- "RAG" is not a dependency: documents get a Go lexical index and an eval;
+  tool data is called at its source. Nango MCP is for agent tool discovery,
+  not for documents (`docs/retrieval.md`).
 - New Go handler = last resort + tests + human review; no script exec.

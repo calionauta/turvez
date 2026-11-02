@@ -83,6 +83,8 @@ def definitions_for(cdir, engine):
                       if p.is_dir() and (p / "flow.yaml").is_file())
     if engine == "dagu":
         return sorted((cdir / "automation" / "dagu").glob("*.yaml"))
+    if engine == "retrieval":
+        return sorted((cdir / "automation" / "retrieval").glob("*.go"))
     return []
 
 
@@ -123,7 +125,23 @@ def new_server_commands(client, engine, defs, root):
             "# definitions, prefix-checked by the script",
             "./scripts/register-workflows.sh %s" % client,
         ]
-    else:
+    elif engine == "dagu":
+        lines += [
+            "# install dagu (single binary, no DB — docs/script-execution.md)",
+            "curl -fsSL https://raw.githubusercontent.com/dagucloud/dagu/main/scripts/installer.sh | bash",
+        ]
+        for path in defs:
+            try:
+                rel = path.relative_to(root)
+            except ValueError:
+                rel = path
+            lines.append('dagu validate "%s"' % rel)
+        dags_dir = "clients/%s/automation/dagu" % client
+        lines += [
+            "# run scheduler and UI pointing at this client's DAG directory",
+            'dagu start-all --dags "%s" &' % dags_dir,
+        ]
+    elif engine == "windmill":
         lines += [
             "# NEVER wmill sync push - it deletes remote items missing locally.",
             "# Push one flow at a time, after a local preview.",
@@ -141,6 +159,10 @@ def new_server_commands(client, engine, defs, root):
         lines += [
             "# secrets: recreate as workspace variables/resources, then confirm the",
             "# flow reads no env file at runtime (the age file is bootstrap only).",
+        ]
+    else:
+        lines += [
+            "# unknown engine: %s" % engine,
         ]
     lines.append("```")
     return lines
@@ -165,6 +187,19 @@ def build_plan(client, root):
     for path in defs:
         if path.suffix == ".json":
             trigs.extend(trigger_ids(path))
+
+    uses_nango = False
+    if env_example.is_file() and ("NANGO_" in env_example.read_text()):
+        uses_nango = True
+    if not uses_nango:
+        for p in defs:
+            try:
+                txt = p.read_text().lower()
+                if "nango" in txt or "provider-config-key" in txt:
+                    uses_nango = True
+                    break
+            except Exception:
+                pass
 
     L = []
     add = L.append
@@ -196,6 +231,14 @@ def build_plan(client, root):
         add("")
         add("Ciphertext: `%s` (decrypt out-of-band with the age identity)."
             % age.relative_to(root))
+    if uses_nango:
+        add("")
+        add("### SaaS Auth Layer (Nango)")
+        add("This client routes SaaS requests via Nango (`Connection-Id: %s`)." % client)
+        add("1. On NEW server: bootstrap dedicated Nango with `./scripts/setup-nango.sh --up`")
+        add("   (or point `NANGO_HOST` to the client's isolated Nango instance).")
+        add("2. Authorize connections under `connection_id: %s` via Nango Connect UI." % client)
+        add("3. Set `NANGO_HOST` and `NANGO_SECRET_KEY` on the new host.")
     add("")
 
     add("## 3. Commands - NEW server")
@@ -220,8 +263,23 @@ def build_plan(client, root):
         add("```bash")
         add("dagnats trigger list   # disable ids starting with %s%s" % (client, sep))
         add("```")
-    else:
+    elif engine == "dagu":
+        add("```bash")
+        for n in names:
+            add("dagu stop %s" % n)
+        add("# or remove/archive DAG YAMLs from the old DAGS directory")
+        add("```")
+    elif engine == "windmill":
         add("Disable only this client's workspace schedules; leave other workspaces alone.")
+    else:
+        add("Disable this client on the old server.")
+    if uses_nango:
+        add("")
+        add("Purge this client's connections from the shared Nango to prevent lingering tokens:")
+        add("```bash")
+        add('# curl -X DELETE -H "Authorization: Bearer $SHARED_NANGO_SECRET_KEY" \\')
+        add('#   "$SHARED_NANGO_HOST/connection/%s?provider_config_key=<provider>"' % client)
+        add("```")
     add("")
 
     add("## 5. Repoint external systems")

@@ -1,0 +1,68 @@
+# Nango standalone stack for Turvez — the credential layer in front of SaaS APIs.
+#
+# Nango is not an orchestrator: Windmill (or dagnats) calls its HTTP proxy, and
+# Nango refreshes the OAuth token. Tokens never enter this repo, a flow, or a
+# recipe (docs/nango.md).
+#
+# Official image shape (github.com/NangoHQ/nango docker-compose.yaml):
+#   nangohq/nango-server:hosted, SERVER_PORT 3003, Connect UI 3009.
+# We publish them on 8088/8089 on the host so they do not collide with
+# Windmill (:8000) or dagnats (:8080).
+#
+# Required env (no defaults on purpose — a shared encryption key is a backdoor):
+#   NANGO_ENCRYPTION_KEY  32-char hex  (openssl rand -hex 16)
+#   NANGO_DB_PASSWORD     any strong password
+# Put them in a `.env` next to this file (compose loads it automatically, and
+# `.env` is gitignored) or export them before `docker compose up`.
+#
+# Usage:
+#   ./scripts/setup-nango.sh --up      # validates env, starts the stack, waits
+#   ./scripts/setup-nango.sh           # health check only
+#   ./scripts/setup-nango.sh --down
+
+services:
+  nango-db:
+    image: postgres:16.0-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${NANGO_DB_USER:-nango}
+      POSTGRES_PASSWORD: ${NANGO_DB_PASSWORD:?set NANGO_DB_PASSWORD (see the header of this file)}
+      POSTGRES_DB: ${NANGO_DB_NAME:-nango}
+    volumes:
+      - nango-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${NANGO_DB_USER:-nango}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  nango:
+    image: nangohq/nango-server:hosted
+    platform: linux/amd64
+    restart: unless-stopped
+    ports:
+      - "${NANGO_PORT:-8088}:${SERVER_PORT:-3003}"
+      - "${NANGO_CONNECT_PORT:-8089}:${CONNECT_UI_PORT:-3009}"
+    environment:
+      NANGO_ENCRYPTION_KEY: ${NANGO_ENCRYPTION_KEY:?set NANGO_ENCRYPTION_KEY (openssl rand -hex 16)}
+      NANGO_DB_HOST: nango-db
+      NANGO_DB_PORT: 5432
+      NANGO_DB_USER: ${NANGO_DB_USER:-nango}
+      NANGO_DB_PASSWORD: ${NANGO_DB_PASSWORD:?set NANGO_DB_PASSWORD}
+      NANGO_DB_NAME: ${NANGO_DB_NAME:-nango}
+      NANGO_DB_SSL: "false"
+      SERVER_PORT: ${SERVER_PORT:-3003}
+      CONNECT_UI_PORT: ${CONNECT_UI_PORT:-3009}
+      # The URL clients (and the dashboard) use. Override when the stack is not
+      # on localhost, e.g. https://nango.calionauta.com.
+      NANGO_SERVER_URL: ${NANGO_SERVER_URL:-http://localhost:8088}
+      NANGO_PUBLIC_SERVER_URL: ${NANGO_PUBLIC_SERVER_URL:-${NANGO_SERVER_URL:-http://localhost:8088}}
+      FLAG_SERVE_CONNECT_UI: "true"
+      NANGO_LOGS_ENABLED: "false"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      nango-db:
+        condition: service_healthy
+
+volumes:
+  nango-db-data:

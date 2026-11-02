@@ -8,7 +8,7 @@
       "type": "normal",
       "timeout": 30000000000,
       "metadata": {
-        "expression": "((.data // .) | {lead_id: .lead_id}) as $r | {method: \"GET\", url: (\"https://api.hubapi.com/crm/v3/objects/contacts/\" + $r.lead_id + \"?properties=firstname,lastname,email\"), auth_secret: \"ACME_HUBSPOT_TOKEN\", auth_scheme: \"Bearer\", response_json: true}"
+        "expression": "((.data // .) | {lead_id: .lead_id}) as $r | {method: \"GET\", url: (\"http://localhost:8088/proxy/crm/v3/objects/contacts/\" + $r.lead_id + \"?properties=firstname,lastname,email\"), auth_secret: \"NANGO_SECRET_KEY\", auth_scheme: \"Bearer\", headers: {\"Provider-Config-Key\": \"hubspot\", \"Connection-Id\": \"example-client\"}, response_json: true}"
       }
     },
     {

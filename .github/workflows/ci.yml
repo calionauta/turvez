@@ -71,8 +71,9 @@ jobs:
         # unquoted summary. A demo that only checks "files were created" cannot
         # see any of that, so the shape is pinned here.
         run: |
-          python3 -m pip install --quiet pyyaml
+          python3 -m pip install --quiet pyyaml ruff
           python3 scripts/test-convert-to-windmill.py
+          python3 scripts/test-lint-scripts.py
       - name: Install the pinned engine CLIs
         # dagnats for recipes, wmill for Windmill flows. Each gate is skipped
         # when the checkout has no source for that engine (scripts/validate.sh),

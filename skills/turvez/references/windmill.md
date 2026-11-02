@@ -29,7 +29,8 @@ engine for a dagnats client.
 - **One workspace per client** on a shared instance; a dedicated instance when
   the contract requires it. `client.yaml` records which.
 - **Secrets are workspace variables/resources.** Values never enter git,
-  flows or logs. OAuth-heavy clients: Nango (`references/auth-layers.md`).
+  flows or logs. SaaS integrations with OAuth/expiring tokens: **Nango**
+  (`references/nango.md`, `docs/nango.md`), never raw tokens in Windmill.
 - **Pin the CLI version** and use `WMILL_CONFIG_DIR` for disposable pilots, so
   a test does not overwrite the operator's workspace config.
 
@@ -40,6 +41,8 @@ Three layers, in order:
 1. **`wmill lint --fail-on-warn --locks-required`** in CI. It validates flows,
    schedules and triggers against the OpenFlow/API schemas and fails on missing
    lockfiles. `locksRequired: true` in `wmill.yaml` also blocks `sync push`.
+   Go scripts carry their dependencies inside the file, so they need no
+   lockfile — only a TypeScript/Python graph does.
 2. **`go test` for logic.** Put the domain logic in a Go package and unit-test
    it; the Windmill Go script is a thin wrapper. This is the closest equivalent
    to the dagnats `go test ./clients/` gate.
@@ -52,17 +55,56 @@ Flow expressions are JavaScript, not jq. Keep them trivial and move logic into
 scripts; a syntax error in an expression is only caught by `wmill lint` if the
 schema sees it, otherwise by preview/CI.
 
-## Go, TypeScript or Python for scripts?
+## Language: Go for the nodes, TypeScript/Python only for the graph
 
-| Use | Language | Why |
+Normative policy: `docs/language-policy.md`. Short version:
+
+| What | Language | Why |
 |---|---|---|
-| Domain logic, typed contracts, shared with the repo | **Go** | `go test`, type checking, same language as the handlers; needs a lockfile |
-| Thin glue, HTTP calls, string/JSON reshaping | TypeScript or Python | faster iteration, smaller locks |
-| Anything non-trivial | never Bash | no types, no tests |
+| Script node (the work: fetch, transform, notify, gate) | **Go** | the compiler validates the inputs; Windmill derives the schema and the generated UI from `func main(...)` |
+| Flow graph | `flow.yaml` | the default; one file per flow |
+| WAC orchestrator | TypeScript or Python | Windmill only implements `workflow()`/`taskScript()`/`taskFlow()` there — a product limit, not a preference |
 
-Go is the right default when the script is part of the automation's contract
-and you want a real unit-test gate. TS/Python are fine for one-purpose glue.
-Do not spread one client's logic across three languages.
+Never a JS/TS/Python *node*. `wmill lint` does not read the script body, so a
+Python step with an undefined name lints clean and fails at run time — after the
+push, often after a schedule fires. Go fails locally:
+
+```bash
+./scripts/lint-scripts.sh   # gofmt + compile + main + input_transforms, ~1s
+```
+
+A Go node, in full:
+
+```go
+package inner
+
+// Parameters become the step's input schema and generated UI.
+func main(leadID string) (interface{}, error) {
+	return map[string]any{"lead_id": leadID}, nil
+}
+```
+
+The one legitimate non-Go file is a **thin orchestrator** that only sequences Go
+scripts. It may branch and loop over results; it may not do HTTP, reshape JSON,
+format strings, or touch secrets:
+
+```typescript
+import { taskScript, workflow } from "windmill-client";
+
+const extract = taskScript("f/acme/extract_contacts");
+const load = taskScript("f/acme/load_warehouse");
+
+export const main = workflow(async (since: string) => {
+  return await load({ rows: await extract({ since }) });
+});
+```
+
+The gate enforces it: a `.py`/`.ts` under `automation/windmill/` passes only if
+it imports the workflow primitives and calls `taskScript()`/`taskFlow()`; a step
+declared `language: python3|deno|bun` fails validation. When in doubt, use
+`flow.yaml` and write no orchestrator at all.
+
+Bash stays out of both roles: no types, no tests.
 
 ## YAML or JSON for WAC?
 
@@ -76,6 +118,19 @@ Mitigate it:
 - quote every `summary`/description containing `:`;
 - keep expressions out of YAML: put them in scripts with typed inputs;
 - never hand-edit a pushed flow; edit the local file and push that one item.
+
+## SaaS integrations: use Nango, not raw tokens
+
+Never put third-party OAuth access tokens or refresh tokens into Windmill
+variables. Tokens expire in 1-24 hours; refresh token rotation triggers race
+conditions across parallel flow executions.
+
+Instead, route calls through the **Nango Request Proxy** (`references/nango.md`):
+- Windmill workspace stores only `NANGO_HOST` and `NANGO_SECRET_KEY`.
+- Go nodes call `${NANGO_HOST}/proxy/...` with `Provider-Config-Key` (e.g. `hubspot`)
+  and `Connection-Id: <client>`.
+- Nango refreshes expired tokens centrally, attaches credentials, and handles rate limits.
+- Full guide and examples: `references/nango.md` and `docs/nango.md`.
 
 ## Eval
 

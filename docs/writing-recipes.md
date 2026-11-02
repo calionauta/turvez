@@ -129,7 +129,9 @@ Handlers read **static recipe config from step `metadata`** (strings) and
 
 The handler reference (`docs/handlers-reference.md`) lists the metadata
 keys per task. Secret *names* go in metadata or input
-(`"auth_secret": "ACME_HUBSPOT_TOKEN"`); values never appear in JSON.
+(`"auth_secret": "ACME_INTERNAL_API_TOKEN"`); values never appear in JSON.
+Provider credentials are Nango connections, so the recipe names
+`NANGO_SECRET_KEY` and passes `Connection-Id: <client>` (`docs/nango.md`).
 
 **Every metadata value is a string.** `metadata` is `map[string]string`:
 numbers become `"timeout_ms": "15000"` and objects become JSON-encoded

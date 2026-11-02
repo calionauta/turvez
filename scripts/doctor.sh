@@ -74,13 +74,18 @@ case "$code" in
   *)   note "console returned HTTP $code at $CONSOLE_URL" ;;
 esac
 
-echo "== auth layer (optional) =="
-if [ -n "${NANGO_URL:-}" ]; then
-  code="$(curl -s -o /dev/null -m 3 -w '%{http_code}' "${NANGO_URL%/}/health" 2>/dev/null)"
-  if [ "$code" = "200" ]; then ok "Nango reachable at $NANGO_URL"; else note "Nango configured but /health returned ${code:-no response}"; fi
-  if [ -n "${NANGO_SECRET_KEY:-}" ]; then ok "NANGO_SECRET_KEY present"; else note "NANGO_SECRET_KEY not set"; fi
+echo "== auth layer (Nango) =="
+NANGO_CHECK_HOST="${NANGO_HOST:-${NANGO_URL:-http://127.0.0.1:8088}}"
+code="$(curl -s -o /dev/null -m 3 -w '%{http_code}' "${NANGO_CHECK_HOST%/}/health" 2>/dev/null || echo "000")"
+if [ "$code" = "200" ]; then
+  ok "Nango reachable at $NANGO_CHECK_HOST"
 else
-  note "Nango not configured (optional auth layer; see docs/script-execution.md)"
+  note "Nango not reachable at $NANGO_CHECK_HOST (start with: ./scripts/setup-nango.sh --up)"
+fi
+if [ -n "${NANGO_SECRET_KEY:-}" ]; then
+  ok "NANGO_SECRET_KEY present"
+else
+  note "NANGO_SECRET_KEY not set in environment"
 fi
 
 echo "== eval tooling =="
