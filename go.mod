@@ -3,9 +3,9 @@ module github.com/calionauta/turvez
 go 1.27.1
 
 require (
-	github.com/danmestas/dagnats v0.0.30
+	github.com/danmestas/dagnats v0.0.32
 	github.com/itchyny/gojq v0.12.19
-	github.com/nats-io/nats.go v1.54.0
+	github.com/nats-io/nats.go v1.55.0
 	github.com/zendev-sh/goai v0.10.9
 	golang.org/x/sync v0.24.0
 )
