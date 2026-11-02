@@ -91,6 +91,19 @@ in the selected set.
   last. Long context degrades for text in the middle ("Lost in the Middle"), so
   keep the selected set small and structured.
 
+Hard limits, not top-k:
+
+- Count tokens with the target tokenizer, reserve output + prefix, and fail
+  closed. Cap units at index time (e.g. 4k tokens); a bigger chapter is stored
+  as its sections. 300-500 token chunks are the degraded mode, not the default.
+- Cap fan-out: 3 rewrites x 20 units, dedupe by `doc_id:unit_id` (plus a
+  content hash), ~60 candidates before reranking.
+- Reranker: batch, per-call timeout, BM25 fallback. Calibrate the score
+  threshold per model on the eval set; never copy 0.35 across models. If
+  nothing passes, return the explicit "not found" answer without a cloud call.
+- Bounded, not immune: measure worst-case tokens, reranker p95 and the
+  false-refusal rate.
+
 ## If someone proposes SLM rewrite + reranker
 
 A local 3-8B rewrite plus a cross-encoder is a valid **eval-gated** layer, not

@@ -189,9 +189,11 @@ flowchart LR
 One inference service per environment on the internal network (never a model
 load per step), health-checked, with the model version pinned. The reranker
 scores units/sections, not arbitrary snippets; 30 candidates and top-5 are
-budget outcomes. A **Go/ONNX** inference service is the default — infrastructure,
-not a script node, called over HTTP by a Go node. Python/FastEmbed is an
-exception only for a model the Go path does not have. Fallbacks: original query when the
+budget outcomes, and the funnel is bounded by a hard token budget, a candidate
+cap and a calibrated refusal threshold. A **Go/ONNX** inference service is the
+default — infrastructure, not a script node, called over HTTP by a Go node.
+Python/FastEmbed is an exception only for a model the Go path does not have.
+Fallbacks: original query when the
 rewrite fails, BM25 order when the reranker fails, and route-then-read when the
 service is down.
 

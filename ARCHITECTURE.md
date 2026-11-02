@@ -80,8 +80,9 @@ never change the repo shape.
   and the LLM reads them in long context; a curated glossary expands the query
   before routing. An optional, eval-gated rewrite/rerank layer scores **units**
   (never snippets) as an external inference service — one per environment,
-  health-checked, never a model load per step; vectors, if the eval ever
-  demands them, live in Bleve itself.
+  health-checked, never a model load per step. The funnel is bounded by a hard
+  token budget, a candidate cap and a calibrated refusal threshold; vectors, if
+  the eval ever demands them, live in Bleve itself.
   Systems of record are called at the source through Nango; documents get an
   index and an eval (`docs/retrieval.md`).
 - **Evals.** `evals/` is engine-agnostic. `select-cases.py` reads dagnats runs;

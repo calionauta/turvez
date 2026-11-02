@@ -122,6 +122,60 @@ no model to host, and citations that point at a real offset.
   each unit against the question, then answer over the summaries. That is a
   second mode, not the default.
 
+The budget is a **hard limit**, not a target. Count with the tokenizer of the
+model that will read the prompt (or a conservative estimate plus a character
+cap), reserve space for the answer and the system prefix, and fail closed:
+
+```go
+const (
+	contextBudget = 24000 // window minus output reserve and prompt overhead
+	maxUnitTokens = 4000  // bigger units are split at index time
+)
+
+func fillBudget(units []Unit, budget int) []Unit {
+	out := make([]Unit, 0, len(units))
+	used := 0
+	for _, u := range units {
+		if u.Tokens > maxUnitTokens || used+u.Tokens > budget {
+			continue
+		}
+		out = append(out, u)
+		used += u.Tokens
+	}
+	return out
+}
+```
+
+`maxUnitTokens` is enforced at **index** time: a chapter larger than that is
+stored as its sections, not as one 10k-token record. That is the structural fix
+for "one result is 10,000 tokens"; the budget is the runtime backstop.
+
+### Bounding the funnel
+
+"Top 5" is not a limit. Enforce four caps before the cloud call:
+
+1. **Units, not chunks.** A result is a chapter or section with a known token
+   count. 300-500 token chunks are the degraded mode (when the reader cannot
+   fit a unit), not the default.
+2. **Fan-out cap.** At most 3 rewrites, at most 20 units per rewrite, dedupe by
+   `doc_id:unit_id` (and a content hash for boilerplate), then cap the candidate
+   set at ~60 before reranking. Four rewrites x top 50 = 200 candidates is how
+   the local reranker times out.
+3. **Reranker budget.** Batch the candidates, set a per-call timeout, and keep a
+   BM25-order fallback. Measure p95 on the target CPU; a MiniLM-class model on
+   30 short units is not the same as `bge-reranker-v2-m3` on 200 long ones.
+4. **Calibrated threshold, not a magic number.** Cross-encoder scores are not
+   comparable across models (`bge` logits vs MiniLM sigmoid), and 0.35 is not a
+   universal cutoff. Calibrate on the eval set for a precision target; if no
+   unit passes, return the explicit "not found in the corpus" answer without
+   calling the cloud model. Log the scores so a false refusal is diagnosable.
+
+**Bounded, not immune.** Tokenizers differ from your estimate, PDFs contain
+tables that blow up a section, the reranker can OOM, and a threshold that is
+right for one model is wrong for another. The design bounds the failure; it
+does not eliminate it. Measure worst-case tokens, reranker p95 and refusal
+rate.
+
 ### Code sketch (Windmill Go node)
 
 The node is a Go script (`language: go`), so the compiler checks the signature
@@ -349,8 +403,10 @@ Do not ship retrieval without a question set:
    - `recall@unit` — did the right document/chapter appear?
    - citation validity — are the cited units in the selected set?
    - answer correctness (blind label);
-   - tokens sent per query and cache hit rate;
-   - p50/p95 latency and cost per query.
+   - tokens sent per query, **worst-case tokens**, and cache hit rate;
+   - false-refusal rate on answerable questions, and correct refusal on the
+     5-10 that must be refused;
+   - reranker p95 and p50/p95 end-to-end latency and cost per query.
 3. Compare against tier 0 (whole corpus), a chunked baseline, **and** a
    rewrite+rerank variant on the same set. Route-then-read must win on accuracy
    or cost, not on novelty.
@@ -364,6 +420,10 @@ Do not ship retrieval without a question set:
 - Fetching top-k chunks when the reader can read the chapter.
 - Sending the whole corpus "because the model has a long context".
 - No token budget, then silently truncating a chapter.
+- Treating "top 5" as a safety limit; the limit is tokens, not items.
+- A fixed 0.35 reranker threshold copied across models; calibrate it.
+- Unbounded rewrite fan-out (4 x top 50) before the reranker.
+- No explicit "not found" path when every score is low.
 - Assuming prompt caching hits when every query selects different documents.
 - A separate vector DB before the eval; Bleve can hold the vectors.
 - An 8B rewrite plus a reranker as the default when a glossary and BM25 pass
