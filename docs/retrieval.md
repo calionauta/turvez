@@ -194,7 +194,7 @@ upgrade** over route-then-read. Place each piece by what it actually fixes:
 | SLM rewrite is milliseconds on CPU | a 3-8B model on CPU is seconds per rewrite and 5-8 GB of RAM; vLLM is GPU-first, Ollama runs on CPU more slowly | eval-gated, external service, cache by query hash; glossary first |
 | a 1-3B model rewrites in tens of milliseconds | 1-3B is the right size for rewriting, but CPU generation is still hundreds of ms to a few seconds; quantization, prompt length and host decide | prefer 1-3B over 8B; keep a 1-3s timeout and the original-query fallback |
 | a cross-encoder reranks 30 snippets in 50-100 ms | plausible for MiniLM-class (`ms-marco-MiniLM-L-6-v2`) with ONNX and short snippets; `bge-reranker-v2-m3` is several times heavier | pick by latency budget; measure on the host, not on a blog |
-| run the reranker in a Python worker / ONNX inside the Go worker | a Python script node violates `docs/language-policy.md`; in-process ONNX adds cgo, native libs and memory to the worker | external inference service, called over HTTP by a Go node; separate binary if in-process |
+| run the reranker inside the Go worker via in-process ONNX | in-process ONNX adds cgo, native libs and memory to the worker; a Python script node violates `docs/language-policy.md` | external **Go/ONNX** inference service, called over HTTP by a Go node; separate binary if in-process |
 | the reranker is ultra-light | a cross-encoder over 50 candidates is hundreds of ms to seconds on CPU, plus the model in memory | fine as a service; rerank **units/sections**, not snippets |
 | top-5 snippets beat whole chapters | it reintroduces chunk boundaries and loses multi-paragraph context; the reranker only reorders what Bleve found | only when the token budget cannot fit the units; prefer unit-level rerank |
 | selective prompt caching helps | with top-5 snippets there is no stable prefix to cache; caching is orthogonal to this stage | do not count it as a retrieval stage; measure hit rate |
@@ -242,9 +242,10 @@ flow: answer-question
   are heavier than a BM25 pass. Measure on the target host.
 - `top 30` candidates are **units/sections**, not arbitrary chunks. Top-5 is a
   budget outcome; do not fix it as a rule.
-- A Python/FastEmbed service is infrastructure, not a script node; a Go node
-  calls it over HTTP. In-process ONNX adds cgo/native libs to the worker and is
-  not the default.
+- A **Go/ONNX** inference service is the default: infrastructure, not a script
+  node, called over HTTP by a Go node. Python/FastEmbed is an exception only
+  for a model the Go path does not have. In-process ONNX adds cgo/native libs
+  to the worker and is not the default.
 
 Fallback matrix:
 

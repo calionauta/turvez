@@ -105,8 +105,9 @@ a default. Keep the unit:
   reading budget cannot fit the unit.
 - "Zero token cost" is not zero infrastructure cost. Compare against the
   cheapest semantic upgrade: a small embedding model + Bleve kNN.
-- A Python/TS reranker is an external service called by a Go node, never a
-  script node (`docs/language-policy.md`).
+- A reranker in another language is an external service called by a Go node;
+  the default is **Go/ONNX**, and never a Python/TS script node
+  (`docs/language-policy.md`).
 - One inference service per environment (Ollama/vLLM for a 1-3B rewrite; ONNX
   MiniLM or bge-reranker-v2-m3 for reranking) on the internal network; never
   load a model per execution. 1-3B is right-sized for rewriting, but expect

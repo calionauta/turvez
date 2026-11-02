@@ -22,8 +22,9 @@ decision, not an agent decision — stop and ask.
 A local model (SLM rewrite, cross-encoder reranker, embeddings) is an
 **external inference service**, not a script node: a Go node calls it over HTTP.
 There is no Python/TS node for inference, and the gate rejects one. The service
-itself may be Python/FastEmbed or ONNX — that is infrastructure, outside the
-engine.
+itself is **Go/ONNX by default** — infrastructure, outside the engine. A
+Python/FastEmbed service is an exception only when it has a model the Go path
+does not.
 
 ## Why Go for the nodes
 
