@@ -24,7 +24,7 @@ credentials and agent tools, an **LLM gateway** for model calls, and optional
 | **Dagu** — level 2 | YAML DAGs over commands the client already has | recurrent script/SSH/Docker/backup jobs | separate binary, no DB, no repo integration |
 | **Nango** — credential/tool layer | OAuth store, HTTP proxy, Agent Sessions (MCP) | SaaS auth without raw tokens; tool discovery for agents | Node + Postgres; self-hosted or Cloud |
 | **LLM gateway** | OpenAI-compatible endpoint behind `llm.complete` | one auditable model-call surface, per-client keys/cost | per deployment profile |
-| **Retrieval** — per-client capability | long context, or Go + [Bleve](https://github.com/blevesearch/bleve) lexical index (`docs/retrieval.md`) | answering from documents, without a vector DB by default | alongside the client's engine |
+| **Retrieval** — per-client capability | long context, or Go + [Bleve](https://github.com/blevesearch/bleve) routing to **whole documents/chapters** (`docs/retrieval.md`) | answering from documents; the LLM reads whole units, not chunks | alongside the client's engine |
 | **Evals** | promptfoo + `select-cases.py` / `windmill-job-to-run.py` | quality gate before and after a change | local / CI |
 | **Sandbox** | `scripts/sandbox-run.sh` | one-off scripts, zero residue | local Docker |
 
@@ -60,9 +60,11 @@ Q2. Where does it run?
 
 Q3. Is the ask "answer questions over our data"?
     system of record (CRM, ERP, wiki API) -> call it through Nango
-    documents (PDFs, contracts, manuals)   -> retrieval ladder:
-      long context -> Bleve BM25 in Go + glossary -> OpenWN-PT ->
-      FastText only behind an eval -> embeddings only if the eval demands it
+    documents (PDFs, contracts, manuals)   -> route-then-read:
+      expand (glossary -> OpenWN-PT -> FastText behind an eval) ->
+      Bleve routes to WHOLE documents/chapters within a token budget ->
+      LLM reads them in long context; vectors only if the eval demands it
+      (inside Bleve, not a separate vector DB)
 
 Q4. Is it a one-off script?
     yes -> sandbox-run.sh, read it, run isolated, delete it. Never a recipe.

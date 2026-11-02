@@ -151,20 +151,26 @@ flowchart TD
     S -->|"system of record"| P["Nango HTTP proxy (fixed call)<br/>or Agent Session MCP (agent picks tools)"]
     S -->|"documents"| L{"Corpus fits one prompt?"}
     L -->|"yes"| LC["Long context, stable cached prefix"]
-    L -->|"no"| IX["Go + Bleve BM25<br/>+ curated glossary"]
-    IX --> EV{"Eval recall@5 good enough?"}
-    EV -->|"no"| WN["+ OpenWN-PT / thesaurus"]
-    WN --> EV2{"Still missing?"}
-    EV2 -->|"no"| ANS["Excerpts + citations → llm.complete"]
-    EV2 -->|"yes"| FT["FastText / embeddings<br/>only behind an eval"]
-    FT --> ANS
+    L -->|"no"| RT["Route-then-read:<br/>Bleve selects WHOLE docs/chapters"]
+    RT --> BUD{"Fits the reading budget?"}
+    BUD -->|"no"| SEC["Section-level units<br/>or map-reduce summaries"]
+    BUD -->|"yes"| READ["LLM reads whole units<br/>in long context"]
+    SEC --> READ
+    RT --> EV{"Eval recall@unit good enough?"}
+    EV -->|"no"| WN["+ glossary / OpenWN-PT / FastText<br/>only behind an eval"]
+    WN --> RT
+    EV -->|"still missing"| VEC["Vectors - inside Bleve,<br/>not a second database"]
+    VEC --> RT
+    READ --> ANS["Answer + citations<br/>(reject uncited units)"]
     LC --> ANS
     P --> ANS
 ```
 
 Full rationale, traps and the ship gate: `docs/retrieval.md`. A system of
 record is a freshness problem (call it); a document corpus is a retrieval
-problem (index it). Nango is not a document index.
+problem (route to whole units, then read them). Nango is not a document index.
+The default unit is the **chapter**, not the chunk; chunking is a fallback for
+a unit that does not fit the reading budget.
 
 ## Formats: pick by role, not by taste
 

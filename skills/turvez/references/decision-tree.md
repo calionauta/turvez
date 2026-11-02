@@ -28,10 +28,12 @@ run both engines for one client.
 Split **documents** from **systems of record** before choosing anything
 (`references/retrieval.md`): a system of record is a tool call through Nango (the
 fixed proxy in a recipe/flow; an agent session/MCP only when an agent must
-choose tools, which is Q1.5). A document corpus follows the ladder: long context
-→ Bleve BM25 in Go + a curated glossary → OpenWN-PT → FastText only behind an
-eval. Embeddings only when the eval proves lexical + synonyms insufficient.
-A vector DB is never the first answer.
+choose tools, which is Q1.5). A document corpus follows **route-then-read**:
+long context → Bleve selects whole documents/chapters within a token budget →
+the LLM reads them in long context; expand with a glossary → OpenWN-PT →
+FastText only behind an eval, and add vectors to Bleve only when the eval proves
+lexical + synonyms miss. Chunks are not the default retrieval unit, and a
+vector DB is never the first answer.
 
 Then, **for a dagnats client only**, ask the levels below in order. First
 "yes" wins. Full rationale: `docs/script-execution.md`. A Windmill client stops

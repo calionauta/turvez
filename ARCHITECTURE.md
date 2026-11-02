@@ -75,8 +75,10 @@ never change the repo shape.
   surface for cost, latency and errors; per-client virtual keys per deployment
   profile. Prompt caching, when present, is the gateway's behaviour
   (`docs/retrieval.md`).
-- **Retrieval.** A per-client capability, not a runtime: long context for a
-  small stable corpus, otherwise Go nodes + Bleve BM25 + a curated glossary.
+- **Retrieval.** A per-client capability, not a runtime: **route-then-read**.
+  Bleve selects whole documents/chapters (not chunks) within a token budget,
+  and the LLM reads them in long context; a curated glossary expands the query
+  before routing. Vectors, if the eval ever demands them, live in Bleve itself.
   Systems of record are called at the source through Nango; documents get an
   index and an eval (`docs/retrieval.md`).
 - **Evals.** `evals/` is engine-agnostic. `select-cases.py` reads dagnats runs;
@@ -106,16 +108,20 @@ never change the repo shape.
 3. Production flows carry an error handler that notifies the operator; the
    external dead-man switch covers the case where the flow itself cannot run.
 
-### Documents: question to answer
+### Documents: question to answer (route-then-read)
 
-1. Batch indexer (Go node/service) chunks by structure and writes Bleve with
-   `doc_id` + offset + `acl`.
-2. Query node expands the question with the client's glossary, searches top-k,
-   returns excerpts with ids.
-3. The prompt is built in a prior step, then `llm.complete` answers as JSON with
-   `citations`; citations outside the retrieved set are rejected.
-4. A 30-50 question eval gates the change; tier 0 (long context) is the
-   baseline it must beat.
+1. Batch indexer (Go node/service) segments by structure and writes Bleve with
+   one record per **reading unit** (chapter, or section when a chapter is too
+   long): `doc_id`, `unit_id`, heading path, offset, tokens, `acl`.
+2. The router expands the question with the client's glossary, applies the
+   `acl` filter, and returns whole units that fit a **token budget** — not a
+   fixed top-k of chunks.
+3. The prompt is built in a prior step; `llm.complete` reads the units in long
+   context and answers as JSON with `citations`. Citations outside the selected
+   set are rejected.
+4. A 30-50 question eval gates the change; tier 0 (whole corpus) and a chunked
+   baseline are what it must beat. If lexical routing misses, add vectors to
+   Bleve rather than a second database.
 
 ## Decisions
 
@@ -133,8 +139,9 @@ never change the repo shape.
 - **Credentials in Nango, not in the repo.** Provider tokens are connections;
   the client slug is the connection id. `clients/credentials_test.go` enforces
   the naming and follows `WORKFLOWS_DIR` into an ops repo.
-- **Retrieval is lexical-first.** Bleve + glossary before WordNet, before
-  FastText, before embeddings; each step needs an eval that justifies it.
+- **Retrieval is lexical-first and reads whole units.** Bleve routes to
+  chapters, the LLM reads them; glossary before WordNet, before FastText,
+  before vectors; each step needs an eval that justifies it.
 - **Env + age, no vault** (solo). Process env in prod, age files for versioned
   backups; revisit with a second operator or compliance pressure.
 - **Engine sleeps, not worker sleeps.** Multi-day waits are `sleep`/`approval`

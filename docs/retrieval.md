@@ -11,11 +11,63 @@ first.
 | What holds the answer | Build | Do not build |
 |---|---|---|
 | A **system of record** (CRM, ERP, ticketing, wiki with an API) | a **tool call** through Nango: the fixed HTTP proxy in a recipe/flow, or an agent session (MCP) when an agent must choose tools | a local index of a copy that goes stale |
-| **Documents the client owns** (PDFs, contracts, manuals) | an index + retrieval + `llm.complete` (below) | embeddings by default |
+| **Documents the client owns** (PDFs, contracts, manuals) | **route-then-read** (below) | embeddings by default |
 | A handful of pages that fit one prompt | no index: long context with a stable cached prefix | Bleve, a vector DB, a reindex pipeline |
 
 The two expensive mistakes are a vector database for a 40-page FAQ, and a local
 index of HubSpot that answers with last month's deal stage.
+
+## Route, then read (the default shape)
+
+The default is **not** "embed everything, fetch five chunks, stuff them in the
+prompt". It is three stages:
+
+```
+[question]
+   │
+   ▼
+1. LOCAL EXPANSION        glossary → OpenWN-PT → FastText (only behind an eval)
+   │                       ms, $0, auditable
+   ▼
+2. BLEVE ROUTING          retrieve WHOLE documents / chapters, not chunks
+   │                       the index is a router, not the answer
+   ▼
+3. LONG-CONTEXT READING   send the selected units whole, in order, within a
+                          token budget; stable prefix for prompt caching
+```
+
+Why the unit changes:
+
+- **Chunking is a workaround for a small reader window.** When the model can
+  read a chapter, the chapter is the right unit. No answer split across chunk
+  boundaries, no five fragments of the same page, and citations point at a
+  section a human can open.
+- **Lexical search only has to be right at document granularity.** Bleve's job
+  is to get the reader into the right document/chapter; the model does the
+  fine-grained reading.
+- **It removes a layer.** No embedding model, no vector database, no chunk-level
+  reranker by default.
+
+This is still RAG. What changes is the **retrieval unit** and the **reader**.
+Call it **route-then-read**; whether it replaces a vector database depends on
+the corpus, not on the name.
+
+## Verdict: does it replace vector databases and RAG?
+
+**Yes for the common consultancy case; no as a universal replacement.**
+
+| Case | Route-then-read? | Why |
+|---|---|---|
+| Bounded corpus (hundreds to a few thousand documents), terminology-rich (contracts, policies, manuals, ERP/legal/health) | **Replace chunked vector RAG; drop the separate vector DB** | exact terms, codes and clause numbers are the strongest signal; whole-unit reading beats chunk stitching; $0 for retrieval |
+| Answer requires synthesising across many documents that do not fit one context | **Partial** — hierarchical/map-reduce, or vectors | the reader cannot see everything at once |
+| Open-domain, very large, paraphrase-heavy, cross-lingual | **No** — keep semantic retrieval | lexical routing cannot recover a document whose vocabulary never matches the query |
+| High QPS, tight latency/cost budget | **Usually no** | reading 30-60k tokens per query is slower and costlier than 5k of chunks, even with caching |
+| You still want embeddings later | **Yes, without a new service** | Bleve has vector fields and kNN; add vectors to the same index when the eval demands it |
+
+The honest limit: **route-then-read cannot recover a document that stage 1-2
+never retrieved.** Expansion is the recall ceiling. If the eval shows paraphrase
+misses, add vectors — inside Bleve, not as a second database — and score
+hybrid.
 
 ## The ladder
 
@@ -24,36 +76,51 @@ because a newer technique is more interesting.
 
 | # | Approach | Use when | Cost/query | Failure mode |
 |---|---|---|---|---|
-| 0 | Long context, no retrieval | corpus < ~100-150k tokens, changes slowly; gateway supports prompt caching | one big prompt, no infra | cost per call; context rot; citations only if the model returns ids |
-| 1 | Lexical BM25 in Go ([Bleve](https://github.com/blevesearch/bleve)) | documents with exact terms, codes, names, clause numbers | ~ms, $0 | misses paraphrase/synonym |
+| 0 | Long context, whole corpus | corpus < ~100-150k tokens, changes slowly; gateway supports prompt caching | one big prompt, no infra | cost per call; context rot; citations only if the model returns ids |
+| 1 | **Route-then-read**: Bleve selects whole documents/chapters, LLM reads them | bounded, terminology-rich corpus; citations matter | ~ms for routing + reading tokens | lexical recall; token budget; context rot |
 | 2 | Tier 1 + curated glossary expansion | legal, accounting, health, legacy ERP: the domain has its own vocabulary | ~ms, $0, auditable | a bad glossary widens noise; log which term expanded |
 | 3 | Tier 2 + OpenWN-PT (or a corporate thesaurus) | general Portuguese where the glossary is thin | ~ms, $0 | WordNet coverage is general, not domain |
 | 4 | FastText query expansion | **only after an eval** shows tiers 1-3 miss | model size + cgo + load time | distributional neighbours are not synonyms; can blur "cancelamento"/"rescisão" |
-| 5 | Embeddings / hybrid | eval shows lexical+synonyms still miss; corpus is large and paraphrastic | embedding + vector store + reindex | new infra, opaque ranking, cost |
+| 5 | Embeddings / hybrid | eval shows lexical + synonyms still miss; corpus is large and paraphrastic | embedding + vectors + reindex | new infra, opaque ranking, cost |
 
 Tiers 1-2 are the default for a consultancy delivery: deterministic, testable,
 no model to host, and citations that point at a real offset.
 
 ## Documents: the pipeline in Go
 
-1. **Ingest** (batch, never per query): extract text and keep `doc_id`, `title`,
-   `section`, `offset`, `updated_at`, `acl`. One document becomes many chunks.
-2. **Chunk by structure**, not by character count: headings, clauses,
-   paragraphs; 300-800 tokens, 10-15% overlap. Store the offset so an answer can
-   cite the source instead of inventing one.
-3. **Index** with [Bleve](https://github.com/blevesearch/bleve): BM25, a Portuguese analyzer (lowercase, stopwords,
-   Snowball stemmer — Bleve ships language analyzers; confirm the package for
-   the pinned version), a `keyword` field for codes/IDs (exact, boosted), and a
-   synonym filter built from the glossary. The index is a build artifact: keep
-   it on disk or in an object store, never in the run KV.
-4. **Query**: expand the query with the glossary (query-time OR of synonyms),
-   search, take top-k, then optionally rerank with a cross-encoder or the LLM —
-   only if the eval says it pays.
-5. **Prompt**: build it in a prior step (observability rule). Stable prefix
-   (system + rules + output schema), then retrieved excerpts with ids, then the
-   question. Ask for JSON: `{answer, citations: [{doc_id, offset}]}`.
-6. **Verify**: reject an answer whose citations are not in the retrieved set.
+1. **Ingest** (batch, never per query): extract text and keep `doc_id`,
+   `title`, `updated_at`, `acl`, `lang`.
+2. **Segment into reading units**: document → chapter → section. Prefer the
+   chapter; if a chapter exceeds the reading budget, use its sections. Never
+   split mid-sentence to hit a token count. Store `unit_id`, the heading path,
+   `offset`, `tokens`.
+3. **Index one record per unit** with
+   [Bleve](https://github.com/blevesearch/bleve): BM25, a Portuguese analyzer
+   (lowercase, stopwords, Snowball stemmer — Bleve ships language analyzers;
+   confirm the package for the pinned version), a `keyword` field for codes/IDs
+   (exact, boosted), title/heading boosts, and a synonym filter built from the
+   glossary. The index is a build artifact: keep it on disk or in an object
+   store, never in the run KV.
+4. **Route**: expand the query with the glossary (query-time OR of synonyms),
+   apply `acl`/date/type filters, search units, group by document, dedupe, then
+   fit a **token budget** (not a fixed top-k). Order by score, then by document
+   order so a chapter reads naturally.
+5. **Read**: build the prompt in a prior step (observability rule). Stable
+   prefix (system + rules + output schema), then the whole units with clear
+   delimiters and ids, then the question. Ask for JSON:
+   `{answer, citations: [{doc_id, unit_id, offset}]}`.
+6. **Verify**: reject an answer whose citations are not in the selected set.
    That is a cheap hallucination gate and it costs no extra model call.
+
+### Budget, not top-k
+
+- Define `CONTEXT_BUDGET` as a fraction of the model window (start at 40-60%).
+- Add units by relevance until the budget is reached; do not truncate a unit
+  silently.
+- If one unit alone exceeds the budget, fall back to its sections.
+- If the answer needs more than the budget, use a map-reduce pass: summarise
+  each unit against the question, then answer over the summaries. That is a
+  second mode, not the default.
 
 ### Code sketch (Windmill Go node)
 
@@ -63,12 +130,22 @@ The node is a Go script (`language: go`), so the compiler checks the signature
 ```go
 package inner
 
-// main returns the top-k chunks; the LLM call is a separate step.
-// Parameters become the step's input schema and generated UI.
-func main(question string, indexDir string, topK int) (interface{}, error) {
-	// open indexDir, expand question with the glossary, build a boolean
-	// query, return []struct{ DocID, Section string; Offset, Score int }
-	return []any{}, nil
+// RoutingUnit is a whole chapter/section, not a 500-token chunk.
+type RoutingUnit struct {
+	DocID   string
+	UnitID  string
+	Heading string
+	Text    string
+	Offset  int
+	Tokens  int
+	Score   float64
+}
+
+// main returns the units that fit budgetTokens; the LLM call is a separate step.
+func main(question string, indexDir string, budgetTokens int) (interface{}, error) {
+	// open indexDir, expand question with the glossary, search unit records,
+	// group by document, then add whole units until budgetTokens is reached.
+	return []RoutingUnit{}, nil
 }
 ```
 
@@ -80,10 +157,44 @@ only sequence these nodes.
 The 12 handlers cannot open a Bleve index. Two valid shapes:
 
 - **Small corpus**: `llm.complete` with the documents in the prompt (tier 0).
-- **Larger corpus**: run the retriever as a separate Go service and call it with
+- **Larger corpus**: run the router as a separate Go service and call it with
   `http.request`; the recipe stays declarative. A new handler is a last resort
   (`AGENTS.md`), and retrieval is usually too client-specific to be a generic
   task.
+
+## Why whole units can beat chunk RAG — and when they lose
+
+| Whole-unit reading wins | Whole-unit reading loses |
+|---|---|
+| answers split across chunk boundaries | context rot: relevant text in the middle of a long prompt can be missed (Liu et al., "Lost in the Middle") |
+| multi-paragraph reasoning inside one contract/manual | token cost and latency scale with the units sent |
+| citations at a section a human can open | a single chapter can exceed the window |
+| no embedding model or vector store to operate | lexical recall is still the ceiling |
+| glossary terms stay visible in context | duplicates: ten near-identical chapters crowd out the right one |
+
+Mitigations, not denials:
+
+- keep the selected set small (budget, dedupe, drop near-duplicates);
+- put the question **last** and the rules first;
+- prefer chapter over whole document, section over chapter;
+- measure answer accuracy, not token count.
+
+**More context is not free accuracy.** Long context is a capability, not a
+quality guarantee.
+
+## Prompt caching: what it does and does not buy
+
+- Route-then-read makes caching more likely to pay, because whole chapters
+  repeat across questions (a policy manual, a contract set). But it is not
+  automatic: if every query selects a different set, the hit rate is low.
+- Cache the **stable prefix** (system, rules, output schema); put the question
+  and the selected units last. Some gateways only cache exact prefixes.
+- `llm.complete` here exposes `model`, `messages`, `base_url`, `max_tokens`,
+  `temperature` and `timeout_ms` (`internal/handlers/llm_complete.go`) — there
+  is **no `cache_control` field**. Caching is the gateway/provider's implicit
+  behaviour. Measure the hit rate before promising a cost number.
+- Do not sell "long-context + caching" as free retrieval. It is cheaper than
+  uncached reading, not cheaper than not reading.
 
 ## Synonyms: glossary first, WordNet second, FastText last
 
@@ -105,19 +216,6 @@ generic benchmark: the glossary is reviewable by the client's specialist, and
 OpenWN-PT is useful when the glossary is thin and the language is general
 Portuguese. It is not a substitute for a corporate thesaurus, and it does not
 know the client's internal codes.
-
-## Prompt caching: what it does and does not buy
-
-- Caching pays when a **stable prefix** repeats: system prompt, rules, output
-  schema, and — in tier 0 — the corpus itself. Put the variable part (question,
-  retrieved excerpts) last.
-- It does **not** make per-query excerpts cheap. If excerpts change every query,
-  they are not a cache hit. Do not sell "long-context + caching" as a retrieval
-  strategy for a large corpus; those are two different modes.
-- `llm.complete` here exposes `model`, `messages`, `base_url`, `max_tokens`,
-  `temperature` and `timeout_ms` (`internal/handlers/llm_complete.go`) — there
-  is **no `cache_control` field**. Caching is the gateway/provider's implicit
-  behaviour. Verify it with the client's gateway before promising a cost number.
 
 ## Tool data: Nango proxy or Nango MCP
 
@@ -154,8 +252,8 @@ an MCP agent.
 
 | Piece | Windmill | dagnats |
 |---|---|---|
-| Ingest/reindex | Go node on a schedule (`flow.yaml`), index in a volume/object store | `http.request` to the retriever service, or a manual batch job |
-| Query | Go node (`main(question string, topK int)`) | `http.request` to the service, or tier 0 via `llm.complete` |
+| Ingest/reindex | Go node on a schedule (`flow.yaml`), index in a volume/object store | `http.request` to the router service, or a manual batch job |
+| Route | Go node (`main(question string, budgetTokens int)`) returns whole units | `http.request` to the service, or tier 0 via `llm.complete` |
 | Prompt build | Go node or `transform.json`-equivalent step | `transform.json` (persisted before the model call) |
 | Answer | flow step `llm.complete` | recipe step `llm.complete` |
 
@@ -168,29 +266,41 @@ Do not ship retrieval without a question set:
 
 1. 30-50 real questions from the client, each with the document ids that answer
    it, plus 5-10 that should be refused (not in the corpus).
-2. Measure `recall@5` (did the right chunk appear), citation validity, answer
-   correctness (blind label), p50/p95 latency, and cost per query.
-3. Compare against tier 0 (long context) on the same set. If tier 0 wins on
-   accuracy and the corpus fits, ship tier 0.
-4. Re-run when the corpus or glossary changes. A retrieval system without an
+2. Measure:
+   - `recall@unit` — did the right document/chapter appear?
+   - citation validity — are the cited units in the selected set?
+   - answer correctness (blind label);
+   - tokens sent per query and cache hit rate;
+   - p50/p95 latency and cost per query.
+3. Compare against tier 0 (whole corpus) **and** a chunked baseline on the same
+   set. Route-then-read must win on accuracy or cost, not on novelty.
+4. If lexical routing misses, add vectors **in Bleve** and re-run; do not adopt
+   a vector database as a separate service by reflex.
+5. Re-run when the corpus or glossary changes. A retrieval system without an
    eval is a demo.
 
 ## Anti-patterns
 
+- Fetching top-k chunks when the reader can read the chapter.
+- Sending the whole corpus "because the model has a long context".
+- No token budget, then silently truncating a chapter.
+- Assuming prompt caching hits when every query selects different documents.
+- A separate vector DB before the eval; Bleve can hold the vectors.
 - Embeddings first, eval never.
 - Indexing a system of record instead of calling it.
 - Letting the model decide access control; filter by `acl` at query time.
-- Chunking by fixed character count, losing the offset, then asking for
-  citations.
+- Losing the offset, then asking for citations.
 - Reindexing on every query.
 - Putting raw client documents in the run KV (`docs/observability.md`).
 - A 300 MB FastText model to expand five words.
 
 ## Sources (checked 2026-11-02)
 
+- Bleve repository: https://github.com/blevesearch/bleve
+- Bleve vectors and kNN: https://github.com/blevesearch/bleve/blob/master/docs/vectors.md
+- Bleve docs (BM25, analyzers, synonym filter): https://blevesearch.com/docs/
+- "Lost in the Middle: How Language Models Use Long Contexts": https://arxiv.org/abs/2307.03172
 - Nango Agent Sessions: https://nango.dev/docs/guides/agent-sessions
 - Nango MCP & Tools: https://nango.dev/platform/mcp/
-- Bleve repository: https://github.com/blevesearch/bleve
-- Bleve docs (BM25, analyzers, synonym filter): https://blevesearch.com/docs/
 - OpenWN-PT: https://github.com/own-pt/openwordnet-pt/
 - Go WordNet parser: https://pkg.go.dev/github.com/fluhus/gostuff/nlp/wordnet

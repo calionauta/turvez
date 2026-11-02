@@ -145,13 +145,17 @@ upgrade window, or a contract requiring a separate database.
   A fixed endpoint in a recipe/flow is the **HTTP proxy**; an interactive agent
   that must discover tools is a Nango **Agent Session (MCP)** — an agent loop,
   not a recipe (decision-tree Q1.5). Nango is not a document index.
-- **Documents** → ladder, cheapest first: long context → Bleve BM25 in Go +
-  a curated glossary → OpenWN-PT → FastText only behind an eval. Embeddings
-  only if the eval proves lexical + synonyms insufficient.
+- **Documents** → **route-then-read**: expand the query locally (glossary →
+  OpenWN-PT → FastText only behind an eval), let Bleve select **whole
+  documents/chapters** within a token budget, then read them in long context.
+  Chunk-level vector RAG is not the default; add vectors to Bleve only if the
+  eval proves lexical + synonyms miss.
 
 A 200-term glossary beats a 300 MB FastText model for the client's own
-vocabulary; use the model only as an evaluated experiment. Never promise "RAG"
-without a 30-50 question eval with expected document ids.
+vocabulary; use the model only as an evaluated experiment. Route-then-read
+replaces chunked vector RAG for bounded, terminology-rich corpora, not semantic
+retrieval universally. Never promise "RAG" without a 30-50 question eval with
+expected document ids.
 
 ## When to use
 
