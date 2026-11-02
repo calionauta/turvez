@@ -41,8 +41,10 @@ Ask in order; stop at the first branch that answers. Full playbook:
      remembers its parent section/chapter; the **reading unit** is the parent,
      not the chunk and not the whole chapter;
    - expand with the glossary → OpenWN-PT → FastText only behind an eval;
-   - dedupe by `doc_id:unit_id`; caps: ≤3 rewrites × ≤20 units, ≤60 candidates,
-     reranker batch + timeout + BM25 fallback;
+   - dedupe by `doc_id:unit_id`;
+     caps: 0 rewrites by default, or 1 cached rewrite with a fallback to the
+     original query; hybrid candidate cap 25-50; reranker batch + timeout +
+     BM25 fallback;
    - hard token budget with the target tokenizer + output reserve; a cutoff
      calibrated per model (never a copied 0.35) chooses read vs the explicit
      "not found" answer; no cloud call when nothing passes;

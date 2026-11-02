@@ -84,10 +84,13 @@ never change the repo shape.
   Chunking is the workaround for a small reader window; when the model can read
   a section or chapter, that is the unit. A curated glossary expands the query
   before routing; a query rewrite is an optional step inside the hybrid route,
-  not a default rung. The funnel is bounded by a hard token budget, a candidate
-  cap and a calibrated refusal threshold; the reranker scores units, never
-  snippets. The eval gates the whole shape before it is used with clients.
-  Vectors, if the eval ever demands them, live in Bleve itself.
+  not a default rung. Where a rewrite step exists at all in this runtime, keep it
+  to **one cached rewrite with a fallback to the original query**, not a
+  multi-rewrite fan-out.
+  The funnel is bounded by a hard token budget, a candidate cap and a calibrated
+  refusal threshold; the reranker scores units, never snippets. The eval gates
+  the whole shape before it is used with clients. Vectors, if the eval ever
+  demands them, live in Bleve itself.
   Systems of record are called at the source through Nango; documents get an
   index and an eval (`docs/retrieval.md`).
 - **Evals.** `evals/` is engine-agnostic. `select-cases.py` reads dagnats runs;

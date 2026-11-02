@@ -68,11 +68,12 @@ Q3. Is the ask "answer questions over our data"?
             natural language -> BM25 + small dense hybrid (RRF over units),
             optional cross-encoder rerank of units
       expand: glossary -> OpenWN-PT -> FastText (only behind an eval);
-            optional SLM rewrite cache by query hash, fallback
+            rewrite is NOT a default rung; if added at all, keep 0 or 1 cached
+            rewrite with a fallback to the original query
       route: Bleve returns whole units (chapter, or section when too long);
             dedupe by doc_id:unit_id; lex only for identifiers, hybrid for NL
       caps: hard token budget (target tokenizer + output reserve);
-            <=3 rewrites x <=20 units, <=60 candidates,
+            if a rewrite step exists, bound it to 1 rewrite x <=50 candidates;
             reranker batch + timeout, BM25 fallback
       read: parent section/chapter of top chunks in long context,
             question last, citations checked;
@@ -82,8 +83,9 @@ Q3. Is the ask "answer questions over our data"?
       eval: 30-50 questions + 5-10 refusals; vectors only inside Bleve
 
 2026 defaults: lexical for identifiers, hybrid for NL, the parent is the
-reading unit, HardTokenBudget over top-k, query rewrite is optional inside the
-hybrid route, and vectors stay in Bleve if the eval ever needs them.
+reading unit, HardTokenBudget over top-k, rewrite is optional and must be 0 or 1
+cached rewrites unless the eval justifies more, and vectors stay in Bleve if the
+eval ever needs them.
 
 Q4. Is it a one-off script?
     yes -> sandbox-run.sh, read it, run isolated, delete it. Never a recipe.

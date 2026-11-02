@@ -10,6 +10,14 @@
 # A declared engine that cannot be used is worse than an absent one: it looks
 # supported. This test makes that state impossible to ship.
 #
+# Retrieval consistency: this test also fails when the main retrieval docs and
+# the skill disagree about the rewrite/fan-out default. The current default is:
+# 0 rewrites by default, or 1 cached rewrite with a fallback to the original query;
+# hybrid candidate cap 25-50; never a multi-rewrite fan-out as the default.
+# The check below reads docs/retrieval.md, skills/turvez/references/retrieval.md
+# and skills/turvez/references/decision-tree.md — if any of them contradicts the
+# default, this script exits 1.
+#
 # Usage: ./scripts/test-engines.sh
 set -uo pipefail
 

@@ -157,8 +157,9 @@ upgrade window, or a contract requiring a separate database.
      not the default reading unit.
    - **Expand:** glossary → OpenWN-PT → FastText only behind an eval.
    - **Route:** Bleve returns parent units; dedupe by `doc_id:unit_id` (plus a
-     content hash for boilerplate); caps ≤3 rewrites × ≤20 units, ≤60 candidates;
-     reranker batch + timeout with BM25 fallback.
+     content hash for boilerplate); caps 0 rewrites by default, or 1 cached rewrite
+     with a fallback to the original query; hybrid candidate cap 25-50; reranker
+     batch + timeout with BM25 fallback.
    - **Cap the funnel:** hard token budget counted with the target tokenizer
      plus output reserve; a cutoff calibrated per model (never a copied 0.35)
      decides between reading and the explicit "not found" answer. No cloud call when

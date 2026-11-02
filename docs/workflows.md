@@ -177,9 +177,11 @@ The 2026 default is **lexical for identifiers, hybrid (BM25 + small dense + RRF)
 for natural language, optional cross-encoder rerank of units, and the parent
 section/chapter as the reading unit.** The chunk is the indexing unit (~256-512
 tokens + overlap); the chapter is the reading unit only when it fits the budget;
-top-5 snippets is not the reading unit when the parent section fits. The cutoff
-node exists only when the optional reranker is on; BM25-only mode goes from the
-budget straight to reading. "Top 5" is not a limit — the hard token budget is.
+top-5 snippets is not the reading unit when the parent section fits. Rewrite is
+not a default rung: keep it at **0 or 1 cached rewrite** unless the eval justifies
+it, and bound any rewrite step to **1 rewrite × ≤50 candidates**. The cutoff node
+exists only when the optional reranker is on; BM25-only mode goes from the budget
+straight to reading. "Top 5" is not a limit — the hard token budget is.
 
 ## 6.1 Windmill topology for the optional semantic layer
 

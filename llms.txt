@@ -50,7 +50,8 @@
   dense + RRF + optional rerank of units for natural language; glossary expansion;
   routing unit = chunk that remembers its parent section/chapter; reading unit =
   parent, not chunk or whole chapter; hard token budget + candidate cap +
-  calibrated refusal; vectors only behind an eval, inside Bleve) from systems of
+  calibrated refusal; rewrite is not a default rung — 0 or 1 cached rewrites unless
+  the eval justifies it; vectors only behind an eval, inside Bleve) from systems of
   record (Nango proxy; Agent Sessions MCP only for an agent that chooses tools).
   Agent playbook: skills/turvez/references/retrieval.md
 - Language policy: docs/language-policy.md — **script nodes are Go** in both

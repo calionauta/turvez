@@ -44,7 +44,9 @@ unit**. Doc rationale and sources: `docs/retrieval.md`.
 Corrected placement:
 
 1. **Expand** — glossary first; an optional SLM rewrite behind an eval, with a
-timeout and a deterministic fallback. Cache the rewrite by query hash.
+timeout and a deterministic fallback (route the original question through Bleve).
+Cache the rewrite by query hash. If you add a rewrite step at all, keep it to one
+cached rewrite, not a multi-rewrite fan-out.
 2. **Route** — Bleve returns whole units after dedupe and the candidate cap
 (hybrid when the query is natural language; lexical-only for identifiers), not
 20-50 snippets.
@@ -156,12 +158,18 @@ Hard limits, not top-k:
   as subsections. 300-500 token chunks are the indexing unit for long docs, not
   the default reading unit.
 - Classify the query first: identifiers → lexical only; natural language → hybrid.
-- Candidate cap: 25-50 retained per query for hybrid, fewer for lexical; fan-out
-  ≤3 rewrites × ≤20 units, dedupe by `doc_id:unit_id` (plus a content hash),
-  ≤60 before reranking.
+- Candidate cap: 25-50 retained per query for hybrid, fewer for lexical. Do not
+  multiply by several rewrites by default: the default rewrite step is **0 or 1**,
+  cached by query hash, with a fallback to the original query. If you add a rewrite
+  step, keep it bounded — **1 rewrite, ≤50 candidates** — and dedupe by
+  `doc_id:unit_id` (plus a content hash).
 - Reranker: batch, per-call timeout, BM25 fallback. Calibrate the score
   threshold per model on the eval set; never copy 0.35. If nothing passes, the
   explicit "not found" answer wins and no cloud call is made.
+- Rewrite failure: route the original question through Bleve. Reranker failure:
+  keep BM25 order and fill the token budget. Service down: skip the semantic
+  layer; route-then-read still answers. No unit clears the cutoff: explicit
+  "not found" answer, no cloud call.
 - Bounded, not immune: measure worst-case tokens, reranker p95 and false-refusal
   rate.
 

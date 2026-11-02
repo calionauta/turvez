@@ -247,28 +247,31 @@ ladder makes three clear points versus earlier defaults:
    vocabulary-mismatch queries get a hybrid route at the same cost tier: the same
    index, a small dense embedding model over the same indexing units, RRF, optional
    cross-encoder rerank of units, and the same parent-as-reading-unit shape.
-2. **Query rewrite is an optional step inside the hybrid route, not a default
-   rung.** A local Small Language Model rewriting the question can help on a
-   paraphrase-heavy corpus, but it also adds a local inference dependency, CPU
-   cost, a timeout, a cache by query hash, and a fan-out you have to bound. In the
-   Go/Windmill shape this runtime favors, the practical compromise is usually one
-   rewrite, cached, with the rest of the funnel kept small.
+2. **Query rewrite is not a default rung.** _When the eval justifies it_, a local
+   Small Language Model rewriting the question can help on a paraphrase-heavy
+   corpus, but it also adds a local inference dependency, CPU cost, a timeout, a
+   cache by query hash, and a fan-out you have to bound. In the Go/Windmill shape
+   this runtime favors, the practical compromise is usually one rewrite, cached,
+   with a fallback to the original query.
 3. **Editing the index is a normal stop, not a novelty.** If the term mismatch
    is predictable and expensive, build it into the index (lexical field, synonym
    filter, hybrid field) rather than asking the orchestrator to solve it at
    query time every call.
 
-
-
-These are defaults, not universal constants; the eval sets the final numbers.
+These are the same defaults everywhere this guide repeats them. Some docs outside
+`docs/retrieval.md` still say 3 rewrites, some say 1. They should not. The
+current default for this runtime is the tighter one: **0 rewrites unless the eval
+justifies a rewrite step, and if you add one, keep it to 1 cached rewrite with a
+fallback to the original query.** The 3-rewrite numbers are legacy wording that
+the eval and the fallback matrix should not contradict.
 
 | Limit | Default | Where enforced |
 |---|---|---|
 | Reading unit | chapter; its sections when the chapter exceeds ~4k tokens | indexer |
 | Context budget | 40-60% of the window, minus output and prefix reserve | router, target tokenizer |
-| Query rewrites | ≤3, cache by query hash, 1-3s timeout | orchestrator |
-| Candidates | ≤20 per rewrite, ≤60 after dedupe | router |
-| Reranker | batch of 16, 2s per-call timeout, BM25 fallback | inference service + node |
+| Query rewrites | 0 or 1, cache by query hash, 1-3s timeout | orchestrator |
+| Candidates | 25-50 retained per query for hybrid, fewer for lexical | router |
+| Reranker | batch, per-call timeout, BM25 fallback | inference service + node |
 | Refusal | cutoff calibrated per model; no cloud call when nothing passes | orchestrator |
 | Eval | 30-50 questions + 5-10 refusals | ship gate |
 
@@ -354,10 +357,11 @@ upgrade** over route-then-read. Place each piece by what it actually fixes:
 | selective prompt caching helps | with top-5 snippets there is no stable prefix to cache; caching is orthogonal to this stage | do not count it as a retrieval stage; measure hit rate |
 | it replaces a vector database | it improves precision, not recall; Bleve still has to return the document | if paraphrase recall misses, add embeddings to Bleve's kNN index |
 
-Corrected placement:
-
-1. **Expand** — glossary first; an optional SLM rewrite behind an eval, with a
-   timeout and a deterministic fallback. Cache the rewrite by query hash.2. **Route** — Bleve returns whole units after dedupe and the candidate cap
+Corrected placement:1. **Expand** — glossary first; an optional SLM rewrite behind an eval, with a
+timeout and a deterministic fallback (route the original question through Bleve).
+Cache the rewrite by query hash. If you add a rewrite step at all, keep it to one
+cached rewrite, not a multi-rewrite fan-out.
+2. **Route** — Bleve returns whole units after dedupe and the candidate cap
 (hybrid when the query is natural language; lexical-only for identifiers), not
 20-50 snippets.
 3. **Rerank (optional)** — a cross-encoder scores **units** (section, or its
@@ -394,9 +398,10 @@ flow: answer-question
 - `1-3B` is enough for query rewriting; prefer it over 8B for latency. Expect
   hundreds of ms to a few seconds on CPU, not tens of ms.
 - Reranker: MiniLM-class for latency, `bge-reranker-v2-m3` for quality; both
-  are heavier than a BM25 pass. Measure on the target host.
-- The candidate set is ≤3 rewrites × ≤20 units, deduped, then ≤60 units before
-  reranking. `top 30` is a starting point; top-5 is a budget outcome, not a rule.
+  are heavier than a BM25 pass. Measure on the target host.- The candidate set is ≤1 rewrite × ≤50 units, deduped, then ≤50 units before
+reranking, if you use a rewrite step at all. `top 30` is a starting point; top-5 is
+a budget outcome, not a rule. The literal ≤3 rewrites version is legacy wording and
+should not be used in new docs.
 - A **Go/ONNX** inference service is the default: infrastructure, not a script
   node, called over HTTP by a Go node. Python/FastEmbed is an exception only
   for a model the Go path does not have. In-process ONNX adds cgo/native libs
