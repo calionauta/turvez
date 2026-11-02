@@ -4,167 +4,219 @@ Turvez is built for forward-deployed engineers: client work that survives
 failures, waits for humans, and keeps receipts. Source lives in git — your
 agent drafts it, tests gate it, you approve. One folder per client, extractable
 to dedicated infra when they grow. Your own automations run free on the same
-engine.
+spine.
 
-**Engines.** The repo is the spine; the runtime is a **per-client choice**
-recorded in `clients/<client>/client.yaml` (`docs/client-spine.md` → "Choosing
-the engine"). **Windmill is the default** and is what `scripts/new-client.sh`
-scaffolds: one instance with a workspace per client, UI/forms, step-level replay
-and code steps. **dagnats** (Go worker + 12 generic tasks, one binary, `go test`
-gate) is the exception path — chosen with `--engine=dagnats` when the contract
-demands typed contracts, native approvals, no arbitrary code, or AGPL/Postgres
-is a problem. `engines.json` holds that policy in one place. One engine per
-client, never both (`.github/workflows/ci.yml` and `go test ./clients/` enforce
-the manifest). Migrating a client either way is mechanical
-(`docs/migrate-to-windmill.md`, `scripts/convert-to-windmill.py`).
+The repo is **not** the runtime. It is the **spine**: the client contract, the
+source of truth, the gates and the evals. The **engine is a per-client choice**
+recorded in `clients/<client>/client.yaml`; **Windmill is the default**,
+**dagnats is the exception**, and **Dagu is level 2** for script-shaped jobs.
+Around them sit layers that never become a second orchestrator: **Nango** for
+credentials and agent tools, an **LLM gateway** for model calls, and optional
+**retrieval** for documents.
 
-## What it solves, and how
+## The stack at a glance
 
-Client automation breaks in predictable ways: a SaaS webhook changes shape
-and nobody notices, an approval sits in someone's inbox for days, secrets leak
-into a JSON file, one client's failure pages you at 3am with no run id. Turvez
-answers each with a mechanism, not a policy doc:
-
-| Breaks when | Turvez mechanism |
-|---|---|
-| Webhook payload changes shape | Envelope-tolerant first step + `go test` executes every jq expression |
-| Human gate takes days | Native `approval`/`sleep` steps (durable in NATS, no worker slot held) |
-| Secret leaks into a recipe | Names-only JSON; `go test` fails the build on embedded values; age-encrypted files |
-| Silent failures | `on_failure` → notify per recipe + `ops/dlq-watchdog` + external `GET /health` probe |
-| One client outgrows the shared box | Same worker binary, different env — extract runbook in `docs/isolating-a-client.md` |
-
-## Architecture
-
-```
-dagnats serve (engine: NATS + API + console)
-   ▲ tasks (JetStream)            ▲ events/signals
-   │                              │
-worker (this repo: 12 handlers, secrets by name at runtime)
-   │                              │
-   ▼                              ▼
-external SaaS ◄──────── human (Slack link / curl approve)
-```
-
-- **Engine**: dagnats `v0.0.30` (embedded NATS JetStream + HTTP API + console).
-  Full diagram and verified behaviors in `ARCHITECTURE.md`.
-- **Worker**: one Go binary, twelve generic task handlers (HTTP, jq transform,
-  condition, map, delay, Slack/Telegram/Discord/webhook, approval, LLM, DLQ check).
-- **Recipes**: `clients/<client>/automation/dagnats/*.json` — the automation code. Git is source
-  of truth, dagnats KV is a deployment target.
-- **Secrets**: names in JSON, values in `env/<client>.env` or age-encrypted
-  `secrets/<client>/env.age`, decrypted to memory at boot.
-
-## Stacks and when to use each
-
-Turvez decides *where* work belongs before writing code (`docs/script-execution.md`):
-
-| # | Stack | When | Cost |
+| Layer | What it is | What it serves | Where it runs |
 |---|---|---|---|
-| 0 | **turvez recipes** (this repo) | SaaS glue, cron, human approvals, retries, DLQ | 1 stack, already operated |
-| 1 | `scripts/sandbox-run.sh` | One-off LLM-generated script — run isolated, throw away | zero (local docker) |
-| 2 | **Dagu** (ad-hoc CLI, not integrated) | Recurrent script/SSH/Docker that stays script-shaped | 1 binary, no DB |
-| 3 | **Windmill** (per-client migration) | Team needs generated UI, forms, integration catalog | Postgres + workers |
-| D | **degustia** (sister project, optional; PT-BR + en-US) | Interview → tool prescription with global free-tool coverage; free MCP (recommend/render/validate); `scripts/tool-pick.sh` ranks the same catalog locally with no network. PT-BR is a bonus, not a gate | free MCP + local ranker |
-| M | **FDEOps** ([fdeops.io](https://www.fdeops.io/), upstream methodology, MIT) | Discovery, scope, and architecture options before building; runbook/handoff after | harness-level skills |
+| **Spine** (this repo) | `clients/<client>/`, `client.yaml`, fieldbook, `env/` + age, evals, gates | source of truth, tenancy, review, rollback | git — public template / private ops |
+| **Windmill** — default engine | flows under `automation/windmill/`, Go script nodes, UI/forms, step-level replay | most client work; an operator who is not you | one instance, one workspace per client |
+| **dagnats** — exception engine | Go worker + 12 generic tasks + embedded NATS JetStream, `go test` gate | typed contracts, native approvals, no arbitrary code, one binary, Apache-2.0 | one binary; shared or dedicated |
+| **Dagu** — level 2 | YAML DAGs over commands the client already has | recurrent script/SSH/Docker/backup jobs | separate binary, no DB, no repo integration |
+| **Nango** — credential/tool layer | OAuth store, HTTP proxy, Agent Sessions (MCP) | SaaS auth without raw tokens; tool discovery for agents | Node + Postgres; self-hosted or Cloud |
+| **LLM gateway** | OpenAI-compatible endpoint behind `llm.complete` | one auditable model-call surface, per-client keys/cost | per deployment profile |
+| **Retrieval** — per-client capability | long context, or Go + [Bleve](https://github.com/blevesearch/bleve) lexical index (`docs/retrieval.md`) | answering from documents, without a vector DB by default | alongside the client's engine |
+| **Evals** | promptfoo + `select-cases.py` / `windmill-job-to-run.py` | quality gate before and after a change | local / CI |
+| **Sandbox** | `scripts/sandbox-run.sh` | one-off scripts, zero residue | local Docker |
 
-Levels 2 and 3 replace each other per client — never operate both.
-Windmill vs n8n vs dagnats, and the optional Nango auth layer, are compared in
-`docs/script-execution.md#platform-choice-beyond-turvez`. Degustia and
-FDEOps are *inputs* (diagnose, decide), turvez is the *executor* (run, operate).
+**One orchestrator per client.** Nango, the gateway and retrieval are layers:
+they sit in front of Windmill or dagnats, they do not replace either. Running
+two engines for one client is a test failure (`TestClientManifests`).
 
-## Per-client structure and fieldbooks
+## Decision tree
 
-> Public template keeps only `_template/`, `example-client/`, `ops/`,
-> `personal/` (fixtures). Real clients live in a private `turvez-ops` repo —
-> see `docs/ops-repo.md` (scaffold: `./scripts/new-ops-repo.sh ../turvez-ops`).
+Full rationale: `docs/client-spine.md`, `docs/script-execution.md`,
+`docs/deployment-profiles.md`, `docs/retrieval.md`.
 
-Everything a client needs lives in one folder plus one env template:
+```text
+Q0. Which repo am I in?
+    go.mod only        -> public template. No real clients; scaffold in turvez-ops.
+    TURVEZ_PIN only    -> private ops repo. Real clients live here.
+
+Q1. Which engine?  (client.yaml always wins once it exists)
+    new client                                  -> Windmill (default)
+    typed contracts / no arbitrary code /
+      one binary / Apache-2.0 (AGPL or
+      Postgres is a contract problem)           -> dagnats (confirm with operator)
+    recurrent existing command
+      (SSH, backup, deploy.sh, ffmpeg, kubectl) -> Dagu level 2 (not integrated)
+    never two engines for one client
+
+Q2. Where does it run?
+    shared (default)    -> one stack; folder + name prefix + env isolate clients
+    dedicated           -> only for regulation/residency, client-owned infra,
+                           noisy neighbour, per-client upgrade window,
+                           or a separate-database clause
+    profiles: A embedded / B managed (SMB default) / C multi-tenant (product)
+
+Q3. Is the ask "answer questions over our data"?
+    system of record (CRM, ERP, wiki API) -> call it through Nango
+    documents (PDFs, contracts, manuals)   -> retrieval ladder:
+      long context -> Bleve BM25 in Go + glossary -> OpenWN-PT ->
+      FastText only behind an eval -> embeddings only if the eval demands it
+
+Q4. Is it a one-off script?
+    yes -> sandbox-run.sh, read it, run isolated, delete it. Never a recipe.
+```
+
+## Repo structures
+
+### Template repo (public)
+
+```text
+cmd/worker/                 dagnats worker binary (engine-specific)
+internal/handlers/          the 12 stable tasks
+internal/secret/            env + age loader
+internal/opshttp/           human-approval shim
+clients/_template/          skeleton: client.yaml, FIELDBOOK, recipes, evals
+clients/example-client/     worked example (dagnats + recipes)
+clients/ops/                platform automations (DLQ watchdog)
+clients/personal/           your own namespace
+env/<client>.env.example    secret NAMES (committed)
+secrets/<client>/           age recipients + ciphertext
+engines.json                engine policy; "default": "windmill"
+scripts/                    scaffolds, gates, extraction, evals
+docs/ skills/               references; the skill is the agent entry point
+```
+
+The template keeps only `_template/`, `example-client/`, `ops/`, `personal/`.
+A real client name fails `TestNoRealClientsInTemplate` and must move to the ops
+repo (`docs/ops-repo.md`).
+
+### Ops repo (private, `turvez-ops`)
+
+```text
+TURVEZ_PIN                  pins the template release (tag, not a branch)
+clients/<client>/           real clients, one folder each
+env/<client>.env.example    names only; values in .env (gitignored) or age
+secrets/<client>/           age recipients and env.age
+workflows/                  legacy phase-1 layout, read-only during migration
+```
+
+Validate from the template checkout:
+
+```bash
+OPS=$PWD; cd $TURVEZ_CHECKOUT && WORKFLOWS_DIR=$OPS/clients go test ./clients/
+```
+
+### Per client (engine-agnostic)
 
 ```text
 clients/<client>/
-  README.md        # fieldbook: context, contacts, systems, triggers, runbook, decisions
-  *.json           # recipes, named <client>/…, triggers <client>-…
-env/<client>.env.example   # secret NAMES (commit); env/<client>.env holds values (never)
-secrets/<client>/env.age   # same env, age-encrypted (ciphertext OK in git)
+  client.yaml               engine: windmill|dagnats|dagu
+                            runtime: shared|dedicated, target, data_class, owner
+  README.md                 fieldbook: context, contacts, systems, triggers, runbook
+  automation/<engine>/      the active source; exactly one engine directory
+  evals/                    promptfoo config, cases, labels
 ```
 
-Conventions (enforced by `go test ./clients/`): workflow names start with
-`<client>/`, trigger ids with `<client>-`, webhook paths contain `<client>`.
-Template: `clients/_template/FIELDBOOK.md`. Worked example: `example-client/`,
-platform automations: `ops/`, your own: `personal/` (same pipeline, you approve).
+The engine changes the source directory and the deploy command, not the folder
+shape, the fieldbook, the evals or the tenancy rules.
 
-## Scaling: solo → team, one client → many
+## Clients and scales
 
-**Solo → team.** Add a second operator by appending their age public key to
-`secrets/<client>/.recipients` — they decrypt only the clients they support
-(`docs/secrets.md`). Migrate to `sops` when per-client recipients become routine
-or editing turns weekly (concrete triggers documented, not before).
+**Client kinds.** `example-client/` is the worked fixture; `ops/` holds platform
+automations; `personal/` is your own namespace with you as approver; real
+clients live only in `turvez-ops`. All four follow the same pipeline and gates.
 
-**One client → many.** Three stages, no redesign (`docs/tenancy-evolution.md`):
-1. Single server, isolation by folder + name prefix + env (default).
-2. Logical multi-tenant: prefix-checked registration, optional per-client approval tokens.
-3. Physical: copy folder + env file to a new host, re-register, repoint webhooks,
-   disable on the old box (`docs/isolating-a-client.md`, rollback = two enables).
+**Shared → dedicated.** Isolation is a deployment profile, not a repo fork and
+not an engine change. Only `runtime` and `target` change; source, evals and the
+secrets schema stay. `scripts/verify-isolation.sh` reads the manifest and fails
+a `dedicated` client with no `target.host`; `scripts/extract-client.py` prints
+the cutover plan (definitions from git, triggers to disable, commands and
+rollback). Procedure: `docs/isolating-a-client.md`.
+
+**Tenancy stages** (`docs/tenancy-evolution.md`):
+
+1. Single server: folder + name prefix + env per client (default).
+2. Logical multi-tenant: prefix-checked registration, optional per-client
+   approval tokens.
+3. Physical: copy the folder + env to a new host, re-register, repoint
+   webhooks, disable on the old one.
+
+**Deployment profiles** (`docs/deployment-profiles.md`):
+
+| | A. Embedded | B. Managed (SMB default) | C. Multi-tenant |
+|---|---|---|---|
+| Runs on | client's server | your server, one stack per client | your server, one stack for many |
+| Boundary | data stays with client | crosses to you — needs DPA | crosses; tenant isolation required |
+| Gateway | only if 2+ callers | one, virtual key per client | required, per-tenant limits |
+| Windmill cost | Postgres + workers in their infra | one workspace per client | one instance, workspace per tenant |
+| dagnats cost | one binary + container | one stack per client | one stack, tenant-scoped names |
+
+**Solo → team.** Append an operator's age public key to
+`secrets/<client>/.recipients`; they decrypt only their clients. Move to `sops`
+when per-client recipients become routine, not before (`docs/secrets.md`).
 
 ## Quickstart
 
 ```bash
-# 0. Skill first (one command, works from any directory):
-npx skills add calionauta/turvez --skill turvez -g   # global; drop -g for project-level
+# 0. Skill (agent entry point)
+npx skills add calionauta/turvez --skill turvez -g
 
-# 1. Check prereqs (go, dagnats CLI, docker, env files, degustia ranker)
+# 1. Prereqs and env templates
 ./scripts/setup.sh
-./scripts/setup.sh --init personal   # scaffold gitignored env files
+./scripts/setup.sh --init personal
 
-# 2. Engine + worker stack
-#    If 8080/4222 are taken, export DAGNATS_HTTP_PORT / DAGNATS_NATS_PORT first.
-#    Console needs DAGNATS_CONSOLE_PASSWORD when bound to 0.0.0.0 (container).
-make up            # dagnats :4222/:8080, worker pulls tasks
+# 2. Create a client in the ops repo (never in the public template)
+./scripts/new-ops-repo.sh ../turvez-ops
+TURVEZ_OPS_DIR=../turvez-ops ./scripts/new-client.sh acme              # Windmill
+TURVEZ_OPS_DIR=../turvez-ops ./scripts/new-client.sh acme --engine=dagnats
 
-# …or locally (needs dagnats serve in another terminal):
-go install github.com/danmestas/dagnats/cmd/dagnats@v0.0.30
-dagnats serve &
-cp .env.example .env   # fill real values
-make worker
+# 3a. Windmill path (default) — gates run from the template, against the ops repo
+TURVEZ_OPS_DIR=../turvez-ops ./scripts/check-windmill.sh
+TURVEZ_OPS_DIR=../turvez-ops ./scripts/lint-scripts.sh   # compiles Go nodes
+wmill flow preview ../turvez-ops/clients/acme/automation/windmill/<flow>
+wmill flow push ../turvez-ops/clients/acme/automation/windmill/<flow> "f/acme/<flow>"
 
-# 3. Register the example recipes
-make register
-
-# 4. Smoke: start a run, print status/events
+# 3b. dagnats path (exception)
+make up                              # dagnats :4222/:8080 + worker
+make register                        # example recipes
 make smoke
+
+# 4. Gates
+make validate
+go test ./...
 ```
 
-Console: `http://127.0.0.1:${DAGNATS_HTTP_PORT:-8080}/console/` (HTTP basic
-auth; the password comes from the `DAGNATS_CONSOLE_PASSWORD` env var).
-Per-client eval: `make eval-client CLIENT=<id> TURVEZ_OPS_DIR=../turvez-ops`;
-UI: `make eval-client-view …` → http://localhost:15500.
-Full walkthrough with the traps: `docs/first-run.md`.
+Console: `http://127.0.0.1:${DAGNATS_HTTP_PORT:-8080}/console/` (basic auth,
+`DAGNATS_CONSOLE_PASSWORD`). Evals: `make eval-client CLIENT=<id> …`; UI
+`:15500`. Full walkthrough with traps: `docs/first-run.md`.
 
 ## Operator loop
 
-0. **Direct first** — read `clients/<client>/README.md` (fieldbook) and
-   decide where the work belongs (`docs/script-execution.md` Q1–Q4).
-   Personal work uses client `personal/`.
-1. **Edit JSON** — copy the closest file from `clients/_template/`
-   into `clients/<client>/automation/dagnats/`, keep the `<client>.` name prefix.
-2. **Validate** — `dagnats workflow validate clients/<client>/automation/dagnats/x.json`
-   (or `make validate`; `go test ./clients/` compiles every jq
-   expression and executes samples).
-3. **Register** — `dagnats workflow register …` (embedded `triggers`
-   register with it) or attach a schedule:
-   `dagnats trigger create '<client>.nightly-sync' --cron='0 2 * * *'`.
-4. **Run & monitor** — `dagnats run start <name> '<input>' --watch`,
-   then `run status|events|output|inspect`, `dlq list|replay`.
+1. **Direct first.** Read the client's fieldbook and `client.yaml`; decide the
+   engine, runtime and level (`docs/script-execution.md`). A new client starts
+   on Windmill unless a criterion says otherwise.
+2. **Build in the client's engine.** Windmill: Go script nodes + `flow.yaml`
+   under `automation/windmill/` (`docs/language-policy.md`). dagnats: a JSON
+   recipe over the 12 tasks under `automation/dagnats/`. Dagu: level 2 only.
+3. **Validate locally.** `make validate` + `go test ./...`; Windmill also
+   `./scripts/check-windmill.sh` and `./scripts/lint-scripts.sh`.
+4. **Deploy with confirmation.** dagnats: propose `register`, wait. Windmill:
+   `wmill flow preview`, then push one flow; never `wmill sync push`.
+5. **Observe and evaluate.** `on_failure` → notify, `ops/dlq-watchdog`,
+   external `GET /health`; then generate cases and run the eval loop.
 
 ## Examples
 
-| Recipe | Flow |
-|---|---|
-| `hubspot-lead-to-slack` | webhook → HTTP GET → transform → Slack |
-| `invoice-paid-route` | fetch → transform → `skip_if` VIP/standard split |
-| `nightly-sync` | embedded cron trigger, fully static first step |
-| `approval-refund` | native `approval` gate (48h) → refund POST → receipt |
-| `personal.ping` | no-op smoke for your own namespace |
+| Example | Engine | Flow |
+|---|---|---|
+| `new-client.sh` Windmill scaffold | Windmill | `example-flow` with a Go node (`func main() (interface{}, error)`) |
+| `hubspot-lead-to-slack` | dagnats | webhook → Nango proxy → transform → Slack |
+| `invoice-paid-route` | dagnats | fetch → transform → `skip_if` VIP/standard split |
+| `nightly-sync` | dagnats | embedded cron, static first step |
+| `approval-refund` | dagnats | native `approval` gate (48h) → refund POST → receipt |
+| `personal.ping` | dagnats | no-op smoke for your namespace |
 
 Human approval from Slack/email: point the button at the ops shim
 (`internal/opshttp`, `OPS_HTTP_ADDR=127.0.0.1:8090`):
@@ -176,43 +228,48 @@ curl -X POST localhost:8090/ops/approvals/<run-id> \
 
 ## Docs
 
+- `docs/client-spine.md` — the spine: one repo, per-client engine, shared/dedicated, migrations
+- `docs/deployment-profiles.md` — A embedded / B managed / C multi-tenant, gateway placement, engine cost
+- `docs/script-execution.md` — where to execute: recipe vs sandbox vs Dagu vs Windmill + platform comparison
 - `docs/workflows.md` — Mermaid diagrams: repo choice, automation, eval loop, formats
-- `docs/client-spine.md` — one repo, any engine (dagnats/Windmill/Dagu), shared or dedicated
 - `docs/first-run.md` — verified install → client → run → observe → eval, with traps
-
-- `docs/writing-recipes.md` — recipe anatomy, engine-vs-handler table,
-  what the engine allows here, v0.0.30 behaviors, custom-handler checklist.
-- `docs/handlers-reference.md` — task inputs/outputs, metadata keys.
-- `docs/agent-tools.md` — exact CLI/API for an authoring agent.
-- `docs/ops-repo.md` — template (public) vs ops (private `turvez-ops`) split, lifecycle, tenancy.
-- `docs/secrets.md` — per-client age encryption, JIT runtime.
-- `docs/alerting.md` — operator notifications: on_failure pages, DLQ watchdog, external uptime.
-- `docs/tenancy-evolution.md` — stages 1→3 without redesign.
-- `docs/isolating-a-client.md` — extract one client to its own host.
-- `docs/migrate-to-windmill.md` — Windmill escape hatch (docs only).
-- `docs/sandbox-policy.md` — when you need a sandbox (usually you don't) + `scripts/sandbox-run.sh`.
-- `docs/script-execution.md` — where to execute: dagnats vs one-off vs Dagu vs Windmill.
-- `clients/_template/FIELDBOOK.md` — per-client fieldbook template (copy to `clients/<client>/README.md`).
-- `skills/turvez/SKILL.md` — automate-anything skill (direct → confirm → build). Symlink into your harness skills dir.
-- `clients/personal/` — your own automations as client `personal/` (same pipeline, you approve).
-- `ARCHITECTURE.md` — diagram, data flow, decisions.
-- `CHANGELOG.md` — release history (generated by release-please).
-- `AGENTS.md` — agent quick rules (this file's essentials).
+- `docs/writing-recipes.md` — recipe anatomy, engine-vs-handler table, what the engine allows, v0.0.30 traps
+- `docs/handlers-reference.md` — task inputs/outputs, metadata keys
+- `docs/language-policy.md` — **Go script nodes**; TS/Python only for a dispatch-only WAC orchestrator
+- `docs/nango.md` — credential layer: OAuth proxy, naming/enforcement, Agent Sessions (MCP)
+- `docs/retrieval.md` — answering over documents vs systems of record; lexical-first ladder; eval gate
+- `docs/secrets.md` — per-client age encryption, JIT runtime
+- `docs/alerting.md` — `on_failure`, DLQ watchdog, external uptime probe
+- `docs/tenancy-evolution.md` — stages 1→3 without redesign
+- `docs/isolating-a-client.md` — extract one client to its own host
+- `docs/ops-repo.md` — template (public) vs ops (private) split, lifecycle
+- `docs/migrate-to-windmill.md` — step mapping + `scripts/convert-to-windmill.py`
+- `docs/sandbox-policy.md` — when a sandbox is needed (usually not)
+- `docs/observability.md` — what is stored, prompt persistence, retention
+- `docs/agent-tools.md` — exact CLI/API for an authoring agent
+- `clients/_template/FIELDBOOK.md` — per-client fieldbook template
+- `skills/turvez/SKILL.md` — the automate-anything skill (direct → confirm → build)
+- `ARCHITECTURE.md` — diagrams, components, data flow, decisions
+- `AGENTS.md` — normative agent rules; `llms.txt` — task index
 
 ## Conventions
 
-- Automation code = workflow JSON. New Go handler = last resort + tests
-  + human review. No arbitrary script execution from JSON.
-- Secrets by name in JSON (`"auth_secret": "ACME_INTERNAL_API_TOKEN"`),
-  values in env/age files only. Provider OAuth/API keys go to Nango as a
-  connection (`"auth_secret": "NANGO_SECRET_KEY"`, `docs/nango.md`).
-- Durations in JSON are integer nanoseconds (`30000000000` = 30s) or Go
+- Automation code = the engine's source in git. dagnats: JSON recipes over the
+  12 tasks. Windmill: `flow.yaml` + Go script nodes. New Go handler = last
+  resort + tests + human review; no arbitrary script execution from JSON.
+- Script nodes are **Go** in both engines. TypeScript/Python only for a
+  Windmill WAC orchestrator that dispatches to Go scripts (`docs/language-policy.md`,
+  gate `./scripts/lint-scripts.sh`).
+- Secrets by name in JSON. Provider OAuth/API keys live in **Nango** as a
+  connection (`"auth_secret": "NANGO_SECRET_KEY"`, `docs/nango.md`); our own
+  plumbing stays in env/age. Values never in JSON or the repo.
+- Durations in dagnats JSON are integer nanoseconds (`30000000000` = 30s) or Go
   duration strings (`"30s"`).
 - Secrets are age-encrypted from day one (`secrets/<client>/env.age`,
   `scripts/edit-secrets.sh`); plain `.env` files are local scratch only.
 - Local hooks (pre-commit recipe scan + commit-msg Conventional Commits):
   `./scripts/install-hooks.sh`.
-- Versioned releases: Conventional Commits → release-please → tag +
-  changelog. Ops repos pin `TURVEZ_REF=vX.Y.Z` (tag), not a moving branch.
+- Conventional Commits → release-please → tag + changelog. Ops repos pin
+  `TURVEZ_REF=vX.Y.Z`, not a moving branch.
 - Pre-1.0 by policy: 1.0.0 requires an explicit human decision; the version
   guard fails CI if the manifest crosses 1.0.0.
