@@ -13,6 +13,8 @@ Full architecture guide: `docs/nango.md`.
 3. **Use the Nango Request Proxy by default.** Route HTTP calls through `${NANGO_HOST}/proxy/<path>` with `Connection-Id: <client>` and `Provider-Config-Key: <provider>`.
 4. **Tenancy:** The `Connection-Id` must always be the client name (`<client>`). If a client has multiple accounts, use `<client>:<subaccount>`.
 5. **Only one secret in the runner:** The only secret Windmill or dagnats needs is `NANGO_SECRET_KEY`.
+6. **Never ask the operator for a provider token.** Ask them to authorise it: `./scripts/nango-connect.sh <client> --provider <slug> --open` prints the dashboard link and the exact names. If they paste a token into chat, do not use it — rotate it.
+7. **Naming is enforced, not suggested** (`clients/credentials_test.go`): integration key = provider slug (`hubspot`), connection id = client slug (`acme`, or `acme:billing`).
 
 ---
 

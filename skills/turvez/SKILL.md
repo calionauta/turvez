@@ -153,6 +153,7 @@ Methodology questions (discover, scope, runbook): see `references/methodology.md
 | `scripts/check-windmill.sh` | Windmill lint gate, no worker needed |
 | `scripts/lint-scripts.sh` | local script gate: compiles Go nodes, checks `func main`, flow bindings, and the Go-only language policy (no server) |
 | `scripts/setup-nango.sh [--up/--down]` | check or spin up Nango auth layer |
+| `scripts/nango-connect.sh <client> --provider <slug> [--open]` | operator authorises a provider in Nango; prints the link + the exact names |
 | `scripts/verify-isolation.sh` | where every client runs (`runtime`/`target`), read-only; in `make validate` |
 | `scripts/extract-client.py <client>` | package one client for its own server — prints the plan, never executes |
 | `scripts/convert-to-windmill.py <client>` | dagnats recipes → Windmill **skeleton** in `converted-windmill/`; TODOs, never a port |
@@ -181,7 +182,7 @@ rubric only when no label is possible. The eval layer is engine-agnostic:
   client stay in the build loop below — no per-write confirm.
 - New Go handler: propose only, human lands (table tests required).
 - Secrets by NAME only. Never print values.
-- SaaS OAuth integrations: use **Nango** (`references/nango.md`), never raw tokens in Windmill variables or dagnats recipes.
+- SaaS OAuth integrations: use **Nango** (`references/nango.md`), never raw tokens in Windmill variables or dagnats recipes. Client keys/tokens: ask the operator to authorise via `./scripts/nango-connect.sh <client> --provider <slug> --open`, never "send me the token".
 
 ## Build loop (level 0 — dagnats engine)
 

@@ -232,9 +232,41 @@ steps:
 | Secret / Config | Storage | Why |
 |---|---|---|
 | **SaaS OAuth credentials** (HubSpot, Slack, Google, Salesforce) | **Nango** | Token refresh rotation, OAuth callback dance, rate-limits |
+| **SaaS provider API keys** (a HubSpot private-app token, a Stripe secret key, a client's own API bearer token) | **Nango**, as an API-key connection | One encrypted store, one place to rotate, `Connection-Id` per tenant. The runner never holds the value. |
 | **Nango Secret Key** (`NANGO_SECRET_KEY`) | **Windmill Variable / `secrets/<client>/env.age`** | Platform-level secret used by workers to authenticate with Nango |
 | **Webhook signing secrets** (e.g. `SLACK_SIGNING_SECRET`) | **Windmill Variable / `secrets/<client>/env.age`** | Static secret required locally to verify inbound payload HMAC signatures |
+| **Incoming webhook URLs** (`SLACK_WEBHOOK_URL`) | **Windmill Variable / `secrets/<client>/env.age`** | A fixed endpoint we own, not a revocable grant; nothing to refresh |
 | **Internal databases / private APIs** | **Windmill Variable / `secrets/<client>/env.age`** | Private infrastructure not exposed as public SaaS |
+
+The test is one question: *can the client revoke or rotate it in a vendor
+dashboard?* If yes it belongs in Nango — we should not be paged for their
+rotation. If it is our own plumbing (webhook URL, DB password, the Nango key
+itself), it stays in the store the runner reads.
+
+### 5.1 Naming: one integration per provider, one connection per client
+
+| Thing | Value | Example |
+|---|---|---|
+| Integration key (`Provider-Config-Key`) | provider slug, lowercase, **no client prefix** | `hubspot`, `google-calendar`, `slack` |
+| Connection id (`Connection-Id`) | client slug, `:<subaccount>` when it has several accounts | `acme`, `acme:billing` |
+
+Two integrations for one provider (`acme-hubspot`, `beta-hubspot`) means a scope
+change or a renewal is applied N times and gets missed N-1 times. The client is
+the **connection**, never the integration.
+
+### 5.2 Enforcement (not convention)
+
+`clients/credentials_test.go` fails the build on all three ways a copy-pasted
+integration leaks across tenants:
+
+1. a provider credential in `env/*.env.example` (`ACME_HUBSPOT_TOKEN`) — the
+   message names the provider and the `nango-connect.sh` command that replaces it;
+2. a `Connection-Id` that is not the client the file lives under;
+3. a `Provider-Config-Key` with a client prefix, or not a lowercase slug.
+
+`./scripts/nango-connect.sh <client> --provider <slug> [--open]` prints the
+dashboard link, the two names to type, the verification `curl`, and the exact
+header block to paste — so the agent asks for an authorisation instead of a token.
 
 ---
 
@@ -248,6 +280,7 @@ When a new client (`acme`) requires integration with a SaaS platform (e.g. HubSp
 3. Set the scopes needed by the automation (e.g. `crm.objects.contacts.read`).
 
 ### Step 2: Authorize the Client Connection
+The agent prints the identifiers; the operator clicks. `./scripts/nango-connect.sh acme --provider hubspot --open` gives the dashboard link, the connection id to use (`acme`) and the verification command — never ask for the token itself.
 Send the client a secure Connect link generated via Nango's API or UI:
 ```bash
 curl -X POST "$NANGO_HOST/connect/sessions" \

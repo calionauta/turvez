@@ -64,4 +64,11 @@
   then `scripts/rename-workflows.sh --apply`.
 - Durations in JSON accept integer nanoseconds or Go duration strings
   (`"30s"`); `$schema` is accepted but optional.
+- Script nodes are Go in both engines; TypeScript/Python only for a Windmill
+  WAC orchestrator that dispatches to Go scripts with `taskScript()`/`taskFlow()`
+  (`docs/language-policy.md`, gate `./scripts/lint-scripts.sh`).
+- Client SaaS keys/OAuth: authorise in Nango, never paste the value.
+  `./scripts/nango-connect.sh <client> --provider <slug>` prints the link and
+  the exact names; `clients/credentials_test.go` rejects a provider token in
+  `env/` and a `Connection-Id` that is not the client (`docs/nango.md`).
 - New Go handler = last resort + tests + human review; no script exec.
