@@ -79,7 +79,8 @@ never change the repo shape.
   Bleve selects whole documents/chapters (not chunks) within a token budget,
   and the LLM reads them in long context; a curated glossary expands the query
   before routing. An optional, eval-gated rewrite/rerank layer scores **units**
-  (never snippets) as an external inference service; vectors, if the eval ever
+  (never snippets) as an external inference service — one per environment,
+  health-checked, never a model load per step; vectors, if the eval ever
   demands them, live in Bleve itself.
   Systems of record are called at the source through Nango; documents get an
   index and an eval (`docs/retrieval.md`).

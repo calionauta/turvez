@@ -172,6 +172,28 @@ problem (route to whole units, then read them). Nango is not a document index.
 The default unit is the **chapter**, not the chunk; chunking is a fallback for
 a unit that does not fit the reading budget.
 
+## 6.1 Windmill topology for the optional semantic layer
+
+```mermaid
+flowchart LR
+    Q["Question"] --> EX["Go node: expand<br/>HTTP → Ollama/vLLM 1-3B"]
+    EX -->|"timeout/error"| ORIG["Go node: route original query"]
+    EX -->|"ok"| RT["Go node: Bleve top N units"]
+    ORIG --> RT
+    RT --> RR["Go node: rerank<br/>HTTP → ONNX cross-encoder"]
+    RR -->|"timeout/error"| BUD["Fill budget in BM25 order"]
+    RR -->|"ok"| READ["Read whole units<br/>llm.complete, stable prefix"]
+    BUD --> READ
+```
+
+One inference service per environment on the internal network (never a model
+load per step), health-checked, with the model version pinned. The reranker
+scores units/sections, not arbitrary snippets; 30 candidates and top-5 are
+budget outcomes. A Python/FastEmbed service is infrastructure, not a script
+node — the Go node calls it over HTTP. Fallbacks: original query when the
+rewrite fails, BM25 order when the reranker fails, and route-then-read when the
+service is down.
+
 ## Formats: pick by role, not by taste
 
 | Role | Format | Why |

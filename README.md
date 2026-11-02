@@ -25,6 +25,7 @@ credentials and agent tools, an **LLM gateway** for model calls, and optional
 | **Nango** — credential/tool layer | OAuth store, HTTP proxy, Agent Sessions (MCP) | SaaS auth without raw tokens; tool discovery for agents | Node + Postgres; self-hosted or Cloud |
 | **LLM gateway** | OpenAI-compatible endpoint behind `llm.complete` | one auditable model-call surface, per-client keys/cost | per deployment profile |
 | **Retrieval** — per-client capability | long context, or Go + [Bleve](https://github.com/blevesearch/bleve) routing to **whole documents/chapters** (`docs/retrieval.md`) | answering from documents; the LLM reads whole units, not chunks | alongside the client's engine |
+| **Local inference** — optional, eval-gated | Ollama/vLLM (1-3B query rewrite) + ONNX reranker (MiniLM/BGE) | semantic expansion/reranking without sending content to a third party | shared service on the internal network; one per environment |
 | **Evals** | promptfoo + `select-cases.py` / `windmill-job-to-run.py` | quality gate before and after a change | local / CI |
 | **Sandbox** | `scripts/sandbox-run.sh` | one-off scripts, zero residue | local Docker |
 

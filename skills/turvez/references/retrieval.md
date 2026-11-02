@@ -107,6 +107,14 @@ a default. Keep the unit:
   cheapest semantic upgrade: a small embedding model + Bleve kNN.
 - A Python/TS reranker is an external service called by a Go node, never a
   script node (`docs/language-policy.md`).
+- One inference service per environment (Ollama/vLLM for a 1-3B rewrite; ONNX
+  MiniLM or bge-reranker-v2-m3 for reranking) on the internal network; never
+  load a model per execution. 1-3B is right-sized for rewriting, but expect
+  hundreds of ms to seconds on CPU, not tens of ms.
+- Fallbacks: rewrite fails → route the original query; rerank fails → BM25
+  order; service down → route-then-read; LLM step fails → flow retry/alert.
+- 30 candidates are units/sections, not arbitrary chunks; top-5 is a budget
+  outcome, not a rule.
 
 ## Nango MCP: when it is the right answer
 
