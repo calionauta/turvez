@@ -19,6 +19,18 @@ Workflow JSON references **names** only (`"auth_secret": "ACME_X"`). The
 `TestRecipeStructure` test fails the build if a secret-looking value
 (`hooks.slack…`, `xoxb-`, `sk-`, `ghp_`, PEM) shows up in any recipe.
 
+## SaaS OAuth credentials vs static secrets: use Nango
+
+Static secrets (database credentials, webhook signing secrets, encryption keys, and the Nango API key itself) belong in `env/<client>.env` / `secrets/<client>/env.age` (or Windmill Variables).
+
+**SaaS OAuth credentials (HubSpot, Slack, Google, Salesforce, etc.) do NOT belong in `.env`.**
+Tokens expire in 1-24 hours and rotating refresh tokens break when multiple worker tasks run in parallel. Storing raw tokens in `.env.age` means manual key rotation and guaranteed outages.
+
+For SaaS APIs, use **Nango** ([docs/nango.md](nango.md)):
+- Nango manages the OAuth Connect flow with the client.
+- Tokens are automatically refreshed centrally with distributed locking.
+- Automations call the SaaS via the Nango Request Proxy (`/proxy/...`) or SDK using `Connection-Id: <client>` and `NANGO_SECRET_KEY`.
+
 ## Keys: one per environment, per client when needed
 - **Default:** one consultancy key per execution environment (laptop,
   server). One file per client, all encrypted to the same recipient —

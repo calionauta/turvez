@@ -35,6 +35,8 @@ isolation check.
   recreate from the JSON `triggers` arrays, see below)
 - `env/<client-id>.env` (or `secrets/<client-id>/env.age` +
   the age identity out-of-band)
+- SaaS Auth (Nango): spin up dedicated Nango on the new host (`./scripts/setup-nango.sh --up`)
+  and re-authorize connections for `Connection-Id: <client-id>` (see `docs/nango.md`, section 8)
 - Worker image at the same git SHA / version (same binary, different env)
 
 ## What NOT to migrate
