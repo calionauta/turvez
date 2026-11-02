@@ -55,17 +55,6 @@ func clientDirs(t *testing.T) []string {
 	return out
 }
 
-// clientFromPath returns the slug in clients/<slug>/... or workflows/<slug>/...
-func clientFromPath(path string) string {
-	parts := strings.Split(filepath.ToSlash(path), "/")
-	for i, p := range parts {
-		if (p == "clients" || p == "workflows") && i+1 < len(parts) {
-			return parts[i+1]
-		}
-	}
-	return ""
-}
-
 var (
 	// The reference usually sits inside a JSON string (jq expression), so the
 	// quotes around the header name are backslash-escaped.
