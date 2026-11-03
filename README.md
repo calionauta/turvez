@@ -42,69 +42,60 @@ defaults table: `skills/turvez/references/decision-tree.md`. Full rationale:
 `docs/client-spine.md`, `docs/script-execution.md`,
 `docs/deployment-profiles.md`, `docs/retrieval.md`, `docs/genkit.md`.
 
-```text
-Q0. Which repo am I in?
-    go.mod only        -> public template. No real clients; scaffold in turvez-ops.
-    TURVEZ_PIN only    -> private ops repo. Real clients live here.
+Rendered on GitHub; the text form for terminals, diffs and agents is the
+canonical tree (`skills/turvez/references/decision-tree.md`).
 
-Q1. Which engine?  (client.yaml always wins once it exists)
-    new client                                  -> Windmill (default)
-    typed contracts / no arbitrary code /
-      one binary / Apache-2.0 (AGPL or
-      Postgres is a contract problem)           -> dagnats (confirm with operator)
-    recurrent existing command
-      (SSH, backup, deploy.sh, ffmpeg, kubectl) -> Dagu level 2 (not integrated)
-    never two engines for one client
+```mermaid
+flowchart TD
+    ASK{"The ask"}
+    ASK --> Q0{"Q0. Which repo?"}
+    Q0 -->|"go.mod only"| TPL["public template<br/>no real clients"]
+    Q0 -->|"TURVEZ_PIN"| OPS["private ops repo<br/>real clients"]
 
-Q1.5. Is it an agent loop with tools that runs until done?
-    a human waits for the answer
-      (review/rewrite, triage, extraction + critic) -> Genkit capability,
-      not a recipe (docs/genkit.md; ./scripts/new-agent-service.sh <client>)
-    nobody waits, or it must survive a restart      -> recipe / platform decision
-    either way: anything durable becomes a run in the client's engine
+    OPS --> Q1{"Q1. Which engine?"}
+    Q1 -->|"new client"| WM["Windmill — default<br/>UI/forms · replay · Go nodes"]
+    Q1 -->|"typed contracts · no arbitrary code<br/>one binary · Apache-2.0"| DG["dagnats — exception<br/>worker + 12 tasks · go test"]
+    Q1 -->|"recurrent shell job"| DU["Dagu — level 2<br/>not integrated"]
 
-Q2. Where does it run?
-    shared (default)    -> one stack; folder + name prefix + env isolate clients
-    dedicated           -> only for regulation/residency, client-owned infra,
-                           noisy neighbour, per-client upgrade window,
-                           or a separate-database clause
-    profiles: A embedded / B managed (SMB default) / C multi-tenant (product)
+    OPS --> Q15{"Q1.5. Agent loop with tools?"}
+    Q15 -->|"a human waits"| GK["Genkit capability<br/>not an engine · scaffold + gate"]
+    Q15 -->|"nobody waits · restarts matter"| RC["recipe or platform decision"]
+    GK --> TAIL["durable tail → a run in the client's engine"]
+    RC --> TAIL
 
-Q3. Is the ask "answer questions over our data"?
-    system of record (CRM, ERP, wiki API) -> call it through Nango;
-      a tool-choosing agent -> Agent Session (MCP), not a recipe
-    a few pages that fit one prompt        -> long context; no index
-    documents (PDFs, contracts, manuals)   -> route-then-read:
-      classify first: identifiers -> BM25 lexical only;
-            natural language -> BM25 + small dense hybrid (RRF over units),
-            optional cross-encoder rerank of units
-      expand: glossary -> OpenWN-PT -> FastText (only behind an eval);
-            rewrite is NOT a default rung; if added at all, keep 0 or 1 cached
-            rewrite with a fallback to the original query
-      route: Bleve returns chunks (~256-512 tokens) that carry their parent;
-            dedupe by doc_id:unit_id; lex only for identifiers, hybrid for NL
-      caps: hard token budget (target tokenizer + output reserve);
-            if a rewrite step exists, bound it to 1 rewrite x <=50 candidates;
-            reranker batch + timeout, BM25 fallback
-      read: parent section/chapter of top chunks in long context,
-            question last, citations checked;
-            drop to subsections when the parent exceeds the budget
-      refuse: cutoff calibrated per model (never a copied 0.35) -> explicit
-              "not found", no cloud call
-      eval: 30-50 questions + 5-10 refusals; vectors only inside Bleve
+    OPS --> Q2{"Q2. Where does it run?"}
+    Q2 -->|"default"| SH["shared<br/>folder + name prefix + env"]
+    Q2 -->|"regulation · client infra ·<br/>noisy neighbour · upgrade window"| DH["dedicated host<br/>runtime: dedicated + target.host"]
 
-2026 defaults: lexical for identifiers, hybrid for NL, the parent is the
-reading unit, HardTokenBudget over top-k, rewrite is optional and must be 0 or 1
-cached rewrites unless the eval justifies more, and vectors stay in Bleve if the
-eval ever needs them.
+    OPS --> Q3{"Q3. Answer from data?"}
+    Q3 -->|"system of record"| NG["call it via Nango<br/>never index a stale copy"]
+    Q3 -->|"a few pages"| LC["long context"]
+    Q3 -->|"documents"| RR["route-then-read<br/>index chunks · read the parent"]
 
-Q4. Is it a one-off script?
-    yes -> sandbox-run.sh, read it, run isolated, delete it. Never a recipe.
+    OPS --> Q4{"Q4. One-off script?"}
+    Q4 -->|"yes"| SAND["sandbox-run.sh<br/>zero residue"]
+    Q4 -->|"recurs"| DU
 
-Q5. A new library?
-    stdlib -> already in go.mod -> approved capability (goai / Nango / Genkit)
-    -> otherwise propose it, confirm, then pin (go.mod + Dependabot).
+    OPS --> Q5{"Q5. New library?"}
+    Q5 -->|"stdlib → go.mod → approved capability"| USE["use it"]
+    Q5 -->|"none fit"| NEW["propose · confirm · pin"]
 ```
+
+**Hard defaults** — the facts that settle most asks, and the only row an
+interview changes:
+
+- One orchestrator per client; `client.yaml` wins once it exists. Never two
+  engines.
+- Windmill unless a contract criterion says dagnats; Dagu is level 2 only.
+- Shared host and profile B (managed) unless regulation, client-owned infra, a
+  noisy neighbour or a per-client upgrade window says dedicated.
+- Call a system of record at the source; for documents, index chunks and read
+  the parent, under a hard token budget with a calibrated refusal — vectors only
+  behind an eval.
+- Genkit only when a human watches the loop; the durable result becomes a run in
+  the client's engine.
+- A new library goes stdlib → `go.mod` → approved capability → propose and
+  confirm; then `go.mod` pins and Dependabot keeps it current.
 
 ## Repo structures
 
