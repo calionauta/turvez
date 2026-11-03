@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.5](https://github.com/calionauta/turvez/compare/v0.1.4...v0.1.5) (2026-11-03)
+
+
+### Features
+
+* scaffold the Genkit capability, and make the decision tree ask ([#9](https://github.com/calionauta/turvez/issues/9)) ([b4745c0](https://github.com/calionauta/turvez/commit/b4745c015561a5ae94e2ad881fb937939d3bbd44))
+
+
+### Bug Fixes
+
+* one Genkit pin for scaffold and gate, and a rendered decision tree ([#13](https://github.com/calionauta/turvez/issues/13)) ([5319d24](https://github.com/calionauta/turvez/commit/5319d24e5e561fe3866240adc831f12c3cd5571d))
+
 ## [0.1.4](https://github.com/calionauta/turvez/compare/v0.1.3...v0.1.4) (2026-11-01)
 
 
