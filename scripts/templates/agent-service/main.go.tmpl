@@ -1,0 +1,297 @@
+// Command TODO-CLIENT-agent serves the Genkit capability for TODO-CLIENT.
+//
+// Genkit is a capability, not an engine (docs/genkit.md). The loop runs inside
+// one request, streams progress to a human, and emits anything durable as a run
+// in the client's engine. Bounded on purpose: MaxRounds and RunTimeout; a
+// disconnect cancels the run.
+//
+// Scaffolded by scripts/new-agent-service.sh. Before the first `go build`:
+//
+//	go get github.com/firebase/genkit/go@latest
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/genkit"
+	"github.com/zendev-sh/goai"
+	"github.com/zendev-sh/goai/provider"
+	"github.com/zendev-sh/goai/provider/openai"
+)
+
+const (
+	modelName   = "TODO-CLIENT/llm" // one model action: the only path to a provider
+	providerKey = "TODO-PROVIDER"   // Provider-Config-Key in Nango
+	clientID    = "TODO-CLIENT"     // Connection-Id in Nango
+	maxRounds   = 3                 // writer→critic rounds before the judge/human
+	runTimeout  = 90 * time.Second  // the whole request, not one call
+)
+
+func main() {
+	addr := flag.String("addr", "127.0.0.1:8099", "listen address")
+	recordPath := flag.String("record", "agent-runs.jsonl", "prompt/completion log (point it at the client's store)")
+	flag.Parse()
+
+	rec, err := newRecorder(*recordPath)
+	if err != nil {
+		log.Fatalf("record: %v", err)
+	}
+	llm, err := newLLM()
+	if err != nil {
+		log.Fatalf("llm: %v", err)
+	}
+
+	// One Genkit instance per process; every flow is defined at boot.
+	g := genkit.Init(context.Background())
+	model := genkit.DefineModelAction(g, modelName,
+		&ai.ModelOptions{Label: "TODO-CLIENT llm (goai)"},
+		modelAction(llm))
+
+	h := &handler{g: g, model: model, rec: rec}
+	// Hold the flow: genkit.LookupFlow does not exist in v1.14, and a typed
+	// handle is what the HTTP handler actually needs.
+	h.flow = genkit.DefineStreamingFlow(g, "agentRun",
+		func(ctx context.Context, in Input, send core.StreamCallback[string]) (Output, error) {
+			return h.run(ctx, in, send)
+		})
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /agent/run", h.handleRun)
+	mux.HandleFunc("GET /agent/health", h.handleHealth)
+	log.Printf("TODO-CLIENT agent on %s (model %s, provider %s)", *addr, modelName, providerKey)
+	log.Fatal(http.ListenAndServe(*addr, mux))
+}
+
+// Input is the typed flow input (Genkit derives the JSON schema).
+type Input struct {
+	Content string `json:"content"`
+}
+
+// Output is what the human gets: the proposal plus why it was accepted.
+type Output struct {
+	Proposal   string `json:"proposal"`
+	Critique   string `json:"critique"`
+	Rounds     int    `json:"rounds"`
+	NeedsHuman bool   `json:"needs_human"`
+	Reason     string `json:"reason,omitempty"`
+}
+
+// llm is the goai entry point. Retry lives here (MaxRetries 0: the caller
+// bounds attempts) and metering belongs here too — never in a Genkit
+// middleware, which would reserve twice for one call.
+
+type llm struct{ model provider.LanguageModel }
+
+func newLLM() (*llm, error) {
+	base := os.Getenv("GOAI_BASE_URL")
+	if base == "" {
+		return nil, fmt.Errorf("GOAI_BASE_URL is required (the client's OpenAI-compatible gateway)")
+	}
+	m := openai.Chat(envOr("GOAI_MODEL", "gpt-4o-mini"),
+		openai.WithAPIKey(os.Getenv("GOAI_API_KEY")),
+		openai.WithBaseURL(base))
+	return &llm{model: m}, nil
+}
+
+// generate is the body of the Genkit model action: Genkit orchestrates, goai
+// generates (docs/genkit.md).
+func (l *llm) generate(ctx context.Context, prompt string) (string, error) {
+	res, err := goai.GenerateText(ctx, l.model,
+		goai.WithPrompt(prompt),
+		goai.WithMaxRetries(0),
+		goai.WithProviderOptions(map[string]any{"useResponsesAPI": false}))
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(res.Text) == "" {
+		return "", fmt.Errorf("empty completion (finish=%s): raise max_tokens", res.FinishReason)
+	}
+	return res.Text, nil
+}
+
+func modelAction(l *llm) ai.ModelActionFunc[*struct{}] {
+	return func(ctx context.Context, req *ai.ModelRequest, _ *struct{}, _ ai.ModelStreamCallback) (*ai.ModelResponse, error) {
+		var b strings.Builder
+		for _, m := range req.Messages {
+			b.WriteString(m.Text())
+			b.WriteString("\n")
+		}
+		text, err := l.generate(ctx, strings.TrimSpace(b.String()))
+		if err != nil {
+			return nil, err
+		}
+		return &ai.ModelResponse{Message: ai.NewModelTextMessage(text), FinishReason: ai.FinishReasonStop}, nil
+	}
+}
+
+func envOr(k, def string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return def
+}
+
+// recorder persists the composed prompt before the call and the completion
+// after (docs/observability.md rule 1/2). A flow whose prompts exist only in
+// memory is a permanent blind spot; replace this file with the client's store.
+type recorder struct {
+	mu sync.Mutex
+	f  *os.File
+}
+
+func newRecorder(path string) (*recorder, error) {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	return &recorder{f: f}, nil
+}
+
+func (r *recorder) write(kind, prompt, completion string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	line, _ := json.Marshal(map[string]any{
+		"at": time.Now().UTC().Format(time.RFC3339), "kind": kind,
+		"client": clientID, "model": modelName, "prompt": prompt, "completion": completion,
+	})
+	_, _ = r.f.Write(append(line, '\n'))
+}
+
+type handler struct {
+	g     *genkit.Genkit
+	model ai.Model
+	flow  *core.Flow[Input, Output, string]
+	rec   *recorder
+}
+
+// handleRun streams the loop to the caller and cancels it when they leave.
+func (h *handler) handleRun(w http.ResponseWriter, r *http.Request) {
+	var in Input
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		http.Error(w, "bad json", http.StatusBadRequest)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), runTimeout)
+	defer cancel()
+
+	// Run non-streaming here for clarity; swap in h.flow.Stream for per-phase SSE.
+	out, err := h.flow.Run(ctx, in)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(out)
+}
+
+// run is the bounded loop: writer drafts, critic decides, a no-op or a spent
+// budget escalates to a human instead of approving noise.
+func (h *handler) run(ctx context.Context, in Input, send core.StreamCallback[string]) (Output, error) {
+	content := strings.TrimSpace(in.Content)
+	if content == "" {
+		return Output{}, fmt.Errorf("empty content")
+	}
+	if r := []rune(content); len(r) > 6000 {
+		content = string(r[:6000])
+	}
+	proposal, critique := content, ""
+	emit := func(s string) {
+		if send != nil {
+			_ = send(ctx, s)
+		}
+	}
+	for round := 1; round <= maxRounds; round++ {
+		emit("writer")
+		p := "You are an editor. Improve this text; return only the improved text.\n\n" + content
+		h.rec.write("prompt:writer", p, "")
+		made, err := h.generateViaModel(ctx, p)
+		if err != nil {
+			return Output{}, err
+		}
+		h.rec.write("completion:writer", p, made)
+		proposal = strings.TrimSpace(made)
+		emit("critic")
+		c := "You are a strict critic. Reply APPROVE only if the draft is an improvement over the original; otherwise REVISE: <what is wrong>.\n\nOriginal:\n" + content + "\n\nDraft:\n" + proposal
+		h.rec.write("prompt:critic", c, "")
+		critique, err = h.generateViaModel(ctx, c)
+		if err != nil {
+			return Output{}, err
+		}
+		h.rec.write("completion:critic", c, critique)
+		if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(critique)), "APPROVE") {
+			return Output{Proposal: proposal, Critique: critique, Rounds: round}, nil
+		}
+	}
+	return Output{
+		Proposal: proposal, Critique: critique, Rounds: maxRounds, NeedsHuman: true,
+		Reason: "rounds exhausted without an approval — a human decides",
+	}, nil
+}
+
+// generateViaModel goes through the registered Genkit model action, so every
+// call in this service is the same audited path (no direct provider calls).
+func (h *handler) generateViaModel(ctx context.Context, prompt string) (string, error) {
+	resp, err := genkit.Generate(ctx, h.g, ai.WithModel(h.model), ai.WithPrompt(prompt))
+	if err != nil {
+		return "", err
+	}
+	return resp.Text(), nil
+}
+
+// handleHealth proves the two dependencies are configured: the model gateway
+// and the Nango proxy (where every SaaS tool call goes — never a raw token).
+// It makes no model call: a probe is polled, and a completion per poll is a
+// bill nobody budgeted (the recipes' health check is equally cheap).
+func (h *handler) handleHealth(w http.ResponseWriter, r *http.Request) {
+	status := map[string]any{"ok": true}
+	if os.Getenv("GOAI_BASE_URL") == "" || os.Getenv("GOAI_API_KEY") == "" {
+		status["llm"] = "GOAI_BASE_URL/GOAI_API_KEY unset"
+		status["ok"] = false
+	} else {
+		status["llm"] = "configured (deep check: run a flow)"
+	}
+	if code, err := nangoPing(r.Context()); err != nil {
+		status["nango"] = fmt.Sprintf("%d %v", code, err)
+		status["ok"] = false
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(status)
+}
+
+// nangoPing checks the credential layer. Tool calls in this service use
+// NANGO_HOST/proxy/<path> with these two headers; the connection is the client
+// (docs/nango.md), so the flow never holds a token.
+func nangoPing(ctx context.Context) (int, error) {
+	host := strings.TrimRight(os.Getenv("NANGO_HOST"), "/")
+	key := os.Getenv("NANGO_SECRET_KEY")
+	if host == "" || key == "" {
+		return 0, fmt.Errorf("NANGO_HOST/NANGO_SECRET_KEY unset")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, host+"/health", nil)
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("Authorization", "Bearer "+key)
+	req.Header.Set("Provider-Config-Key", providerKey)
+	req.Header.Set("Connection-Id", clientID)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close() //nolint:errcheck // close after status read
+	if resp.StatusCode != http.StatusOK {
+		return resp.StatusCode, fmt.Errorf("nango health %d", resp.StatusCode)
+	}
+	return resp.StatusCode, nil
+}

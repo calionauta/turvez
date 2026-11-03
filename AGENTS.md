@@ -30,7 +30,9 @@
 - **Genkit is a capability, not an engine.** An interactive, human-watched
   agent loop is a Genkit flow in a Go service (goai = the only model path,
   Nango = tools); anything durable becomes a run in the client's engine.
-  Never add `genkit` to `engines.json` (`docs/genkit.md`).
+  Never add `genkit` to `engines.json` (`docs/genkit.md`). Scaffold:
+  `./scripts/new-agent-service.sh <client>` (needs a Go checkout); compile
+  gate `./scripts/check-agent-template.sh` (pinned Genkit, temp module, CI).
 - One engine per client. Never migrate one unasked; the converter
   (`scripts/convert-to-windmill.py`) produces a skeleton, never a finished port.
 

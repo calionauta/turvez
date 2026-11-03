@@ -48,7 +48,9 @@
 - **Genkit is a capability, not an engine** (`docs/genkit.md`): a
   human-watched agent loop runs as a Genkit flow in a Go service, goai stays
   the only model path, tools go through Nango, and anything durable is a run
-  in the client's engine. Never add `genkit` to `engines.json`.
+  in the client's engine. Never add `genkit` to `engines.json`. Scaffold:
+  `scripts/new-agent-service.sh <client>` (plan, then `--apply --provider <slug>`);
+  `scripts/check-agent-template.sh` compiles it in CI (pinned Genkit, temp module).
 - Answering questions over client data: docs/retrieval.md — split documents
   (route-then-read: 2026 default is lexical for identifiers and hybrid BM25 + small
   dense + RRF + optional rerank of units for natural language; glossary expansion;

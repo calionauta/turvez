@@ -40,6 +40,15 @@ goai as the only model path, Nango for tools, and its durable consequence
 emitted as a run in the client's engine — `docs/genkit.md`, gate in
 `references/decision-tree.md` (Q1.5). Never add `genkit` to `engines.json`.
 
+Build loop when Q1.5 says "a human is watching":
+
+```bash
+./scripts/new-agent-service.sh <client>                 # plan
+./scripts/new-agent-service.sh <client> --apply --provider <slug>
+go get github.com/firebase/genkit/go@latest             # in review; edits go.mod
+gofmt -l ./cmd/<client>-agent && go build ./... && go test ./...
+```
+
 ### Language: Go for the nodes (no exceptions)
 
 `docs/language-policy.md` is normative. Both engines: **script nodes are Go**.
@@ -207,6 +216,8 @@ Methodology questions (discover, scope, runbook): see `references/methodology.md
 | `scripts/verify-isolation.sh` | where every client runs (`runtime`/`target`), read-only; in `make validate` |
 | `docs/retrieval.md`, `references/retrieval.md` | documents vs systems of record; route-then-read; hard token/candidate caps; calibrated refusal; Nango MCP vs proxy; eval gate |
 | `docs/genkit.md` | agent-loop capability (not an engine): Genkit flow in the request, goai as the model path, Nango for tools, durable tail as a run |
+| `scripts/new-agent-service.sh <client>` | Genkit capability scaffold (Q1.5/Q1.6): plan, then `--apply --provider <slug>`; needs a Go checkout |
+| `scripts/check-agent-template.sh` | compile/vet gate for that scaffold (pinned Genkit, temp module); runs in CI |
 | `scripts/extract-client.py <client>` | package one client for its own server — prints the plan, never executes |
 | `scripts/convert-to-windmill.py <client>` | dagnats recipes → Windmill **skeleton** in `converted-windmill/`; TODOs, never a port |
 | `scripts/register-workflows.sh` | validate + register (confirm first, dagnats engine) |

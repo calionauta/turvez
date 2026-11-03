@@ -117,6 +117,40 @@ if "$HERE/check-dagnats-pin.sh" "$pin_tmp" >/dev/null 2>&1; then
 fi
 rm -rf "$pin_tmp"
 
+# new-agent-service.sh is the Genkit capability scaffold (docs/genkit.md). It
+# must produce Go that parses, with no leftover placeholders and the three
+# contracts present — a scaffold that only looks right is worse than none.
+agent_tmp="$(mktemp -d)"
+mkdir -p "$agent_tmp/clients"
+cp -R "$HERE/../clients/example-client" "$agent_tmp/clients/"
+cp "$HERE/../engines.json" "$agent_tmp/"
+if ! TURVEZ_OPS_DIR="$agent_tmp" "$HERE/new-agent-service.sh" example-client --apply >/dev/null 2>&1; then
+  echo "FAIL: new-agent-service.sh --apply exited non-zero" >&2
+  failures=$((failures + 1))
+else
+  agent_go="$agent_tmp/cmd/example-client-agent/main.go"
+  if [ ! -f "$agent_go" ]; then
+    echo "FAIL: new-agent-service.sh wrote no main.go" >&2
+    failures=$((failures + 1))
+  else
+    if grep -q "TODO-CLIENT\|TODO-PROVIDER" "$agent_go"; then
+      echo "FAIL: the scaffold left placeholders in main.go" >&2
+      failures=$((failures + 1))
+    fi
+    if ! gofmt -e -l "$agent_go" >/dev/null 2>&1; then
+      echo "FAIL: the generated main.go does not parse" >&2
+      failures=$((failures + 1))
+    fi
+    for want in maxRounds runTimeout NANGO_SECRET_KEY rec.write; do
+      if ! grep -q "$want" "$agent_go"; then
+        echo "FAIL: the generated main.go is missing '$want'" >&2
+        failures=$((failures + 1))
+      fi
+    done
+  fi
+fi
+rm -rf "$agent_tmp"
+
 # It must work with no Nango running (it reports that) and always print the two
 # enforced names, or an agent silently falls back to asking for the token.
 if ! nango_out="$("$HERE/nango-connect.sh" probe --provider hubspot 2>&1)"; then

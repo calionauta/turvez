@@ -23,6 +23,56 @@ Q0.7: engine change requested? dagnats → Windmill has a converter
 `converted-windmill/`). The reverse has none. Never migrate unasked, and never
 run both engines for one client.
 
+## How to ask — the interview protocol (applies to every Q below)
+
+The tree is deterministic: **read first, ask second, recommend always, record
+the answer.** The questions below are the agent's own checklist; most of them
+are answered from the repo, not from the operator.
+
+1. **Read before asking.** `client.yaml` (engine, runtime, target), the
+   fieldbook §1-3, the existing `automation/`, `env/*.example`, `engines.json`,
+   `naming.json`, `.github/dependabot.yml`, `go.mod`. A fact that is written
+   down is never a question — asking for it teaches the operator to distrust
+   the tree.
+2. **Ask only what flips a branch.** A question is allowed only when two
+   answers lead to different paths (engine, level, capability, host, library).
+   At most **3 questions per decision**, one at a time, never a form.
+3. **Every question carries the recommendation.** Format: the question, then
+   `recommended: <option> — <one-line why>`, then the closed options. The
+   operator may answer `default`; that settles it. "What do you think?" is not
+   a question the tree asks.
+4. **Closed answers only:** yes/no, one of the listed options, or a name
+   (client id, engine, Nango provider slug). If the answer needs an essay, the
+   question was wrong — pick the default and proceed.
+5. **Stop rule.** After 3 questions without a clear branch, take the
+   recommendation, say the assumption in one line, proceed, and record it. Do
+   not loop, and do not ask the same question in different words.
+6. **Determinism.** The same facts must select the same branch, every run. A
+   recorded decision is re-opened only when a fact changes (new engine, new
+   host, new scale), and then the change is named out loud.
+7. **Record where the next run reads it** — `engine:`, `runtime:`,
+   `target:` in `client.yaml`; the why in the fieldbook (`clients/<client>/README.md`).
+   An unwritten decision is re-asked forever; `runtime` was written and never
+   read until the contract test started failing clients for it.
+
+**Libraries** are part of the same interview (Q1.6): the choice is
+stdlib → a dependency already in `go.mod` → an approved capability (goai,
+Nango, Genkit) → a **new dependency, proposed and confirmed**. Never install
+one silently. Version policy: `go.mod` pins, Dependabot keeps it current — no
+`go get -u` inside a build.
+
+**Defaults at a glance** — start here, and let an interview fact move exactly
+one row. This is what makes two runs on the same repo agree.
+
+| Decision | Default | The fact that moves it |
+|---|---|---|
+| Engine | `windmill` | typed contracts, native approvals, no arbitrary code, AGPL/Postgres objection → `dagnats`; a script-shaped recurrent job → level 2 |
+| Deployment | profile B (managed, shared) | regulation/residency, client-owned infra, noisy neighbour, per-client upgrade window → dedicated host |
+| One-off code | level 1 sandbox, zero residue | it recurs → level 2; it needs replay/UI → level 3 |
+| Answer over data | system of record via Nango | documents that don't fit one prompt → route-then-read |
+| Model call | `llm.complete` (goai) | a human watches a loop → Genkit; nobody watching → recipe |
+| Library | stdlib → `go.mod` → approved capability | none of those fit → propose a new dependency, confirm, then pin |
+
 ## Q0.8 — is the ask "answer questions over our data"?
 
 Ask in order; stop at the first branch that answers. Full playbook:
@@ -74,7 +124,10 @@ done? → **not** a recipe, **not** Dagu level 2. Split it by who is waiting:
   that is an **agent-loop capability** — a Genkit flow in a Go service, with
   goai as the only model path and Nango for tools (`docs/genkit.md`). Bounded
   (`MaxIterations`, `MaxRunDuration`), escalates to a human instead of
-  deciding alone.
+  deciding alone. Build it with the scaffold, not from a blank file:
+  `./scripts/new-agent-service.sh <client>` (plan) then `--apply --provider <slug>`,
+  then `go get github.com/firebase/genkit/go@latest` in review — the four
+  commands are in `docs/genkit.md#install-and-scaffold-when-q15-says-yes`.
 - **Nobody is watching, or it must survive a restart**: a new platform
   decision (Dagu 2.x `llm.*`/`harness.run`/agent DAGs, or a dedicated
   harness). Why: `docs/writing-recipes.md` → "Why AgentLoop/planner stay
@@ -83,6 +136,27 @@ done? → **not** a recipe, **not** Dagu level 2. Split it by who is waiting:
 Either way the durable consequence is a **run in the client's engine**
 (dagnats `run start` / Windmill flow, idempotency key from the request) —
 Genkit is a capability, never a third engine, and the engine count stays one.
+
+## Q1.6 — is the ask "a library / new dependency"?
+
+Ask in order; the first `yes` wins, and it is the whole answer.
+
+1. **Stdlib does it** → stdlib. No dependency for `net/http`, `encoding/json`,
+   `log`.
+2. **Already in `go.mod`** → use it. No review, no new pin.
+3. **An approved capability** → goai (the only model path), Nango (credentials
+   and SaaS tools), Genkit (a human-watched loop, `docs/genkit.md`, scaffold
+   `scripts/new-agent-service.sh`). Use the capability's own seam; never
+   re-implement it beside itself.
+4. **Something new** → propose, don't install: name, version, why the three
+   above cannot do it, and what removing it costs. The operator confirms; then
+   `go.mod` pins it and Dependabot keeps it current. Never `go get -u` in a
+   build.
+
+Refuse a dependency that adds a **second** path to something the repo already
+owns: a provider SDK beside goai, a retry/queue library beside the engine, an
+HTTP client beside `http.request`, an approval system beside the engine's
+native one. A library that saves five lines is a no.
 
 ## Level 0 — dagnats recipe
 

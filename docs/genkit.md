@@ -15,7 +15,7 @@ request ──> Genkit flow (bounded loop, in-process)
               └─ durable tail ──> dagnats run / Windmill flow (the client's engine)
 ```
 
-## What it buys (read from `calionauta/gogogo`, genkit v1.13.1)
+## What it buys (read from `calionauta/gogogo`; the scaffold is compiled against genkit v1.14.0)
 
 - **Typed flows.** Input/output are Go structs; Genkit derives the schema.
   A flow is a function, not a script node.
@@ -32,6 +32,49 @@ request ──> Genkit flow (bounded loop, in-process)
 Genkit orchestrates, **goai generates**. In Turvez `llm.complete` is already
 a goai call, so that same client becomes the model action and both surfaces
 share one retry layer and one meter.
+
+## Install and scaffold (when Q1.5 says yes)
+
+There is nothing to add until a client needs it: Genkit is not in `go.mod`, so
+every other build stays lean.
+
+```bash
+# 1. decide (Q1.5 in references/decision-tree.md), then scaffold the service:
+./scripts/new-agent-service.sh <client>              # plan: files, engine, names
+./scripts/new-agent-service.sh <client> --apply \
+    --provider hubspot                               # writes cmd/<client>-agent/
+
+# 2. add the dependency, in review (this is the only step that edits go.mod):
+go get github.com/firebase/genkit/go@latest
+
+# 3. gates
+gofmt -l ./cmd/<client>-agent && go build ./... && go test ./...
+```
+
+The scaffold is a working start, not a demo: one Genkit instance at boot, a
+model action wrapping goai, a bounded writer→critic flow, `POST /agent/run`,
+`GET /agent/health` (model config + Nango reachability, with **no** model call —
+a probe is polled, and a completion per poll is an unbudgeted bill), and a
+prompt/completion recorder that persists the prompt *before* the call. It prints the two contracts it cannot invent for you: point
+`-record` at the client's store, and emit the durable tail as a run in the
+client's engine.
+
+`go get ...@latest` is deliberate here and only here: the scaffold is created
+once, reviewed, and then the version is pinned by `go.mod` like everything
+else (Dependabot keeps it current — `.github/dependabot.yml`).
+
+**Where the service lives.** It is Go, so it builds from a checkout with a
+`go.mod` — the template, or a dedicated service repo — never from the
+data-only ops repo (`docs/ops-repo.md`), which has no module. `TURVEZ_OPS_DIR`
+may still point at the ops repo so `client.yaml` and the client folder are read
+from there; the script says so when the write target has no `go.mod`.
+
+**It is gated for real.** `scripts/check-agent-template.sh` runs the scaffold
+into a throwaway dir and compiles and vets it against a pinned Genkit (the only
+place that downloads Genkit; `GENKIT_VERSION` bumps deliberately). CI runs it.
+The gate exists because "it parses" is not "it builds": the template had never
+been compiled, and shipped against a Genkit API where `ai.Model` is not goai's
+`provider.LanguageModel` and `genkit.LookupFlow` no longer exists.
 
 ## Three contracts (non-negotiable)
 
