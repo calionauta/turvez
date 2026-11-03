@@ -33,6 +33,22 @@ Read `clients/<client>/client.yaml` when the client exists.
 | `dagnats` (exception) | the build loop below — recipes under `automation/dagnats/` |
 | `dagu` | level 2 only, `docs/script-execution.md` |
 
+**Genkit is not an engine.** One engine per client stays. An interactive,
+human-watched agent loop (review/rewrite, triage with read-only tools,
+extraction with a critic) is a **capability**: a Genkit flow in a Go service,
+goai as the only model path, Nango for tools, and its durable consequence
+emitted as a run in the client's engine — `docs/genkit.md`, gate in
+`references/decision-tree.md` (Q1.5). Never add `genkit` to `engines.json`.
+
+Build loop when Q1.5 says "a human is watching":
+
+```bash
+./scripts/new-agent-service.sh <client>                 # plan
+./scripts/new-agent-service.sh <client> --apply --provider <slug>
+go get github.com/firebase/genkit/go@latest             # in review; edits go.mod
+gofmt -l ./cmd/<client>-agent && go build ./... && go test ./...
+```
+
 ### Language: Go for the nodes (no exceptions)
 
 `docs/language-policy.md` is normative. Both engines: **script nodes are Go**.
@@ -138,46 +154,22 @@ upgrade window, or a contract requiring a separate database.
 
 ## Q0e — answer a question over the client's data
 
-"Can it answer questions about our contracts / ERP / CRM?" is two jobs
-(`references/retrieval.md`, rationale `docs/retrieval.md`). Ask in order:
+Two jobs, not one. The playbook lives in `references/retrieval.md` (caps, build
+shape, anti-patterns); rationale in `docs/retrieval.md`. Ask in order:
 
-1. **System of record** (CRM, ERP, wiki with an API) → call it through Nango.
-   A fixed endpoint in a recipe/flow is the **HTTP proxy**; an interactive agent
-   that must discover tools is a Nango **Agent Session (MCP)** — an agent loop,
-   not a recipe (decision-tree Q1.5). Never index a copy that goes stale.
-2. **A handful of pages that fit one prompt** → long context with a stable
-   cached prefix; no index.
-3. **Documents** → **route-then-read**:
-   - **Classify the query first:** identifiers → BM25 lexical only; natural
-     language → BM25 + small dense hybrid (RRF over units), optional cross-encoder
-     rerank of the units.
-   - **Routing unit** = chunk (~256-512 tokens, 50-100 overlap) that remembers
-     its parent section/chapter; the **reading unit** is the parent, not the
-     chunk and not the whole chapter. 300-500 token chunks are the indexing unit,
-     not the default reading unit.
-   - **Expand:** glossary → OpenWN-PT → FastText only behind an eval.
-   - **Route:** Bleve returns parent units; dedupe by `doc_id:unit_id` (plus a
-     content hash for boilerplate); caps 0 rewrites by default, or 1 cached rewrite
-     with a fallback to the original query; hybrid candidate cap 25-50; reranker
-     batch + timeout with BM25 fallback.
-   - **Cap the funnel:** hard token budget counted with the target tokenizer
-     plus output reserve; a cutoff calibrated per model (never a copied 0.35)
-     decides between reading and the explicit "not found" answer. No cloud call when
-     nothing passes.
-   - **Eval:** 30-50 real questions with expected document ids + 5-10 that must
-     be refused; measure worst-case tokens, `recall@unit`, citation validity,
-     reranker p95 and false refusals.
+1. **System of record** (CRM, ERP, wiki with an API) → call it through Nango;
+   never index a copy that goes stale. A tool-choosing agent is Q1.5, not a recipe.
+2. **A handful of pages that fit one prompt** → long context, stable prefix.
+3. **Documents** → **route-then-read**: classify the query (identifiers → BM25;
+   natural language → BM25 + small dense, RRF, optional rerank); index chunks
+   (~256-512 tokens) that remember their parent; **read the parent**; hard token
+   budget with a per-model calibrated cutoff (never a copied 0.35) and an
+   explicit "not found"; eval 30-50 questions + 5-10 refusals; vectors inside
+   Bleve only when the eval proves lexical + synonyms miss.
 
-A 200-term glossary beats a 300 MB FastText model for the client's own
-vocabulary. Route-then-read replaces chunked vector RAG for bounded,
-terminology-rich corpora, not semantic retrieval universally; add vectors
-inside Bleve only when the eval proves lexical + synonyms miss. Never promise
-"RAG" without the eval — and never "top 5" as a safety limit. A chapter is not
-the only index unit for long documents; top-5 snippets is not the reading unit
-when the parent section fits the budget.
-
-**Bounded, not immune:** tokenizer drift, tables in PDFs, reranker memory and
-model-specific scores still fail. Measure; do not claim immunity.
+Never promise "RAG" without the eval, and never "top 5" as a safety limit.
+**Bounded, not immune:** measure worst-case tokens, reranker p95 and false
+refusals; tokenizer drift and PDF tables still bite.
 
 ## When to use
 
@@ -196,9 +188,12 @@ Methodology questions (discover, scope, runbook): see `references/methodology.md
 | `scripts/check-windmill.sh` | Windmill lint gate, no worker needed |
 | `scripts/lint-scripts.sh` | local script gate: compiles Go nodes, checks `func main`, flow bindings, and the Go-only language policy (no server) |
 | `scripts/setup-nango.sh [--up/--down]` | check or spin up Nango auth layer |
-| `scripts/nango-connect.sh <client> --provider <slug> [--open]` | operator authorises a provider in Nango; prints the link + the exact names |
+| `scripts/nango-connect.sh <client> --provider <slug> [--link] [--open]` | operator authorises a provider in Nango; prints the link + the exact names (`--link` mints a 30-minute click-to-connect link) |
 | `scripts/verify-isolation.sh` | where every client runs (`runtime`/`target`), read-only; in `make validate` |
 | `docs/retrieval.md`, `references/retrieval.md` | documents vs systems of record; route-then-read; hard token/candidate caps; calibrated refusal; Nango MCP vs proxy; eval gate |
+| `docs/genkit.md` | agent-loop capability (not an engine): Genkit flow in the request, goai as the model path, Nango for tools, durable tail as a run |
+| `scripts/new-agent-service.sh <client>` | Genkit capability scaffold (Q1.5/Q1.6): plan, then `--apply --provider <slug>`; needs a Go checkout |
+| `scripts/check-agent-template.sh` | compile/vet gate for that scaffold (pinned Genkit, temp module); runs in CI |
 | `scripts/extract-client.py <client>` | package one client for its own server — prints the plan, never executes |
 | `scripts/convert-to-windmill.py <client>` | dagnats recipes → Windmill **skeleton** in `converted-windmill/`; TODOs, never a port |
 | `scripts/register-workflows.sh` | validate + register (confirm first, dagnats engine) |
@@ -218,6 +213,17 @@ rubric only when no label is possible. The eval layer is engine-agnostic:
 `scripts/windmill-job-to-run.py` normalizes a Windmill job into the same shape
 `select-cases.py` already reads.
 
+## Reading order (tokens and cache)
+
+This file is re-read on every request, so it is the **stable prefix**: no dated
+facts, client names or versions here — those belong in the fieldbook and the
+docs. Load **one** reference per decision, after the task text, in this order:
+`references/decision-tree.md` first (routing) → the engine file (`windmill.md`,
+or the dagnats loop above) → the layer the step needs (`nango.md`,
+`retrieval.md`, `auth-layers.md`, `triggers.md`) → `eval-loop.md` at handoff.
+Each reference is self-contained; do not preload several, and cite the path
+instead of pasting its text into a prompt.
+
 ## Confirm policy (no exceptions)
 
 - `register`, `run start/cancel`, `trigger create/update/enable/disable/delete`, sandbox `--secret-env`: show exact command, wait.
@@ -226,7 +232,7 @@ rubric only when no label is possible. The eval layer is engine-agnostic:
   client stay in the build loop below — no per-write confirm.
 - New Go handler: propose only, human lands (table tests required).
 - Secrets by NAME only. Never print values.
-- SaaS OAuth integrations: use **Nango** (`references/nango.md`), never raw tokens in Windmill variables or dagnats recipes. Client keys/tokens: ask the operator to authorise via `./scripts/nango-connect.sh <client> --provider <slug> --open`, never "send me the token".
+- SaaS OAuth integrations: use **Nango** (`references/nango.md`), never raw tokens in Windmill variables or dagnats recipes. Client keys/tokens: ask the operator to authorise via `./scripts/nango-connect.sh <client> --provider <slug> --link --open`, never "send me the token".
 
 ## Build loop (level 0 — dagnats engine)
 

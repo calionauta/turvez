@@ -55,7 +55,7 @@ never change the repo shape.
   TypeScript/Python is legal only for a dispatch-only WAC orchestrator
   (`docs/language-policy.md`). Costs Postgres + workers; AGPL core, EE for
   SSO/audit/PR gates. Deploy one flow at a time — never `wmill sync push`.
-- **dagnats — exception engine** (pinned `v0.0.30`). One binary: embedded NATS
+- **dagnats — exception engine** (pinned `v0.0.32`). One binary: embedded NATS
   JetStream + engine + HTTP API + console. The worker (`cmd/worker`) registers
   twelve generic Go tasks and **pulls**; it is stateless and horizontally
   repeatable. Recipes are JSON in `clients/<client>/automation/dagnats/`.
@@ -75,6 +75,14 @@ never change the repo shape.
   surface for cost, latency and errors; per-client virtual keys per deployment
   profile. Prompt caching, when present, is the gateway's behaviour
   (`docs/retrieval.md`).
+- **Genkit — optional capability, not an engine.** A bounded, human-watched
+  agent loop (review/rewrite, triage with read-only tools, extraction with a
+  critic) runs in a Go service (`cmd/<client>-agent`) inside one request; goai
+  stays the only model path, Nango the tool layer, and anything durable is
+  emitted as a run in the client's engine (`docs/genkit.md`). Scaffolded by
+  `scripts/new-agent-service.sh` and compiled in CI by
+  `scripts/check-agent-template.sh`. Never a second orchestrator, never an
+  `engines.json` entry.
 - **Retrieval.** A per-client capability, not a runtime: **route-then-read**.
   The 2026 default is lexical for identifiers and hybrid (BM25 + a small dense
   model over the same indexing units, RRF, optional cross-encoder rerank of
@@ -123,15 +131,18 @@ never change the repo shape.
 ### Documents: question to answer (route-then-read)
 
 1. Batch indexer (Go node/service) segments by structure and writes Bleve with
-   one record per **reading unit** (chapter, or section when a chapter is too
-   long): `doc_id`, `unit_id`, heading path, offset, tokens, `acl`.
+   one record per **chunk** (~256-512 tokens, 50-100 overlap): `doc_id`,
+   `unit_id`, heading path, `parent_section_id`, offset, tokens, `acl`.
 2. The router expands the question with the client's glossary, applies the
-   `acl` filter, and returns whole units that fit a **token budget** — not a
-   fixed top-k of chunks.
-3. The prompt is built in a prior step; `llm.complete` reads the units in long
+   `acl` filter, and returns candidate chunks (25-50, hybrid for natural
+   language).
+3. The reader expands each chunk to its **parent section/chapter** and fills a
+   **token budget** with those units — not a fixed top-k of chunks; a parent
+   that exceeds the budget is read as its subsections.
+4. The prompt is built in a prior step; `llm.complete` reads the units in long
    context and answers as JSON with `citations`. Citations outside the selected
    set are rejected.
-4. A 30-50 question eval gates the change; tier 0 (whole corpus) and a chunked
+5. A 30-50 question eval gates the change; tier 0 (whole corpus) and a chunked
    baseline are what it must beat. If lexical routing misses, add vectors to
    Bleve rather than a second database.
 
@@ -151,8 +162,8 @@ never change the repo shape.
 - **Credentials in Nango, not in the repo.** Provider tokens are connections;
   the client slug is the connection id. `clients/credentials_test.go` enforces
   the naming and follows `WORKFLOWS_DIR` into an ops repo.
-- **Retrieval is lexical-first and reads whole units.** Bleve routes to
-  chapters, the LLM reads them; glossary before WordNet, before FastText,
+- **Retrieval is lexical-first and reads parents.** Bleve indexes and routes
+  chunks, the LLM reads their parent section/chapter; glossary before WordNet, before FastText,
   before vectors; each step needs an eval that justifies it. The funnel is
   bounded by a hard token budget, a candidate cap and a calibrated refusal —
   and "bounded" is not "immune".
@@ -163,7 +174,7 @@ never change the repo shape.
 - **One server, then extract.** Client identity = folder + name prefix + env.
   A dedicated host is a deployment move (`runtime: dedicated`), not a repo fork.
 
-## Verified upstream behaviors (dagnats v0.0.30)
+## Verified upstream behaviors (against the pinned dagnats source)
 
 Recorded so upgrades re-check them: durations parse as **integer nanoseconds or
 Go duration strings** (`"30s"`); `$schema` is accepted (optional); `config`

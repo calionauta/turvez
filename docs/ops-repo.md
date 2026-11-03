@@ -20,7 +20,7 @@ template → refuse, point to `turvez-ops` + `new-client.sh`.
 
 ```text
 turvez-ops/
-  TURVEZ_PIN                  # TURVEZ_REF=<tag|sha> + DAGNATS_VERSION=v0.0.30
+  TURVEZ_PIN                  # TURVEZ_REF=<tag|sha> + DAGNATS_VERSION=v0.0.32
   AGENTS.md                   # ops rules (validate from template checkout)
   .github/workflows/contract.yml  # CI: template tests @TURVEZ_PIN vs this repo
   clients/<client>/client.yaml    # engine, runtime, target (see docs/client-spine.md)
@@ -44,7 +44,7 @@ unreleased commit you deliberately want to test.
 git fetch --tags                 # sync-template resolves the tag locally
 # TURVEZ_PIN
 TURVEZ_REF=v0.1.0
-DAGNATS_VERSION=v0.0.30
+DAGNATS_VERSION=v0.0.32
 ```
 
 Bump only after reading the release notes and running the ops contract tests

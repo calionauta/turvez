@@ -55,6 +55,17 @@ done
 runs=0
 failed=0
 
+# --- engine pin ------------------------------------------------------------
+# go.mod, the server container and the CLI install line must name the same
+# dagnats version: a server older than the linked client libraries rejects
+# recipe fields the tests accept, and that surfaces at run time. Checked on the
+# template checkout (where the code lives), not on TURVEZ_OPS_DIR, whose
+# TURVEZ_PIN pins the engine for its own tree.
+if ! pin_out="$("$HERE/check-dagnats-pin.sh" "$(cd "$HERE/.." && pwd)" 2>&1)"; then
+  printf '%s\n' "$pin_out" >&2
+  failed=1
+fi
+
 # --- dagnats --------------------------------------------------------------
 if [ "${#recipes[@]}" -gt 0 ]; then
   if ! command -v dagnats >/dev/null 2>&1; then

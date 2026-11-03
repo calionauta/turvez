@@ -152,7 +152,7 @@ flowchart TD
     S -->|"documents"| L{"Corpus fits one prompt?"}
     L -->|"yes"| LC["Long context, stable cached prefix"]
     L -->|"no"| RT["Route-then-read:<br/>Bleve selects WHOLE units"]
-    RT --> CAP["Dedupe + cap candidates<br/>3 rewrites x 20, max 60 units"]
+    RT --> CAP["Dedupe + cap units<br/>0-1 cached rewrite, ≤20 units, ≤60 retained"]
     CAP --> BUD{"Hard token budget?<br/>target tokenizer + output reserve"}
     BUD -->|"no"| SEC["Section-level units<br/>or map-reduce summaries"]
     SEC -->|"nothing fits"| REF["Explicit 'not found'<br/>(no cloud call)"]
@@ -172,7 +172,7 @@ flowchart TD
 
 Full rationale, traps and the ship gate: `docs/retrieval.md`. A system of
 record is a freshness problem (call it); a document corpus is a retrieval
-problem (route to whole units, then read them). Nango is not a document index.
+problem (route on chunks, then read their parent units). Nango is not a document index.
 The 2026 default is **lexical for identifiers, hybrid (BM25 + small dense + RRF)
 for natural language, optional cross-encoder rerank of units, and the parent
 section/chapter as the reading unit.** The chunk is the indexing unit (~256-512

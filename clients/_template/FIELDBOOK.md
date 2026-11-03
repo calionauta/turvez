@@ -32,9 +32,11 @@ How they decide: (e.g. Slack #sales, 4h business-hours SLA)
 | HubSpot | deals stage=qualified, via Nango integration `hubspot` | `NANGO_SECRET_KEY` | operator via Nango |
 | Slack #sales | notify | `TODO_SLACK_WEBHOOK_URL` | us via age |
 
-Rule: provider OAuth/API keys live in **Nango** as a connection named after the
-client (`docs/nango.md`), authorised with
-`./scripts/nango-connect.sh TODO-CLIENT --provider <slug>` — never pasted here.
+Rule: provider OAuth/API keys live in **Nango** as a connection tagged
+`turvez_client=TODO-CLIENT` (`docs/nango.md`), authorised with
+`./scripts/nango-connect.sh TODO-CLIENT --provider <slug> --link --open` — never
+pasted here. Record the id Nango assigns in `nango/connections.json` if a recipe
+needs it literally.
 Value only in `env/TODO-CLIENT.env` (local) or `secrets/TODO-CLIENT/env.age`.
 
 ## 4. Recipes and triggers

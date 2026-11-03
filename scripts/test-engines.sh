@@ -98,6 +98,77 @@ for engine in $ENGINES; do
   rm -rf "$tmp"
 done
 
+# check-dagnats-pin.sh must catch drift, not just exist: an ops repo builds the
+# server from a tag, and a tag older than the linked libraries is a run-time
+# failure, not a build error.
+pin_tmp="$(mktemp -d)"
+cp "$HERE/../go.mod" "$HERE/../Dockerfile.dagnats" "$pin_tmp/"
+mkdir -p "$pin_tmp/scripts" "$pin_tmp/docs"
+cp "$HERE/setup.sh" "$pin_tmp/scripts/"
+cp "$HERE/../docs/ops-repo.md" "$pin_tmp/docs/"
+if ! "$HERE/check-dagnats-pin.sh" "$pin_tmp" >/dev/null 2>&1; then
+  echo "FAIL: check-dagnats-pin.sh rejects an aligned copy" >&2
+  failures=$((failures + 1))
+fi
+sed -i.bak 's/^ARG DAGNATS_VERSION=.*/ARG DAGNATS_VERSION=v0.0.0/' "$pin_tmp/Dockerfile.dagnats"
+if "$HERE/check-dagnats-pin.sh" "$pin_tmp" >/dev/null 2>&1; then
+  echo "FAIL: check-dagnats-pin.sh missed a drifted Dockerfile" >&2
+  failures=$((failures + 1))
+fi
+rm -rf "$pin_tmp"
+
+# new-agent-service.sh is the Genkit capability scaffold (docs/genkit.md). It
+# must produce Go that parses, with no leftover placeholders and the three
+# contracts present — a scaffold that only looks right is worse than none.
+agent_tmp="$(mktemp -d)"
+mkdir -p "$agent_tmp/clients"
+cp -R "$HERE/../clients/example-client" "$agent_tmp/clients/"
+cp "$HERE/../engines.json" "$agent_tmp/"
+if ! TURVEZ_OPS_DIR="$agent_tmp" "$HERE/new-agent-service.sh" example-client --apply >/dev/null 2>&1; then
+  echo "FAIL: new-agent-service.sh --apply exited non-zero" >&2
+  failures=$((failures + 1))
+else
+  agent_go="$agent_tmp/cmd/example-client-agent/main.go"
+  if [ ! -f "$agent_go" ]; then
+    echo "FAIL: new-agent-service.sh wrote no main.go" >&2
+    failures=$((failures + 1))
+  else
+    if grep -q "TODO-CLIENT\|TODO-PROVIDER" "$agent_go"; then
+      echo "FAIL: the scaffold left placeholders in main.go" >&2
+      failures=$((failures + 1))
+    fi
+    if ! gofmt -e -l "$agent_go" >/dev/null 2>&1; then
+      echo "FAIL: the generated main.go does not parse" >&2
+      failures=$((failures + 1))
+    fi
+    for want in maxRounds runTimeout NANGO_SECRET_KEY rec.write; do
+      if ! grep -q "$want" "$agent_go"; then
+        echo "FAIL: the generated main.go is missing '$want'" >&2
+        failures=$((failures + 1))
+      fi
+    done
+  fi
+fi
+rm -rf "$agent_tmp"
+
+# It must work with no Nango running (it reports that) and always print the two
+# enforced names, or an agent silently falls back to asking for the token.
+if ! nango_out="$("$HERE/nango-connect.sh" probe --provider hubspot 2>&1)"; then
+  echo "FAIL: nango-connect.sh exited non-zero with no Nango running:" >&2
+  printf '%s\n' "$nango_out" | sed 's/^/    /' >&2
+  failures=$((failures + 1))
+else
+  if ! printf '%s\n' "$nango_out" | grep -qF "Provider-Config-Key) : hubspot"; then
+    echo "FAIL: nango-connect.sh did not print the integration key" >&2
+    failures=$((failures + 1))
+  fi
+  # The id is labelled "intended" because Connect UI, not us, assigns it.
+  if ! printf '%s\n' "$nango_out" | grep -Eq 'connection id +: probe'; then
+    echo "FAIL: nango-connect.sh did not print the intended connection id" >&2
+    failures=$((failures + 1))
+  fi
+fi
+
 if [ "$failures" -ne 0 ]; then
   echo "test-engines: $failures failure(s)" >&2
   exit 1

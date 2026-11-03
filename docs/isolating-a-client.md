@@ -60,7 +60,7 @@ CLIENT=acme   # example
 
 # ---------- On the NEW server ----------
 # 1. Engine (same pinned version as the old server)
-go install github.com/danmestas/dagnats/cmd/dagnats@v0.0.30
+go install github.com/danmestas/dagnats/cmd/dagnats@v0.0.32
 dagnats serve &
 # or: docker compose up dagnats   (Dockerfile.dagnats pins the version)
 

@@ -36,6 +36,9 @@
 - Client layout and migrations: docs/client-spine.md (`clients/<client>/automation/<engine>/`)
 - Personal automations: client `personal/` (same pipeline, you are the approver)
 - Automate-anything skill: skills/turvez/SKILL.md (direct → confirm → build; link into your harness skills dir)
+- Route any request: skills/turvez/references/decision-tree.md — the canonical
+  tree, the interview protocol (read first, ≤3 branch-flipping questions, each
+  with a recommendation, the answer recorded) and the defaults table
 - Client intake (interview + degustia tool picks): skills/turvez/references/client-intake.md
 - Sandbox decision: docs/sandbox-policy.md (3 questions) + scripts/sandbox-run.sh for one-offs
 - Where to execute (dagnats vs Dagu vs Windmill): docs/script-execution.md (decision tree)
@@ -45,6 +48,12 @@
   **Windmill is the default** (`engines.json`), dagnats is the exception path:
   skills/turvez/references/windmill.md + docs/script-execution.md
   + `./scripts/check-windmill.sh` (lint gate, no worker)
+- **Genkit is a capability, not an engine** (`docs/genkit.md`): a
+  human-watched agent loop runs as a Genkit flow in a Go service, goai stays
+  the only model path, tools go through Nango, and anything durable is a run
+  in the client's engine. Never add `genkit` to `engines.json`. Scaffold:
+  `scripts/new-agent-service.sh <client>` (plan, then `--apply --provider <slug>`);
+  `scripts/check-agent-template.sh` compiles it in CI (pinned Genkit, temp module).
 - Answering questions over client data: docs/retrieval.md — split documents
   (route-then-read: 2026 default is lexical for identifiers and hybrid BM25 + small
   dense + RRF + optional rerank of units for natural language; glossary expansion;
@@ -77,9 +86,11 @@
   WAC orchestrator that dispatches to Go scripts with `taskScript()`/`taskFlow()`
   (`docs/language-policy.md`, gate `./scripts/lint-scripts.sh`).
 - Client SaaS keys/OAuth: authorise in Nango, never paste the value.
-  `./scripts/nango-connect.sh <client> --provider <slug>` prints the link and
-  the exact names; `clients/credentials_test.go` rejects a provider token in
-  `env/` and a `Connection-Id` that is not the client (`docs/nango.md`).
+  `./scripts/nango-connect.sh <client> --provider <slug> --link --open` prints a
+  30-minute link and the exact names; `clients/credentials_test.go` rejects a
+  provider token in `env/` and a `Connection-Id` that is not the client, unless
+  the id is recorded in `clients/<client>/nango/connections.json` (Connect UI
+  assigns its own id — `docs/nango.md`).
 - "RAG" is not a dependency: documents get a Go lexical index and an eval;
   tool data is called at its source. Nango MCP is for agent tool discovery,
   not for documents (`docs/retrieval.md`).

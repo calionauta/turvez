@@ -27,6 +27,12 @@
   `docs/client-spine.md#choosing-the-engine`.
 - `runtime: shared|dedicated` + `target.host` are read by
   `./scripts/verify-isolation.sh` and the contract test — keep them honest.
+- **Genkit is a capability, not an engine.** An interactive, human-watched
+  agent loop is a Genkit flow in a Go service (goai = the only model path,
+  Nango = tools); anything durable becomes a run in the client's engine.
+  Never add `genkit` to `engines.json` (`docs/genkit.md`). Scaffold:
+  `./scripts/new-agent-service.sh <client>` (needs a Go checkout); compile
+  gate `./scripts/check-agent-template.sh` (pinned Genkit, temp module, CI).
 - One engine per client. Never migrate one unasked; the converter
   (`scripts/convert-to-windmill.py`) produces a skeleton, never a finished port.
 
@@ -52,14 +58,16 @@
   WAC orchestrator that dispatches to Go scripts (`taskScript`/`taskFlow`) —
   `docs/language-policy.md`, gate `./scripts/lint-scripts.sh`.
 - Client SaaS keys/OAuth: authorise in **Nango**, never paste a value.
-  `./scripts/nango-connect.sh <client> --provider <slug>` prints the link and
-  the exact names; `clients/credentials_test.go` enforces the naming.
+  `./scripts/nango-connect.sh <client> --provider <slug> --link --open` prints a
+  30-minute link and the exact names; `clients/credentials_test.go` enforces the
+  naming (Connect UI assigns its own id — record it in
+  `clients/<client>/nango/connections.json`, `docs/nango.md`).
 - Tenancy: names `<client>.<wf>` (separator in `naming.json`), trigger ids `<client>-…`, webhook paths contain
   `<client>` (`ops/` reserved for platform). No shared names. Register per client.
 - Alerts: every production recipe gets `on_failure` → notify; `ops/dlq-watchdog`
   covers silent DLQ buildup; external probe on `GET /health` covers total death.
   Never rely solely on the console (see `docs/alerting.md`).
-- dagnats v0.0.30 traps: `on_failure` targets need `aux_steps` + no
+- dagnats v0.0.32 traps: `on_failure` targets need `aux_steps` + no
   `depends_on`; `sleep`/`approval` steps take no `task`; `map` = 1 dep
   emitting an array; trigger runs arrive as `{…, "data": …}` — open recipes
   with `((.data // .) | …)`; cron schedules default to UTC (`cron_timezone`
@@ -108,7 +116,7 @@ server (symptom: runs stay `queued`, `workers list` empty).
 
 ## Stack
 
-- Go 1.27 (`go.mod`), dagnats v0.0.30 (pinned), NATS JetStream embedded, worker `distroless/static`.
+- Go 1.27 (`go.mod`), dagnats v0.0.32 (pinned), NATS JetStream embedded, worker `distroless/static`.
 - Skill: `skills/turvez/SKILL.md` (+ `references/` detail files) — direct → confirm → build.
 
 ## Observability

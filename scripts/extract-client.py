@@ -237,7 +237,7 @@ def build_plan(client, root):
         add("This client routes SaaS requests via Nango (`Connection-Id: %s`)." % client)
         add("1. On NEW server: bootstrap dedicated Nango with `./scripts/setup-nango.sh --up`")
         add("   (or point `NANGO_HOST` to the client's isolated Nango instance).")
-        add("2. Authorize connections under `connection_id: %s` via Nango Connect UI." % client)
+        add("2. Authorize connections for this client in Nango. Either create them with `connection_id: %s` (headless auth / import), or use a connect link and record the id Nango assigned in `clients/%s/nango/connections.json`." % (client, client))
         add("3. Set `NANGO_HOST` and `NANGO_SECRET_KEY` on the new host.")
     add("")
 
@@ -278,7 +278,7 @@ def build_plan(client, root):
         add("Purge this client's connections from the shared Nango to prevent lingering tokens:")
         add("```bash")
         add('# curl -X DELETE -H "Authorization: Bearer $SHARED_NANGO_SECRET_KEY" \\')
-        add('#   "$SHARED_NANGO_HOST/connection/%s?provider_config_key=<provider>"' % client)
+        add('#   "$SHARED_NANGO_HOST/connections/%s?provider_config_key=<provider>"' % client)
         add("```")
     add("")
 

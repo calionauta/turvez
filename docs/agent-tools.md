@@ -31,7 +31,7 @@ dagnats workflow show <name>            # (if available) print stored def
 ```
 
 Validate locally after every edit; register only when the operator asks.
-Recipe pitfalls (dagnats v0.0.30, verified): durations accept **integer
+Recipe pitfalls (verified against the pinned engine): durations accept **integer
 nanoseconds** (`30000000000` = 30s) or Go duration strings (`"30s"`);
 `map` steps need exactly one dep emitting a JSON array; `on_failure`
 targets must also be listed in top-level `aux_steps`; `sleep`/`approval`

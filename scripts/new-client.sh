@@ -118,6 +118,15 @@ UPPER="$(echo "$CLIENT" | tr 'a-z' 'A-Z')"
 sed "s/TODO-CLIENT/$CLIENT/g; s/TODO_SLACK_WEBHOOK_URL/${UPPER}_SLACK_WEBHOOK_URL/g" \
   "$TEMPLATES/FIELDBOOK.md" > "$C/README.md"
 
+# Connection ids Nango assigns (Connect UI picks them, not us). Empty at
+# scaffold time; filled the first time the operator authorises a provider.
+# In nango/, not at the client root: a root *.json is a legacy recipe to
+# scripts/validate.sh and would be validated as a workflow.
+if [ -f "$TEMPLATES/nango/connections.json" ]; then
+  mkdir -p "$C/nango"
+  sed "s/TODO-CLIENT/$CLIENT/g" "$TEMPLATES/nango/connections.json" > "$C/nango/connections.json"
+fi
+
 # Starter recipe (dagnats engine only): copy the cron-job skeleton with the
 # client prefix, basename kept so the recipe name matches the file.
 if [ "$ENGINE" = "dagnats" ] && [ -f "$TEMPLATES/cron-job.json" ]; then
@@ -142,7 +151,7 @@ cat > "$ROOT/env/$CLIENT.env.example" <<EOF
 #
 # SaaS OAuth and provider API keys do NOT go here: register the client as a
 # Nango connection and let the operator authorise it (docs/nango.md):
-#   ./scripts/nango-connect.sh $CLIENT --provider <slug> --open
+#   ./scripts/nango-connect.sh $CLIENT --provider <slug> --link --open
 # This file holds the Nango key plus secrets that are ours (webhook URLs,
 # internal APIs), never a provider credential.
 NANGO_HOST=

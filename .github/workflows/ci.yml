@@ -65,6 +65,11 @@ jobs:
         run: ./scripts/guard-version.sh
       - name: Unit and recipe tests
         run: go test ./... -timeout 300s
+      - name: Genkit scaffold compiles
+        # Genkit stays out of go.mod, so `go build ./...` cannot see the
+        # scaffold. This compiles it in a throwaway module against a pinned
+        # Genkit: the scaffold once shipped against an API it never built on.
+        run: ./scripts/check-agent-template.sh
       - name: Converter output must be valid YAML
         # The converter once emitted flows that every `wmill lint` rejected:
         # a missing `input_transforms`, comments inside the value mapping, and an

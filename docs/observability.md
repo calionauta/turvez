@@ -22,6 +22,11 @@ deleted on ack.
 1. **Every model call is an `llm.complete` step.** The handler's transport is
    GoAI (`provider/openai`); that is an implementation detail, not a second
    entry point. A script calling a model directly is a permanent blind spot.
+   *Exception, and its condition:* a **Genkit flow** (`docs/genkit.md`) calls
+   the **same** goai client through a model action, and persists the composed
+   prompt before generating plus the completion after, in the same store. That
+   keeps one LLM path and one record; a flow that keeps prompts in memory only
+   is still a blind spot and is not allowed.
 2. **Build the prompt in a step.** Emit `messages` from `transform.json`
    (`build-prompt`) instead of inlining them in `llm.complete` metadata: the
    prompt then becomes a step output and a failed call stays replayable.

@@ -1,6 +1,9 @@
 {
   "name": "example-client.hubspot-lead-to-slack",
   "version": "1.0.0",
+  "aux_steps": {
+    "notify-failed": true
+  },
   "steps": [
     {
       "id": "build-fetch",
@@ -13,6 +16,7 @@
     },
     {
       "id": "fetch-lead",
+      "on_failure": "notify-failed",
       "task": "http.request",
       "type": "normal",
       "timeout": 30000000000,
@@ -41,12 +45,23 @@
     },
     {
       "id": "notify",
+      "on_failure": "notify-failed",
       "task": "notify.slack",
       "type": "normal",
       "timeout": 30000000000,
       "depends_on": [
         "build-notify"
       ]
+    },
+    {
+      "id": "notify-failed",
+      "task": "notify.slack",
+      "type": "normal",
+      "timeout": 30000000000,
+      "metadata": {
+        "webhook_secret": "ACME_SLACK_WEBHOOK_URL",
+        "message": "Lead intake failed — a lead was not delivered. See the run in the dagnats console."
+      }
     }
   ],
   "triggers": [
