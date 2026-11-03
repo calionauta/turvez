@@ -51,9 +51,9 @@ chunk that matched rather than the chunk alone.
    │                        apply synonym OR on the lexical side before search;
    │                        optional SLM rewrite cache by query hash, with fallback
    ▼
-3. BLEVE ROUTING          retrieve whole units (chapter/section),
-   │                        not 500-token chunks; hybrid augments recall
-                          for paraphrase-heavy queries
+3. BLEVE ROUTING          retrieve chunks (~256-512 tokens) that remember
+   │                        their parent; hybrid augments recall for
+                          paraphrase-heavy queries
    ▼
 4. LONG-CONTEXT READING   re-expand to the parent section/chapter,
                           send selected units within a token budget,
@@ -357,7 +357,8 @@ Corrected placement:1. **Expand** — glossary first; an optional SLM rewrite be
 timeout and a deterministic fallback (route the original question through Bleve).
 Cache the rewrite by query hash. If you add a rewrite step at all, keep it to one
 cached rewrite, not a multi-rewrite fan-out.
-2. **Route** — Bleve returns whole units after dedupe and the candidate cap
+2. **Route** — Bleve returns candidate chunks after dedupe and the candidate cap;
+   the reader then expands them to their parent units
 (hybrid when the query is natural language; lexical-only for identifiers), not
 20-50 snippets.
 3. **Rerank (optional)** — a cross-encoder scores **units** (section, or its
@@ -492,7 +493,7 @@ an MCP agent.
 | Piece | Windmill | dagnats |
 |---|---|---|
 | Ingest/reindex | Go node on a schedule (`flow.yaml`), index in a volume/object store | `http.request` to the router service, or a manual batch job |
-| Route | Go node (`main(question string, budgetTokens int)`) returns whole units | `http.request` to the service, or tier 0 via `llm.complete` |
+| Route | Go node (`main(question string, budgetTokens int)`) returns the top chunks expanded to their parent units, within budget | `http.request` to the service, or tier 0 via `llm.complete` |
 | Prompt build | Go node or `transform.json`-equivalent step | `transform.json` (persisted before the model call) |
 | Answer | flow step `llm.complete` | recipe step `llm.complete` |
 

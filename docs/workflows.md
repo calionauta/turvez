@@ -172,7 +172,7 @@ flowchart TD
 
 Full rationale, traps and the ship gate: `docs/retrieval.md`. A system of
 record is a freshness problem (call it); a document corpus is a retrieval
-problem (route to whole units, then read them). Nango is not a document index.
+problem (route on chunks, then read their parent units). Nango is not a document index.
 The 2026 default is **lexical for identifiers, hybrid (BM25 + small dense + RRF)
 for natural language, optional cross-encoder rerank of units, and the parent
 section/chapter as the reading unit.** The chunk is the indexing unit (~256-512
