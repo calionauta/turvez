@@ -7,8 +7,13 @@
 #
 # Usage:
 #   ./scripts/nango-connect.sh <client> --provider hubspot
+#   ./scripts/nango-connect.sh <client> --provider hubspot --link --open
 #   ./scripts/nango-connect.sh <client> --provider google-calendar --open
 #   ./scripts/nango-connect.sh <client> --provider slack --subaccount billing
+#
+# --link creates a 30-minute Click-to-connect magic link (Nango
+# POST /connect/sessions) tagged with the client; it needs NANGO_SECRET_KEY.
+# --open opens the link (or the Connect UI / dashboard when there is no link).
 #
 # Naming (enforced by clients/credentials_test.go):
 #   integration key (Provider-Config-Key) : the provider slug, one per provider
@@ -24,6 +29,7 @@ CLIENT=""
 PROVIDER=""
 SUBACCOUNT=""
 OPEN=0
+LINK=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --provider) PROVIDER="${2:-}"; shift 2 ;;
@@ -31,6 +37,7 @@ while [ $# -gt 0 ]; do
     --subaccount) SUBACCOUNT="${2:-}"; shift 2 ;;
     --subaccount=*) SUBACCOUNT="${1#--subaccount=}"; shift ;;
     --open) OPEN=1; shift ;;
+    --link) LINK=1; shift ;;
     -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) echo "unknown flag: $1" >&2; exit 2 ;;
     *) CLIENT="$1"; shift ;;
@@ -81,6 +88,36 @@ echo "   then reference it as:"
 echo "     \"headers\": {\"Provider-Config-Key\": \"$PROVIDER\", \"Connection-Id\": \"$CONNECTION_ID\"},"
 echo "     \"auth_secret\": \"NANGO_SECRET_KEY\""
 echo
+
+if [ "$LINK" -eq 1 ]; then
+  if [ -z "${NANGO_SECRET_KEY:-}" ]; then
+    echo "--link needs NANGO_SECRET_KEY exported (the environment API key)" >&2
+    exit 2
+  fi
+  # A magic link the operator can click: one integration, tagged with the client
+  # so the connection lands as <client>. Never returns a token; the operator's
+  # browser does the OAuth dance (Nango POST /connect/sessions, 30-minute token).
+  body="{\"tags\":{\"turvez_client\":\"$CLIENT\"},\"allowed_integrations\":[\"$PROVIDER\"]}"
+  resp="$(curl -s -X POST "$NANGO_HOST/connect/sessions" \
+    -H "Authorization: Bearer $NANGO_SECRET_KEY" \
+    -H "Content-Type: application/json" \
+    -d "$body" 2>/dev/null || true)"
+  link="$(printf '%s' "$resp" | python3 -c 'import json,sys; print((json.load(sys.stdin).get("data") or {}).get("connect_link",""))' 2>/dev/null || true)"
+  if [ -n "$link" ]; then
+    echo "connect link (30 min, one integration):"
+    echo "  $link"
+    if [ "$OPEN" -eq 1 ]; then
+      opener=""
+      command -v open >/dev/null 2>&1 && opener=open
+      command -v xdg-open >/dev/null 2>&1 && opener=xdg-open
+      [ -n "$opener" ] && "$opener" "$link" >/dev/null 2>&1 || true
+    fi
+  else
+    echo "could not create a connect session — is Nango reachable and the key valid?" >&2
+    echo "  response: ${resp:-<none>}" >&2
+  fi
+  echo
+fi
 
 if [ "$OPEN" -eq 1 ]; then
   opener=""

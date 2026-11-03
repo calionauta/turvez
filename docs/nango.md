@@ -264,9 +264,12 @@ integration leaks across tenants:
 2. a `Connection-Id` that is not the client the file lives under;
 3. a `Provider-Config-Key` with a client prefix, or not a lowercase slug.
 
-`./scripts/nango-connect.sh <client> --provider <slug> [--open]` prints the
-dashboard link, the two names to type, the verification `curl`, and the exact
+`./scripts/nango-connect.sh <client> --provider <slug> [--link] [--open]` prints
+the dashboard link, the two names to type, the verification `curl`, and the exact
 header block to paste — so the agent asks for an authorisation instead of a token.
+`--link` creates a 30-minute magic link (Nango `POST /connect/sessions`) tagged
+with the client, which is the one-click path: the operator opens it, authorises,
+and the connection appears as `<client>`.
 
 ---
 
@@ -420,7 +423,7 @@ Because Turvez recipes and scripts use environment variables and the client slug
    curl -X DELETE -H "Authorization: Bearer $SHARED_NANGO_SECRET_KEY" \
      "$SHARED_NANGO_HOST/connection/<client>?provider_config_key=<provider>"
    ```
-   Now the client is 100% isolated, and [`scripts/verify-isolation.sh`](file:///Users/cali/Development/dagnats-automation/scripts/verify-isolation.sh) verifies that the client is coherent.
+   Now the client is 100% isolated, and `scripts/verify-isolation.sh` verifies that the client is coherent.
 
 ---
 
@@ -436,7 +439,14 @@ agent connects with the token. The session fixes:
   client's connected MCP servers such as Notion or Linear), with
   `allow`/`deny`/`pinned_tools`;
 - the **meta tools**: `nango_tool_search` and `nango_execute` are on by default;
-  `nango_proxy` is **off** and bypasses allow/deny when enabled.
+  `nango_proxy` is **off** and bypasses allow/deny when enabled;
+  `nango_create_connection` is also off — when on, the agent gets a **connect
+  link it can hand to the operator** for an integration whose connection is
+  missing or expired (`connect_url`, nothing to click on our side).
+
+Session creation needs an API key with the `environment:agent_sessions:write`
+scope, and sessions expire (max 15 days), so a long-lived human approval still
+belongs to the flow, not to a session.
 
 Which surface to use:
 
