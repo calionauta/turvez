@@ -59,8 +59,10 @@ case "$action" in
         echo "nango: healthy at $NANGO_HOST"
         echo "  dashboard/API: $NANGO_HOST"
         echo "  connect UI  : http://localhost:${NANGO_CONNECT_PORT:-8089}"
-        echo "next: create the integration + connection in the dashboard, then set"
-        echo "      NANGO_HOST / NANGO_SECRET_KEY as Windmill variables (names only in git)"
+        echo "next: create the integration in the dashboard, then run"
+        echo "      ./scripts/nango-connect.sh <client> --provider <slug> --link --open"
+        echo "      (the operator authorises; we never handle the token)"
+        echo "      and set NANGO_HOST / NANGO_SECRET_KEY as Windmill variables"
         exit 0
       fi
       sleep 2

@@ -52,8 +52,10 @@
   WAC orchestrator that dispatches to Go scripts (`taskScript`/`taskFlow`) —
   `docs/language-policy.md`, gate `./scripts/lint-scripts.sh`.
 - Client SaaS keys/OAuth: authorise in **Nango**, never paste a value.
-  `./scripts/nango-connect.sh <client> --provider <slug>` prints the link and
-  the exact names; `clients/credentials_test.go` enforces the naming.
+  `./scripts/nango-connect.sh <client> --provider <slug> --link --open` prints a
+  30-minute link and the exact names; `clients/credentials_test.go` enforces the
+  naming (Connect UI assigns its own id — record it in
+  `clients/<client>/nango/connections.json`, `docs/nango.md`).
 - Tenancy: names `<client>.<wf>` (separator in `naming.json`), trigger ids `<client>-…`, webhook paths contain
   `<client>` (`ops/` reserved for platform). No shared names. Register per client.
 - Alerts: every production recipe gets `on_failure` → notify; `ops/dlq-watchdog`

@@ -15,6 +15,8 @@ package clients
 // over that repo's clients and env examples instead of only the template's.
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -113,13 +115,119 @@ var (
 	slugShapeRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 )
 
+// recordedConnectionIDs reads clients/<client>/nango/connections.json: the ids
+// Nango assigned to connections that were created through Connect UI. It is the
+// one legitimate way a literal id differs from the client slug — Connect UI
+// generates the id (a UUID) and Nango cannot rename a connection, so recording
+// it is better than pretending the slug rule holds there. The file holds ids,
+// not secrets, so it is committed.
+//
+// It lives in nango/, not at the client root: a client-root *.json is treated
+// as a legacy flat-layout recipe by scripts/validate.sh, and a metadata file
+// would be validated as a workflow.
+func recordedConnectionIDs(t *testing.T, dir string) map[string]bool {
+	t.Helper()
+	path := filepath.Join(dir, "nango", "connections.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		t.Fatal(err)
+	}
+	var doc struct {
+		Connections map[string]string `json:"connections"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatalf("%s: %v (want {\"connections\": {\"hubspot\": \"<id>\"}})", path, err)
+	}
+	out := make(map[string]bool, len(doc.Connections))
+	for provider, id := range doc.Connections {
+		if id == "" {
+			t.Errorf("%s: %q has an empty id; drop the entry instead", path, provider)
+			continue
+		}
+		out[id] = true
+	}
+	return out
+}
+
+// connectionIDReason returns why id is not acceptable for a file that belongs to
+// slug, or "" when it is. slugs is every client in the checkout, so an id that
+// names another client is reported as a cross-tenant read instead of a typo.
+func connectionIDReason(slug, id string, slugs []string, recorded map[string]bool) string {
+	// <client>:<subaccount> is the documented multi-account form.
+	if id == slug || strings.HasPrefix(id, slug+":") || recorded[id] {
+		return ""
+	}
+	for _, other := range slugs {
+		if other != slug && (id == other || strings.HasPrefix(id, other+":")) {
+			return fmt.Sprintf("belongs to client %q; a flow must read its own client's connection (docs/nango.md)", other)
+		}
+	}
+	return fmt.Sprintf("must be %q, %q:<subaccount>, or an id recorded in clients/%s/nango/connections.json (docs/nango.md)",
+		slug, slug, slug)
+}
+
+// TestConnectionIDRules pins the three-way rule without needing a checkout: the
+// slug form, the recorded UUID Connect UI hands out, and the two rejections.
+func TestConnectionIDRules(t *testing.T) {
+	slugs := []string{"acme", "beta"}
+	recorded := map[string]bool{"3f2b6c1e-0000-4000-8000-000000000000": true}
+	cases := []struct {
+		id   string
+		want string
+	}{
+		{"acme", ""},
+		{"acme:billing", ""},
+		{"3f2b6c1e-0000-4000-8000-000000000000", ""},
+		{"beta", `belongs to client "beta"`},
+		{"beta:billing", `belongs to client "beta"`},
+		{"shared", "must be"},
+		{"", "must be"},
+	}
+	for _, c := range cases {
+		got := connectionIDReason("acme", c.id, slugs, recorded)
+		switch {
+		case c.want == "" && got != "":
+			t.Errorf("id %q: unexpected rejection: %s", c.id, got)
+		case c.want != "" && !strings.Contains(got, c.want):
+			t.Errorf("id %q: reason %q does not contain %q", c.id, got, c.want)
+		}
+	}
+}
+
 // TestNangoConnectionIsTheClientSlug rejects a hardcoded Connection-Id that is
 // not the client the file lives under. A shared id is how one client's flow
 // starts reading another client's data.
+//
+// Allowed for a file under clients/<client>/:
+//   - <client>, or <client>:<subaccount> (the multi-account form);
+//   - an id listed in that client's nango/connections.json, which is where the UUID
+//     Connect UI generates is recorded.
+//
+// Rejected: another client's slug (a cross-tenant read), and anything else.
 func TestNangoConnectionIsTheClientSlug(t *testing.T) {
+	dirs := clientDirs(t)
+	slugs := make(map[string]bool, len(dirs))
+	for _, dir := range dirs {
+		slugs[filepath.Base(dir)] = true
+	}
+	slugsList := make([]string, 0, len(slugs))
+	for s := range slugs {
+		slugsList = append(slugsList, s)
+	}
+
 	checked := 0
-	for _, dir := range clientDirs(t) {
+	for _, dir := range dirs {
 		slug := filepath.Base(dir)
+		recorded := recordedConnectionIDs(t, dir)
+		for id := range recorded {
+			if !slugs[id] || id == slug {
+				continue
+			}
+			t.Errorf("%s/nango/connections.json: id %q is another client's slug; ids are per-client (docs/nango.md)", dir, id)
+		}
 		walkErr := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 			if err != nil || info.IsDir() {
 				return err
@@ -137,11 +245,8 @@ func TestNangoConnectionIsTheClientSlug(t *testing.T) {
 			for _, m := range connIDRe.FindAllStringSubmatch(text, -1) {
 				checked++
 				got := m[1]
-				want := slug
-				// <client>:<subaccount> is the documented multi-account form.
-				if got != want && !strings.HasPrefix(got, want+":") {
-					t.Errorf("%s: Connection-Id %q must be %q or %q:<subaccount> (docs/nango.md)",
-						path, got, want, want)
+				if reason := connectionIDReason(slug, got, slugsList, recorded); reason != "" {
+					t.Errorf("%s: Connection-Id %q %s", path, got, reason)
 				}
 			}
 			for _, m := range providerRe.FindAllStringSubmatch(text, -1) {

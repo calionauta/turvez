@@ -13,7 +13,9 @@
 #
 # --link creates a 30-minute Click-to-connect magic link (Nango
 # POST /connect/sessions) tagged with the client; it needs NANGO_SECRET_KEY.
-# --open opens the link (or the Connect UI / dashboard when there is no link).
+# The connection it creates gets Nango's own id (a UUID) — the tag is how you
+# find it again. --open opens the link (or the Connect UI / dashboard when
+# there is no link).
 #
 # Naming (enforced by clients/credentials_test.go):
 #   integration key (Provider-Config-Key) : the provider slug, one per provider
@@ -65,7 +67,7 @@ echo "1. Open the dashboard and add the integration IF IT IS MISSING:"
 echo "     $NANGO_HOST"
 echo
 echo "   integration key (Provider-Config-Key) : $PROVIDER"
-echo "   connection id   (Connection-Id)       : $CONNECTION_ID"
+echo "   intended connection id                : $CONNECTION_ID"
 echo
 echo "   One integration per provider, shared by every client. The client is the"
 echo "   CONNECTION, never the integration: two integrations for one provider means"
@@ -75,9 +77,18 @@ echo "2. Have the operator authorise the provider for this client:"
 echo "     $NANGO_CONNECT_URL        # Connect UI, one-click per provider"
 echo "   The operator clicks; the agent never sees the token."
 echo
-echo "3. Verify the connection exists and is healthy:"
+echo "   Connect UI does not let us pick the connection id: it makes one (a UUID)"
+echo "   and copies the session tag turvez_client=$CLIENT onto it. A recipe that"
+echo "   names Connection-Id: $CONNECTION_ID needs a connection created WITH that"
+echo "   id; if it came from the UI instead, read the id it got:"
 echo "     curl -s -H \"Authorization: Bearer \$NANGO_SECRET_KEY\" \\"
-echo "       \"$NANGO_HOST/connection/$CONNECTION_ID?provider_config_key=$PROVIDER\" \\"
+echo "       \"$NANGO_HOST/connections?tags[turvez_client]=$CLIENT\" \\"
+echo "       | python3 -c 'import json,sys; print([c[\"connection_id\"] for c in json.load(sys.stdin)[\"connections\"] if c[\"provider_config_key\"]==\"$PROVIDER\"])'"
+echo
+echo "3. Verify the connection exists and is healthy (the id is the client"
+echo "   slug only when it was created that way):"
+echo "     curl -s -H \"Authorization: Bearer \$NANGO_SECRET_KEY\" \\"
+echo "       \"$NANGO_HOST/connections/$CONNECTION_ID?provider_config_key=$PROVIDER\" \\"
 echo "       | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d[\"credentials\"][\"type\"], d.get(\"created_at\"))'"
 echo
 echo "4. The automation reads only these two names (never the token):"
@@ -95,8 +106,10 @@ if [ "$LINK" -eq 1 ]; then
     exit 2
   fi
   # A magic link the operator can click: one integration, tagged with the client
-  # so the connection lands as <client>. Never returns a token; the operator's
-  # browser does the OAuth dance (Nango POST /connect/sessions, 30-minute token).
+  # so the connection can be found again. The connection gets Nango's own id (a
+  # UUID), not the client slug, so the follow-up command reads the id back by
+  # tag. Never returns a provider token: the operator's browser does the OAuth
+  # dance (Nango POST /connect/sessions, 30-minute session).
   body="{\"tags\":{\"turvez_client\":\"$CLIENT\"},\"allowed_integrations\":[\"$PROVIDER\"]}"
   resp="$(curl -s -X POST "$NANGO_HOST/connect/sessions" \
     -H "Authorization: Bearer $NANGO_SECRET_KEY" \
@@ -112,6 +125,15 @@ if [ "$LINK" -eq 1 ]; then
       command -v xdg-open >/dev/null 2>&1 && opener=xdg-open
       [ -n "$opener" ] && "$opener" "$link" >/dev/null 2>&1 || true
     fi
+    echo
+    echo "after authorising, read back the connection id it got (Connect UI does"
+    echo "not let us choose it) — a recipe needs this id, not the client slug:"
+    echo "  curl -s -H \"Authorization: Bearer \$NANGO_SECRET_KEY\" \\"
+    echo "    \"$NANGO_HOST/connections?tags[turvez_client]=$CLIENT\" \\"
+    echo "    | jq -r '.connections[] | select(.provider_config_key==\"$PROVIDER\") | .connection_id'"
+    echo
+    echo "then record it so the guard and the recipe agree:"
+    echo "  clients/$CLIENT/nango/connections.json  ->  \"$PROVIDER\": \"<id>\""
   else
     echo "could not create a connect session — is Nango reachable and the key valid?" >&2
     echo "  response: ${resp:-<none>}" >&2

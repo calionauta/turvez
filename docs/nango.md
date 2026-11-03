@@ -148,7 +148,7 @@ fetch it from Nango just-in-time. Never cache it and never write it anywhere:
 func nangoToken(provider, client string) (string, error) {
 	host := os.Getenv("NANGO_HOST")
 	req, err := http.NewRequest(http.MethodGet,
-		fmt.Sprintf("%s/connection/%s?provider_config_key=%s", host, client, provider), nil)
+		fmt.Sprintf("%s/connections/%s?provider_config_key=%s", host, client, provider), nil)
 	if err != nil {
 		return "", err
 	}
@@ -254,6 +254,21 @@ Two integrations for one provider (`acme-hubspot`, `beta-hubspot`) means a scope
 change or a renewal is applied N times and gets missed N-1 times. The client is
 the **connection**, never the integration.
 
+Caveat worth knowing before wiring a flow: Connect UI assigns a new connection
+its own id (Nango uses a UUID), and the tag is what ties it to the client. A
+recipe that names `Connection-Id: acme` needs a connection created *with* that
+id (§6 Step 2). When the connection came from a link instead, record the id it
+got in `clients/<client>/nango/connections.json`:
+
+```json
+{ "connections": { "hubspot": "3f2b6c1e-…" } }
+```
+
+That file is the *only* place a literal id other than the slug is allowed —
+`clients/credentials_test.go` accepts ids listed there and still rejects another
+client's slug. Ids are not secrets, so the file is committed. Never guess an id
+for a client; read it back by tag.
+
 ### 5.2 Enforcement (not convention)
 
 `clients/credentials_test.go` fails the build on all three ways a copy-pasted
@@ -261,15 +276,18 @@ integration leaks across tenants:
 
 1. a provider credential in `env/*.env.example` (`ACME_HUBSPOT_TOKEN`) — the
    message names the provider and the `nango-connect.sh` command that replaces it;
-2. a `Connection-Id` that is not the client the file lives under;
+2. a `Connection-Id` that is not the client the file lives under, unless that id
+   is recorded in the client's `nango/connections.json` — a bare id that matches
+   another client's slug is reported as a cross-tenant read;
 3. a `Provider-Config-Key` with a client prefix, or not a lowercase slug.
 
 `./scripts/nango-connect.sh <client> --provider <slug> [--link] [--open]` prints
 the dashboard link, the two names to type, the verification `curl`, and the exact
 header block to paste — so the agent asks for an authorisation instead of a token.
 `--link` creates a 30-minute magic link (Nango `POST /connect/sessions`) tagged
-with the client, which is the one-click path: the operator opens it, authorises,
-and the connection appears as `<client>`.
+`turvez_client=<client>`, which is the one-click path: the operator opens it and
+authorises. The connection it creates gets Nango's own id (a UUID) and carries
+the tag — see §6 Step 2 for how that interacts with the `Connection-Id` rule.
 
 ---
 
@@ -283,25 +301,51 @@ When a new client (`acme`) requires integration with a SaaS platform (e.g. HubSp
 3. Set the scopes needed by the automation (e.g. `crm.objects.contacts.read`).
 
 ### Step 2: Authorize the Client Connection
-The agent prints the identifiers; the operator clicks. `./scripts/nango-connect.sh acme --provider hubspot --open` gives the dashboard link, the connection id to use (`acme`) and the verification command — never ask for the token itself.
-Send the client a secure Connect link generated via Nango's API or UI:
+The agent prints the link; the operator clicks. `./scripts/nango-connect.sh acme
+--provider hubspot --link --open` mints a 30-minute click-to-connect link and
+prints the two names to use — never ask for the token itself.
+
+The same call by hand (the response is `data.connect_link`, `data.token` and
+`data.expires_at` — `connect_link` is the link, `token` is for embedding Connect
+UI in a page, neither is a provider credential):
+
 ```bash
-curl -X POST "$NANGO_HOST/connect/sessions" \
+curl -s -X POST "$NANGO_HOST/connect/sessions" \
   -H "Authorization: Bearer $NANGO_SECRET_KEY" \
   -H "Content-Type: application/json" \
-  -d '{
-    "connection_id": "acme",
-    "provider_config_key": "hubspot"
-  }'
+  -d '{"tags": {"turvez_client": "acme"}, "allowed_integrations": ["hubspot"]}' \
+  | jq -r '.data.connect_link'
 ```
-The client visits the URL, completes the OAuth consent screen with their provider, and Nango marks connection `acme` as `active`.
+
+> **Connection ids, exactly.** A connect session has no `connection_id` field —
+> `connection_id` and `provider_config_key` in the body are ignored. Connect UI
+> assigns the new connection its own id (Nango uses a random UUID), and copies
+> the session `tags` onto it. That is the whole reason the tag exists.
+>
+> A flow that names a literal `Connection-Id: acme` therefore needs a connection
+> that was created **with** that id. Two paths do that without a token reaching
+> us: headless auth (`nango.auth('hubspot', { connectionId: 'acme' })` in our own
+> page) or the upsert `POST /connections` (which takes `connection_id` plus
+> credentials, so only as an import). If the connection came from a link, record
+> the id it got in `clients/acme/nango/connections.json` and reference that —
+> never assume it is the client slug.
+
+The operator authorises, and the connection appears tagged `turvez_client=acme`.
 
 ### Step 3: Verify the Connection via CLI
+By tag, when the id is a UUID (`provider_config_key` is not a filter on this
+endpoint — every integration for the client comes back, so pick the row):
 ```bash
 curl -s -H "Authorization: Bearer $NANGO_SECRET_KEY" \
-  "$NANGO_HOST/connection/acme?provider_config_key=hubspot" | jq .
+  "$NANGO_HOST/connections?tags[turvez_client]=acme" \
+  | jq '.connections[] | select(.provider_config_key=="hubspot")'
 ```
-Verify that `credentials.access_token` and `status: "SUCCESS"` are present.
+By id, when it was created as `acme`:
+```bash
+curl -s -H "Authorization: Bearer $NANGO_SECRET_KEY" \
+  "$NANGO_HOST/connections/acme?provider_config_key=hubspot" | jq .
+```
+Either way, check that `credentials` is present and `errors` is empty.
 
 ### Step 4: Configure the Turvez Client
 In `env/acme.env.example`:
@@ -421,7 +465,7 @@ Because Turvez recipes and scripts use environment variables and the client slug
 4. **Purge Shared Connection (Old Server):** Remove the connection from the shared Nango to prevent lingering tokens:
    ```bash
    curl -X DELETE -H "Authorization: Bearer $SHARED_NANGO_SECRET_KEY" \
-     "$SHARED_NANGO_HOST/connection/<client>?provider_config_key=<provider>"
+     "$SHARED_NANGO_HOST/connections/<client>?provider_config_key=<provider>"
    ```
    Now the client is 100% isolated, and `scripts/verify-isolation.sh` verifies that the client is coherent.
 

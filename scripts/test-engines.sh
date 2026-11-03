@@ -106,12 +106,15 @@ if ! nango_out="$("$HERE/nango-connect.sh" probe --provider hubspot 2>&1)"; then
   printf '%s\n' "$nango_out" | sed 's/^/    /' >&2
   failures=$((failures + 1))
 else
-  for want in "Provider-Config-Key) : hubspot" "Connection-Id)       : probe"; do
-    if ! printf '%s\n' "$nango_out" | grep -qF "$want"; then
-      echo "FAIL: nango-connect.sh did not print '$want'" >&2
-      failures=$((failures + 1))
-    fi
-  done
+  if ! printf '%s\n' "$nango_out" | grep -qF "Provider-Config-Key) : hubspot"; then
+    echo "FAIL: nango-connect.sh did not print the integration key" >&2
+    failures=$((failures + 1))
+  fi
+  # The id is labelled "intended" because Connect UI, not us, assigns it.
+  if ! printf '%s\n' "$nango_out" | grep -Eq 'connection id +: probe'; then
+    echo "FAIL: nango-connect.sh did not print the intended connection id" >&2
+    failures=$((failures + 1))
+  fi
 fi
 
 if [ "$failures" -ne 0 ]; then

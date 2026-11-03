@@ -13,8 +13,8 @@ Full architecture guide: `docs/nango.md`.
 3. **Use the Nango Request Proxy by default.** Route HTTP calls through `${NANGO_HOST}/proxy/<path>` with `Connection-Id: <client>` and `Provider-Config-Key: <provider>`.
 4. **Tenancy:** The `Connection-Id` must always be the client name (`<client>`). If a client has multiple accounts, use `<client>:<subaccount>`.
 5. **Only one secret in the runner:** The only secret Windmill or dagnats needs is `NANGO_SECRET_KEY`.
-6. **Never ask the operator for a provider token.** Ask them to authorise it: `./scripts/nango-connect.sh <client> --provider <slug> --link --open` prints a 30-minute magic link (Nango `POST /connect/sessions`) and the exact names. If they paste a token into chat, do not use it — rotate it.
-7. **Naming is enforced, not suggested** (`clients/credentials_test.go`): integration key = provider slug (`hubspot`), connection id = client slug (`acme`, or `acme:billing`).
+6. **Never ask the operator for a provider token.** Ask them to authorise it: `./scripts/nango-connect.sh <client> --provider <slug> --link --open` prints a 30-minute magic link (Nango `POST /connect/sessions`) and the exact names. If they paste a token into chat, do not use it — rotate it. A link-created connection gets Nango's own id (a UUID), tagged `turvez_client=<client>`: to feed a recipe, read that id back (`GET /connections?tags[turvez_client]=<client>`) — never guess it.
+7. **Naming is enforced, not suggested** (`clients/credentials_test.go`): integration key = provider slug (`hubspot`), connection id = client slug (`acme`, or `acme:billing`). Connect UI assigns its own id (a UUID) and Nango cannot rename a connection, so when the connection came from a connect link, record the id in `clients/<client>/nango/connections.json` — the guard accepts ids listed there and still rejects another client's slug. Never guess an id.
 
 ---
 
@@ -82,7 +82,7 @@ per run; never persist it.
 func nangoToken(provider, client string) (string, error) {
 	host := os.Getenv("NANGO_HOST")
 	req, err := http.NewRequest(http.MethodGet,
-		fmt.Sprintf("%s/connection/%s?provider_config_key=%s", host, client, provider), nil)
+		fmt.Sprintf("%s/connections/%s?provider_config_key=%s", host, client, provider), nil)
 	if err != nil {
 		return "", err
 	}

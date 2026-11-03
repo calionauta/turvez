@@ -77,9 +77,11 @@
   WAC orchestrator that dispatches to Go scripts with `taskScript()`/`taskFlow()`
   (`docs/language-policy.md`, gate `./scripts/lint-scripts.sh`).
 - Client SaaS keys/OAuth: authorise in Nango, never paste the value.
-  `./scripts/nango-connect.sh <client> --provider <slug>` prints the link and
-  the exact names; `clients/credentials_test.go` rejects a provider token in
-  `env/` and a `Connection-Id` that is not the client (`docs/nango.md`).
+  `./scripts/nango-connect.sh <client> --provider <slug> --link --open` prints a
+  30-minute link and the exact names; `clients/credentials_test.go` rejects a
+  provider token in `env/` and a `Connection-Id` that is not the client, unless
+  the id is recorded in `clients/<client>/nango/connections.json` (Connect UI
+  assigns its own id — `docs/nango.md`).
 - "RAG" is not a dependency: documents get a Go lexical index and an eval;
   tool data is called at its source. Nango MCP is for agent tool discovery,
   not for documents (`docs/retrieval.md`).

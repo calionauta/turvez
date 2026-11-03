@@ -1,0 +1,4 @@
+{
+  "_comment": "Connection ids Nango assigned to this client's connections. Connect UI generates the id (a UUID) and Nango cannot rename a connection, so record it here the first time the operator authorises one. Ids are not secrets. A recipe may then use the id literally; clients/credentials_test.go accepts ids listed here and rejects another client's slug. Keep one entry per provider.",
+  "connections": {}
+}

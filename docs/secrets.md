@@ -30,7 +30,7 @@ For SaaS APIs, use **Nango** ([docs/nango.md](nango.md)):
 - Nango manages the OAuth Connect flow with the client.
 - Tokens are automatically refreshed centrally with distributed locking.
 - Automations call the SaaS via the Nango Request Proxy (`/proxy/...`) or SDK using `Connection-Id: <client>` and `NANGO_SECRET_KEY`.
-- The agent never asks for the token: `./scripts/nango-connect.sh <client> --provider <slug> --open` gives the operator the link and the exact names.
+- The agent never asks for the token: `./scripts/nango-connect.sh <client> --provider <slug> --link --open` gives the operator a 30-minute link to authorise and the exact names.
 - Exceptions that stay in env/age: webhook URLs, signing secrets, DB/SMTP/SSH credentials, and `NANGO_SECRET_KEY` itself (it cannot live in Nango).
 
 ## Keys: one per environment, per client when needed
