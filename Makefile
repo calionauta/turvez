@@ -87,6 +87,7 @@ lint:
 validate:
 	./scripts/validate.sh
 	./scripts/test-decisions.sh
+	python3 scripts/decision-eval.py --check --self-test
 	./scripts/verify-isolation.sh >/dev/null || { ./scripts/verify-isolation.sh; exit 1; }
 
 tidy:

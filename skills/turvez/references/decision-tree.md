@@ -214,3 +214,13 @@ Q: needs generated UI/forms, integration catalog, team-facing apps?
 Yes → per-client migration (`docs/migrate-to-windmill.md` +
 `docs/isolating-a-client.md`). Levels 2 and 3 are alternatives —
 never operate both for the same client.
+
+## Testing the tree
+
+The tree ships operator scenarios and a deterministic transcript grader:
+`skills/turvez/evals/README.md`. CI runs
+`python3 scripts/decision-eval.py --check --self-test` (fixtures against
+`engines.json` and real artifacts, plus the grader's own red proof). A model
+run is local: produce a transcript with any agent, then `--grade` it. The
+grader checks the branch, the question budget, the recommendation on every
+question, the facts that must not be re-asked, and the recorded decision.

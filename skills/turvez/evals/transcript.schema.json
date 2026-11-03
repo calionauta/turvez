@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "turvez decision transcript",
+  "description": "One grader-ready record: what the agent asked, and the decision it would record.",
+  "type": "object",
+  "required": ["scenario", "questions", "decision"],
+  "additionalProperties": false,
+  "properties": {
+    "scenario": {
+      "type": "string",
+      "description": "id from skills/turvez/evals/scenarios.yaml"
+    },
+    "questions": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "required": ["text", "recommended", "options"],
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "recommended": {
+            "type": "string",
+            "minLength": 1,
+            "description": "the option the agent recommends, and why it is the default"
+          },
+          "options": {
+            "type": "array",
+            "minItems": 2,
+            "items": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "required": ["engine", "runtime", "level", "capability", "library", "record"],
+      "additionalProperties": false,
+      "properties": {
+        "engine": {"type": "string"},
+        "runtime": {"type": "string", "enum": ["shared", "dedicated"]},
+        "level": {"type": "string", "enum": ["0", "1", "2", "3"]},
+        "capability": {
+          "type": "string",
+          "enum": ["none", "genkit", "retrieval", "sandbox"]
+        },
+        "library": {
+          "type": "string",
+          "enum": ["none", "stdlib", "existing", "approved", "new-confirmed", "refuse"]
+        },
+        "record": {
+          "type": "string",
+          "minLength": 1,
+          "description": "where the next run reads this decision, e.g. clients/<client>/client.yaml"
+        }
+      }
+    }
+  }
+}

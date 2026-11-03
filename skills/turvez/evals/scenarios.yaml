@@ -1,0 +1,213 @@
+# Decision scenarios — the behavioral eval for the tree.
+#
+# Each scenario is one operator ask plus the facts a real run would already
+# have read (client.yaml). `expect` is the branch the tree selects;
+# `questions.max` is the interview budget; `forbid` are facts the scenario
+# already gives, so asking them is a read-before-ask failure. `artifacts` ties
+# the branch to something real, so a scenario cannot point at a path the repo
+# stopped shipping.
+#
+# CI:    python3 scripts/decision-eval.py --check --self-test
+# Grade: python3 scripts/decision-eval.py --grade transcript.json
+# How to produce a transcript: skills/turvez/evals/README.md.
+
+- id: windmill-ui-form
+  ask: >
+    Cliente novo (acme). Quer um botão "gerar relatório" com formulário para o
+    time dele. Não tem infraestrutura própria; dados normais.
+  facts:
+    client_yaml: null
+  expect:
+    engine: windmill
+    runtime: shared
+    level: "3"
+    capability: none
+    library: none
+    record: clients/acme/client.yaml
+  questions:
+    max: 0
+    forbid: ["qual engine", "which engine", "dagnats"]
+  artifacts:
+    - skills/turvez/references/windmill.md
+    - docs/language-policy.md
+  why: >
+    A new client defaults to Windmill; the ask already answers host, data class
+    and the product surface. Asking the engine here is the over-asking failure.
+
+- id: dagnats-typed-contract
+  ask: >
+    O contrato exige contrato tipado e nenhum código arbitrário. O cliente já
+    roda dagnats.
+  facts:
+    client_yaml: |
+      client: acme
+      engine: dagnats
+      runtime: shared
+  expect:
+    engine: dagnats
+    runtime: shared
+    level: "0"
+    capability: none
+    library: none
+    record: clients/acme/client.yaml
+  questions:
+    max: 0
+    forbid: ["qual engine", "which engine", "windmill"]
+  artifacts:
+    - docs/writing-recipes.md
+    - internal/handlers/handlers.go
+  why: >
+    The manifest already answers the engine; the contract criterion confirms it.
+    A question here means the agent did not read client.yaml.
+
+- id: approval-is-not-dagnats
+  ask: >
+    Preciso de um fluxo de reembolso com aprovação humana acima de 10k. O
+    cliente já está no Windmill.
+  facts:
+    client_yaml: |
+      client: acme
+      engine: windmill
+      runtime: shared
+  expect:
+    engine: windmill
+    runtime: shared
+    level: "3"
+    capability: none
+    library: none
+    record: clients/acme/client.yaml
+  questions:
+    max: 1
+    forbid: ["dagnats", "qual engine", "which engine"]
+  artifacts:
+    - skills/turvez/references/windmill.md
+    - docs/client-spine.md
+  why: >
+    Native approvals exist in both engines; the manifest says Windmill, so the
+    approval gate is not a reason to migrate. This is the documented trap.
+
+- id: human-watched-agent
+  ask: >
+    Quero um agente que revisa contratos com ferramentas read-only; um humano
+    acompanha cada resposta.
+  facts:
+    client_yaml: |
+      client: acme
+      engine: dagnats
+      runtime: dedicated
+  expect:
+    engine: dagnats
+    runtime: dedicated
+    level: "0"
+    capability: genkit
+    library: none
+    record: clients/acme/client.yaml
+  questions:
+    max: 2
+    forbid: ["qual engine", "which engine", "migrar"]
+  artifacts:
+    - docs/genkit.md
+    - scripts/new-agent-service.sh
+  why: >
+    A human-watched loop is the Genkit capability, not a third engine; the
+    durable result is still a dagnats run and the manifest stays put.
+
+- id: documents-retrieval
+  ask: >
+    O cliente tem 400 PDFs e quer respostas com citação. Nada cabe em um prompt.
+  facts:
+    client_yaml: |
+      client: acme
+      engine: windmill
+      runtime: shared
+  expect:
+    engine: windmill
+    runtime: shared
+    level: "3"
+    capability: retrieval
+    library: none
+    record: clients/acme/client.yaml
+  questions:
+    max: 2
+    forbid: ["qual engine", "which engine"]
+  artifacts:
+    - docs/retrieval.md
+    - skills/turvez/references/retrieval.md
+  why: >
+    Documents route through chunk→parent retrieval; the engine does not change.
+    The scenario rejects a vector-DB-first answer through the artifact and the
+    tree, not through prose.
+
+- id: one-off-sandbox
+  ask: >
+    Preciso rodar uma vez um parser Python gerado por LLM para limpar um CSV.
+  facts:
+    client_yaml: |
+      client: acme
+      engine: windmill
+      runtime: shared
+  expect:
+    engine: windmill
+    runtime: shared
+    level: "1"
+    capability: sandbox
+    library: none
+    record: clients/acme/client.yaml
+  questions:
+    max: 1
+    forbid: ["qual engine", "which engine", "dagu"]
+  artifacts:
+    - scripts/sandbox-run.sh
+    - docs/sandbox-policy.md
+  why: >
+    One run is level 1: sandbox, read the script, delete it. Standing up Dagu or
+    a handler for one execution is the failure.
+
+- id: level-2-dagu
+  ask: >
+    O cliente já roda Dagu e quer um backup SSH semanal em três servidores.
+  facts:
+    client_yaml: |
+      client: acme
+      engine: dagu
+      runtime: shared
+  expect:
+    engine: dagu
+    runtime: shared
+    level: "2"
+    capability: none
+    library: none
+    record: clients/acme/client.yaml
+  questions:
+    max: 1
+    forbid: ["qual engine", "which engine", "windmill", "dagnats"]
+  artifacts:
+    - docs/script-execution.md
+  why: >
+    A recurrent script-shaped job on a Dagu client stays level 2; it must not be
+    migrated to Windmill because it has a UI, or to dagnats because it has retry.
+
+- id: new-library
+  ask: >
+    Podemos adicionar uma biblioteca de retry para as chamadas HTTP?
+  facts:
+    client_yaml: |
+      client: acme
+      engine: windmill
+      runtime: shared
+  expect:
+    engine: windmill
+    runtime: shared
+    level: "3"
+    capability: none
+    library: refuse
+    record: clients/acme/client.yaml
+  questions:
+    max: 1
+    forbid: ["qual engine", "which engine"]
+  artifacts:
+    - docs/language-policy.md
+    - go.mod
+  why: >
+    A retry library is a second path beside the engine's retry; the tree refuses
+    it instead of installing it. This also proves the library branch is graded.
