@@ -154,46 +154,22 @@ upgrade window, or a contract requiring a separate database.
 
 ## Q0e — answer a question over the client's data
 
-"Can it answer questions about our contracts / ERP / CRM?" is two jobs
-(`references/retrieval.md`, rationale `docs/retrieval.md`). Ask in order:
+Two jobs, not one. The playbook lives in `references/retrieval.md` (caps, build
+shape, anti-patterns); rationale in `docs/retrieval.md`. Ask in order:
 
-1. **System of record** (CRM, ERP, wiki with an API) → call it through Nango.
-   A fixed endpoint in a recipe/flow is the **HTTP proxy**; an interactive agent
-   that must discover tools is a Nango **Agent Session (MCP)** — an agent loop,
-   not a recipe (decision-tree Q1.5). Never index a copy that goes stale.
-2. **A handful of pages that fit one prompt** → long context with a stable
-   cached prefix; no index.
-3. **Documents** → **route-then-read**:
-   - **Classify the query first:** identifiers → BM25 lexical only; natural
-     language → BM25 + small dense hybrid (RRF over units), optional cross-encoder
-     rerank of the units.
-   - **Routing unit** = chunk (~256-512 tokens, 50-100 overlap) that remembers
-     its parent section/chapter; the **reading unit** is the parent, not the
-     chunk and not the whole chapter. 300-500 token chunks are the indexing unit,
-     not the default reading unit.
-   - **Expand:** glossary → OpenWN-PT → FastText only behind an eval.
-   - **Route:** Bleve returns parent units; dedupe by `doc_id:unit_id` (plus a
-     content hash for boilerplate); caps 0 rewrites by default, or 1 cached rewrite
-     with a fallback to the original query; hybrid candidate cap 25-50; reranker
-     batch + timeout with BM25 fallback.
-   - **Cap the funnel:** hard token budget counted with the target tokenizer
-     plus output reserve; a cutoff calibrated per model (never a copied 0.35)
-     decides between reading and the explicit "not found" answer. No cloud call when
-     nothing passes.
-   - **Eval:** 30-50 real questions with expected document ids + 5-10 that must
-     be refused; measure worst-case tokens, `recall@unit`, citation validity,
-     reranker p95 and false refusals.
+1. **System of record** (CRM, ERP, wiki with an API) → call it through Nango;
+   never index a copy that goes stale. A tool-choosing agent is Q1.5, not a recipe.
+2. **A handful of pages that fit one prompt** → long context, stable prefix.
+3. **Documents** → **route-then-read**: classify the query (identifiers → BM25;
+   natural language → BM25 + small dense, RRF, optional rerank); index chunks
+   (~256-512 tokens) that remember their parent; **read the parent**; hard token
+   budget with a per-model calibrated cutoff (never a copied 0.35) and an
+   explicit "not found"; eval 30-50 questions + 5-10 refusals; vectors inside
+   Bleve only when the eval proves lexical + synonyms miss.
 
-A 200-term glossary beats a 300 MB FastText model for the client's own
-vocabulary. Route-then-read replaces chunked vector RAG for bounded,
-terminology-rich corpora, not semantic retrieval universally; add vectors
-inside Bleve only when the eval proves lexical + synonyms miss. Never promise
-"RAG" without the eval — and never "top 5" as a safety limit. A chapter is not
-the only index unit for long documents; top-5 snippets is not the reading unit
-when the parent section fits the budget.
-
-**Bounded, not immune:** tokenizer drift, tables in PDFs, reranker memory and
-model-specific scores still fail. Measure; do not claim immunity.
+Never promise "RAG" without the eval, and never "top 5" as a safety limit.
+**Bounded, not immune:** measure worst-case tokens, reranker p95 and false
+refusals; tokenizer drift and PDF tables still bite.
 
 ## When to use
 
@@ -236,6 +212,17 @@ fields and values, `schema_extra`, `rubric` (empty = deterministic only) and
 rubric only when no label is possible. The eval layer is engine-agnostic:
 `scripts/windmill-job-to-run.py` normalizes a Windmill job into the same shape
 `select-cases.py` already reads.
+
+## Reading order (tokens and cache)
+
+This file is re-read on every request, so it is the **stable prefix**: no dated
+facts, client names or versions here — those belong in the fieldbook and the
+docs. Load **one** reference per decision, after the task text, in this order:
+`references/decision-tree.md` first (routing) → the engine file (`windmill.md`,
+or the dagnats loop above) → the layer the step needs (`nango.md`,
+`retrieval.md`, `auth-layers.md`, `triggers.md`) → `eval-loop.md` at handoff.
+Each reference is self-contained; do not preload several, and cite the path
+instead of pasting its text into a prompt.
 
 ## Confirm policy (no exceptions)
 
