@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.7](https://github.com/calionauta/turvez/compare/v0.1.6...v0.1.7) (2026-11-03)
+
+
+### Features
+
+* **eval:** grade the decision tree against operator scenarios ([a7056f4](https://github.com/calionauta/turvez/commit/a7056f47cadad698bf3510ee740a0adc9de6cc93))
+
 ## [0.1.6](https://github.com/calionauta/turvez/compare/v0.1.5...v0.1.6) (2026-11-03)
 
 
