@@ -55,7 +55,7 @@ never change the repo shape.
   TypeScript/Python is legal only for a dispatch-only WAC orchestrator
   (`docs/language-policy.md`). Costs Postgres + workers; AGPL core, EE for
   SSO/audit/PR gates. Deploy one flow at a time — never `wmill sync push`.
-- **dagnats — exception engine** (pinned `v0.0.30`). One binary: embedded NATS
+- **dagnats — exception engine** (pinned `v0.0.32`). One binary: embedded NATS
   JetStream + engine + HTTP API + console. The worker (`cmd/worker`) registers
   twelve generic Go tasks and **pulls**; it is stateless and horizontally
   repeatable. Recipes are JSON in `clients/<client>/automation/dagnats/`.
@@ -163,7 +163,7 @@ never change the repo shape.
 - **One server, then extract.** Client identity = folder + name prefix + env.
   A dedicated host is a deployment move (`runtime: dedicated`), not a repo fork.
 
-## Verified upstream behaviors (dagnats v0.0.30)
+## Verified upstream behaviors (against the pinned dagnats source)
 
 Recorded so upgrades re-check them: durations parse as **integer nanoseconds or
 Go duration strings** (`"30s"`); `$schema` is accepted (optional); `config`

@@ -38,7 +38,7 @@ TEMPLATE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 [ -e "$DEST" ] && { echo "already exists: $DEST" >&2; exit 1; }
 
 REF="$(git -C "$TEMPLATE_DIR" describe --tags --exact-match 2>/dev/null || git -C "$TEMPLATE_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")"
-DAGNATS_V="$(cd "$TEMPLATE_DIR" && go list -m -f '{{.Version}}' github.com/danmestas/dagnats 2>/dev/null || echo "v0.0.30")"
+DAGNATS_V="$(cd "$TEMPLATE_DIR" && go list -m -f '{{.Version}}' github.com/danmestas/dagnats 2>/dev/null || echo "v0.0.32")"
 
 mkdir -p "$DEST/clients/personal/automation/dagnats" "$DEST/clients/ops/automation/dagnats" "$DEST/env" "$DEST/secrets"
 

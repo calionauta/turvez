@@ -1,6 +1,9 @@
 {
   "name": "ops.dlq-watchdog",
   "version": "1.0.0",
+  "aux_steps": {
+    "notify-broken": true
+  },
   "steps": [
     {
       "id": "check",
@@ -12,7 +15,8 @@
         "strategy": "fixed",
         "initial_delay": 10000000000,
         "max_delay": 10000000000
-      }
+      },
+      "on_failure": "notify-broken"
     },
     {
       "id": "build-alert",
@@ -29,7 +33,7 @@
         "value": false
       },
       "metadata": {
-        "expression": "{webhook_secret: \"OPS_SLACK_WEBHOOK_URL\", payload: {text: (\"DLQ depth \" + (.depth | tostring) + \" on \" + .stream), depth: .depth, stream: .stream, client: \"ops\", workflow: \"ops.dlq-watchdog\"}}"
+        "expression": "{webhook_secret: \"OPS_SLACK_WEBHOOK_URL\", payload: {text: (\"DLQ depth \" + (.depth | tostring) + \" on \" + .stream + \" — inspect: dagnats dlq list --json ; replay: dagnats dlq replay --run=<id> ; until it is drained this repeats every 5 min\"), depth: .depth, stream: .stream, client: \"ops\", workflow: \"ops.dlq-watchdog\"}}"
       }
     },
     {
@@ -39,7 +43,18 @@
       "timeout": 30000000000,
       "depends_on": [
         "build-alert"
-      ]
+      ],
+      "on_failure": "notify-broken"
+    },
+    {
+      "id": "notify-broken",
+      "task": "notify.slack",
+      "type": "normal",
+      "timeout": 30000000000,
+      "metadata": {
+        "webhook_secret": "OPS_SLACK_WEBHOOK_URL",
+        "message": "DLQ watchdog could not complete — the alert layer is blind. Check NATS/worker health and the run in the dagnats console."
+      }
     }
   ],
   "triggers": [

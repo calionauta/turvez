@@ -387,6 +387,23 @@ func TestRecipeStructure(t *testing.T) {
 					t.Fatalf("webhook path %q must contain %q", tr.Webhook.Path, client)
 				}
 			}
+			// A triggered recipe runs unattended, so nobody is watching the
+			// console when it fails. `on_failure` is the only in-engine page
+			// (docs/alerting.md): without it the run fails silently, and the
+			// DLQ watchdog — the layer that covers this — is itself a triggered
+			// recipe, so it must obey the rule it enforces.
+			if len(wf.Triggers) > 0 {
+				pages := false
+				for _, s := range wf.Steps {
+					if s.OnFailure != "" {
+						pages = true
+						break
+					}
+				}
+				if !pages {
+					t.Fatalf("%s: a triggered recipe must declare `on_failure` on its riskiest step (target listed in aux_steps) — otherwise a failure is silent (docs/alerting.md)", path)
+				}
+			}
 			ids := map[string]bool{}
 			auxTargets := map[string]bool{}
 			for _, s := range wf.Steps {
@@ -629,6 +646,16 @@ func exprOf(wf workflowFile, stepID string) string {
 	return ""
 }
 
+// hasOnFailureFor reports whether step stepID declares an on_failure target.
+func hasOnFailureFor(wf workflowFile, stepID string) bool {
+	for _, s := range wf.Steps {
+		if s.ID == stepID {
+			return s.OnFailure != ""
+		}
+	}
+	return false
+}
+
 func TestRecipeExpressions(t *testing.T) {
 	all := loadRecipes(t)
 	require := func(tt *testing.T, key string) workflowFile {
@@ -736,8 +763,18 @@ func TestRecipeExpressions(t *testing.T) {
 			t.Fatalf("alert payload: %#v", alert)
 		}
 		text := alert["payload"].(map[string]any)["text"].(string)
-		if !strings.Contains(text, "3") || !strings.Contains(text, "DEAD_LETTERS") {
-			t.Fatalf("alert text: %q", text)
+		for _, want := range []string{"3", "DEAD_LETTERS", "dagnats dlq list", "dagnats dlq replay"} {
+			if !strings.Contains(text, want) {
+				t.Fatalf("alert text %q does not tell the operator how to act (%q)", text, want)
+			}
+		}
+		// The watchdog is the layer that covers silent failures, so its own
+		// failure must be loud: a dead check step pages instead of dying quiet.
+		if !strings.Contains(text, "repeats") {
+			t.Fatalf("alert text should say the alert repeats until the DLQ drains: %q", text)
+		}
+		if !hasOnFailureFor(wf, "check") {
+			t.Fatal("check step must set on_failure so a broken watchdog pages")
 		}
 		// skip_if parity: empty DLQ skips the alert step.
 		matched, err := handlers.Compare(false, "==", false)
@@ -925,4 +962,15 @@ func parseManifest(raw []byte) map[string]string {
 		}
 	}
 	return out
+}
+
+// TestGenkitIsNotAnEngine pins docs/genkit.md. Genkit is an agent-loop
+// capability: a flow in a Go service, in front of the client's engine. Adding
+// it to engines.json would make new-client.sh scaffold an `automation/genkit/`
+// tree and validate.sh claim a third orchestrator — the exact "one engine per
+// client" violation the manifest test exists to prevent.
+func TestGenkitIsNotAnEngine(t *testing.T) {
+	if loadEngines(t)["genkit"] {
+		t.Fatal("engines.json lists genkit: it is a capability (docs/genkit.md), not an engine — one engine per client")
+	}
 }

@@ -98,7 +98,25 @@ for engine in $ENGINES; do
   rm -rf "$tmp"
 done
 
-# nango-connect.sh is the "ask for an authorisation, not a token" entry point.
+# check-dagnats-pin.sh must catch drift, not just exist: an ops repo builds the
+# server from a tag, and a tag older than the linked libraries is a run-time
+# failure, not a build error.
+pin_tmp="$(mktemp -d)"
+cp "$HERE/../go.mod" "$HERE/../Dockerfile.dagnats" "$pin_tmp/"
+mkdir -p "$pin_tmp/scripts" "$pin_tmp/docs"
+cp "$HERE/setup.sh" "$pin_tmp/scripts/"
+cp "$HERE/../docs/ops-repo.md" "$pin_tmp/docs/"
+if ! "$HERE/check-dagnats-pin.sh" "$pin_tmp" >/dev/null 2>&1; then
+  echo "FAIL: check-dagnats-pin.sh rejects an aligned copy" >&2
+  failures=$((failures + 1))
+fi
+sed -i.bak 's/^ARG DAGNATS_VERSION=.*/ARG DAGNATS_VERSION=v0.0.0/' "$pin_tmp/Dockerfile.dagnats"
+if "$HERE/check-dagnats-pin.sh" "$pin_tmp" >/dev/null 2>&1; then
+  echo "FAIL: check-dagnats-pin.sh missed a drifted Dockerfile" >&2
+  failures=$((failures + 1))
+fi
+rm -rf "$pin_tmp"
+
 # It must work with no Nango running (it reports that) and always print the two
 # enforced names, or an agent silently falls back to asking for the token.
 if ! nango_out="$("$HERE/nango-connect.sh" probe --provider hubspot 2>&1)"; then

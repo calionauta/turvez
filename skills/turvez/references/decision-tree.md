@@ -67,10 +67,22 @@ at `references/windmill.md` — the level questions are dagnats-shaped.
 ## Q1.5 — agent loop gate
 
 Does it need an agent that loops with tools (shell, files, browser) until
-done? → **not** a recipe, **not** Dagu level 2. It is a new platform
-decision (Dagu 2.x `llm.*`/`harness.run`/agent DAGs, or a dedicated
-harness). Why: `docs/writing-recipes.md` → "Why AgentLoop/planner stay
-upstream-only".
+done? → **not** a recipe, **not** Dagu level 2. Split it by who is waiting:
+
+- **A human is watching this request finish** (review/rewrite, triage with a
+  short read-only toolset, extraction with a critic, a bounded RAG answer):
+  that is an **agent-loop capability** — a Genkit flow in a Go service, with
+  goai as the only model path and Nango for tools (`docs/genkit.md`). Bounded
+  (`MaxIterations`, `MaxRunDuration`), escalates to a human instead of
+  deciding alone.
+- **Nobody is watching, or it must survive a restart**: a new platform
+  decision (Dagu 2.x `llm.*`/`harness.run`/agent DAGs, or a dedicated
+  harness). Why: `docs/writing-recipes.md` → "Why AgentLoop/planner stay
+  upstream-only".
+
+Either way the durable consequence is a **run in the client's engine**
+(dagnats `run start` / Windmill flow, idempotency key from the request) —
+Genkit is a capability, never a third engine, and the engine count stays one.
 
 ## Level 0 — dagnats recipe
 

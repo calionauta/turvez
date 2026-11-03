@@ -155,7 +155,7 @@ records prompt + response.
 
 ## What the engine allows in this runtime
 
-dagnats v0.0.30 is larger than what this repo exposes. Stay inside the
+dagnats v0.0.32 is larger than what this repo exposes. Stay inside the
 left column; the right column exists upstream but has no handler or
 recipe pattern here — do not assume it.
 
@@ -200,7 +200,7 @@ decision (`docs/script-execution.md` Q1.5) — Dagu 2.x `llm.*`/`harness.run`/
 agent DAGs, or a dedicated harness. `llm.complete` stays: one bounded call
 whose output is **data**, validated by `transform.json`/`condition`.
 
-## dagnats v0.0.30 traps (verified against upstream source)
+## dagnats traps (verified against the pinned upstream source)
 
 1. **Durations accept two forms.** Integer nanoseconds (`30000000000`)
    or a Go duration string (`"30s"`, `"48h"`); the engine rewrites the

@@ -33,6 +33,13 @@ Read `clients/<client>/client.yaml` when the client exists.
 | `dagnats` (exception) | the build loop below — recipes under `automation/dagnats/` |
 | `dagu` | level 2 only, `docs/script-execution.md` |
 
+**Genkit is not an engine.** One engine per client stays. An interactive,
+human-watched agent loop (review/rewrite, triage with read-only tools,
+extraction with a critic) is a **capability**: a Genkit flow in a Go service,
+goai as the only model path, Nango for tools, and its durable consequence
+emitted as a run in the client's engine — `docs/genkit.md`, gate in
+`references/decision-tree.md` (Q1.5). Never add `genkit` to `engines.json`.
+
 ### Language: Go for the nodes (no exceptions)
 
 `docs/language-policy.md` is normative. Both engines: **script nodes are Go**.
@@ -199,6 +206,7 @@ Methodology questions (discover, scope, runbook): see `references/methodology.md
 | `scripts/nango-connect.sh <client> --provider <slug> [--link] [--open]` | operator authorises a provider in Nango; prints the link + the exact names (`--link` mints a 30-minute click-to-connect link) |
 | `scripts/verify-isolation.sh` | where every client runs (`runtime`/`target`), read-only; in `make validate` |
 | `docs/retrieval.md`, `references/retrieval.md` | documents vs systems of record; route-then-read; hard token/candidate caps; calibrated refusal; Nango MCP vs proxy; eval gate |
+| `docs/genkit.md` | agent-loop capability (not an engine): Genkit flow in the request, goai as the model path, Nango for tools, durable tail as a run |
 | `scripts/extract-client.py <client>` | package one client for its own server — prints the plan, never executes |
 | `scripts/convert-to-windmill.py <client>` | dagnats recipes → Windmill **skeleton** in `converted-windmill/`; TODOs, never a port |
 | `scripts/register-workflows.sh` | validate + register (confirm first, dagnats engine) |

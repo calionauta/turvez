@@ -92,6 +92,12 @@ func decodeWebhook(raw []byte, md map[string]string) (NotifyWebhookInput, error)
 // buildWebhookPayload merges message/client/workflow metadata and run
 // context into the payload. Map payloads are enriched in place; anything
 // else is wrapped as {"data": …}.
+//
+// A failure payload gets a synthesized `text` when the author did not
+// provide one: an `on_failure` step receives {"failed_step":…, "error":…},
+// and Slack (like Telegram and Discord) ignores unknown keys, so posting
+// that object verbatim returns 200 and renders an empty message — a page
+// that reports success and tells the operator nothing.
 func buildWebhookPayload(in NotifyWebhookInput, md map[string]string, runID, stepID string) any {
 	var payload map[string]any
 	switch p := in.Payload.(type) {
@@ -115,7 +121,35 @@ func buildWebhookPayload(in NotifyWebhookInput, md map[string]string, runID, ste
 	}
 	payload["run_id"] = runID
 	payload["step_id"] = stepID
+	if _, ok := payload["text"]; !ok {
+		if text := failureText(payload, runID); text != "" {
+			payload["text"] = text
+		}
+	}
 	return payload
+}
+
+// failureText renders the engine's on_failure envelope as one readable line.
+// Empty when the payload is not a failure (no failed_step and no error).
+func failureText(payload map[string]any, runID string) string {
+	failed, _ := payload["failed_step"].(string)
+	errText, _ := payload["error"].(string)
+	if failed == "" && errText == "" {
+		return ""
+	}
+	var line string
+	switch {
+	case errText == "":
+		line = fmt.Sprintf("step %q failed", failed)
+	case failed == "":
+		line = fmt.Sprintf("workflow failed: %s", errText)
+	default:
+		line = fmt.Sprintf("step %q failed: %s", failed, errText)
+	}
+	if runID != "" {
+		line += fmt.Sprintf(" (run %s)", runID)
+	}
+	return line
 }
 
 func handleNotifyWebhook(ctx worker.TaskContext) error {

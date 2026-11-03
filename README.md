@@ -256,11 +256,12 @@ curl -X POST localhost:8090/ops/approvals/<run-id> \
 - `docs/script-execution.md` — where to execute: recipe vs sandbox vs Dagu vs Windmill + platform comparison
 - `docs/workflows.md` — Mermaid diagrams: repo choice, automation, eval loop, formats
 - `docs/first-run.md` — verified install → client → run → observe → eval, with traps
-- `docs/writing-recipes.md` — recipe anatomy, engine-vs-handler table, what the engine allows, v0.0.30 traps
+- `docs/writing-recipes.md` — recipe anatomy, engine-vs-handler table, what the engine allows, v0.0.32 traps
 - `docs/handlers-reference.md` — task inputs/outputs, metadata keys
 - `docs/language-policy.md` — **Go script nodes**; TS/Python only for a dispatch-only WAC orchestrator
 - `docs/nango.md` — credential layer: OAuth proxy, naming/enforcement, Agent Sessions (MCP)
 - `docs/retrieval.md` — documents vs systems of record; route-then-read; hard token/candidate caps; calibrated refusal; eval gate
+- `docs/genkit.md` — agent-loop capability (not an engine): a bounded Genkit flow in the request, goai as the only model path, Nango for tools, durable tail as a run
 - `docs/secrets.md` — per-client age encryption, JIT runtime
 - `docs/alerting.md` — `on_failure`, DLQ watchdog, external uptime probe
 - `docs/tenancy-evolution.md` — stages 1→3 without redesign

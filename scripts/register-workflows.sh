@@ -27,7 +27,7 @@ WORKFLOWS_DIR="${WORKFLOWS_DIR:-${TURVEZ_OPS_DIR:+$(cd "${TURVEZ_OPS_DIR}" && "$
 WORKFLOWS_DIR="${WORKFLOWS_DIR:-$("$ROOT/scripts/clients-root.sh")}"
 
 command -v dagnats >/dev/null || {
-  echo "dagnats CLI not found. Install: go install github.com/danmestas/dagnats/cmd/dagnats@v0.0.30" >&2
+  echo "dagnats CLI not found. Install: go install github.com/danmestas/dagnats/cmd/dagnats@v0.0.32" >&2
   exit 1
 }
 command -v python3 >/dev/null || {

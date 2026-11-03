@@ -80,6 +80,39 @@ func TestBuildWebhookPayloadEnrichment(t *testing.T) {
 	}
 }
 
+// TestFailurePayloadIsReadable pins the on_failure contract: the engine sends
+// {"failed_step","error"}, and a webhook target must still carry a `text` or
+// the alert is delivered and unreadable.
+func TestFailurePayloadIsReadable(t *testing.T) {
+	got := buildWebhookPayload(
+		NotifyWebhookInput{Payload: map[string]any{"failed_step": "dlq.check", "error": "connect NATS: timeout"}},
+		map[string]string{"client": "ops", "workflow": "ops.dlq-watchdog"},
+		"run-9", "step-1",
+	)
+	m := got.(map[string]any)
+	text, _ := m["text"].(string)
+	for _, want := range []string{"dlq.check", "connect NATS", "run-9"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("text %q does not name %q", text, want)
+		}
+	}
+
+	// An author-supplied message wins over the synthesized line.
+	got = buildWebhookPayload(
+		NotifyWebhookInput{Payload: map[string]any{"failed_step": "x"}, Message: "custom"},
+		nil, "r", "s",
+	)
+	if m := got.(map[string]any); m["text"] != "custom" {
+		t.Fatalf("text = %v, want custom", m["text"])
+	}
+
+	// A non-failure payload is left alone (no invented text).
+	got = buildWebhookPayload(NotifyWebhookInput{Payload: map[string]any{"ok": true}}, nil, "r", "s")
+	if m := got.(map[string]any); m["text"] != nil {
+		t.Fatalf("unexpected text for a plain payload: %v", m["text"])
+	}
+}
+
 func TestChatWrappers(t *testing.T) {
 	var got string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -45,6 +45,10 @@
   **Windmill is the default** (`engines.json`), dagnats is the exception path:
   skills/turvez/references/windmill.md + docs/script-execution.md
   + `./scripts/check-windmill.sh` (lint gate, no worker)
+- **Genkit is a capability, not an engine** (`docs/genkit.md`): a
+  human-watched agent loop runs as a Genkit flow in a Go service, goai stays
+  the only model path, tools go through Nango, and anything durable is a run
+  in the client's engine. Never add `genkit` to `engines.json`.
 - Answering questions over client data: docs/retrieval.md — split documents
   (route-then-read: 2026 default is lexical for identifiers and hybrid BM25 + small
   dense + RRF + optional rerank of units for natural language; glossary expansion;

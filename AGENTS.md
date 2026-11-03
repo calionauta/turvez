@@ -27,6 +27,10 @@
   `docs/client-spine.md#choosing-the-engine`.
 - `runtime: shared|dedicated` + `target.host` are read by
   `./scripts/verify-isolation.sh` and the contract test — keep them honest.
+- **Genkit is a capability, not an engine.** An interactive, human-watched
+  agent loop is a Genkit flow in a Go service (goai = the only model path,
+  Nango = tools); anything durable becomes a run in the client's engine.
+  Never add `genkit` to `engines.json` (`docs/genkit.md`).
 - One engine per client. Never migrate one unasked; the converter
   (`scripts/convert-to-windmill.py`) produces a skeleton, never a finished port.
 
@@ -61,7 +65,7 @@
 - Alerts: every production recipe gets `on_failure` → notify; `ops/dlq-watchdog`
   covers silent DLQ buildup; external probe on `GET /health` covers total death.
   Never rely solely on the console (see `docs/alerting.md`).
-- dagnats v0.0.30 traps: `on_failure` targets need `aux_steps` + no
+- dagnats v0.0.32 traps: `on_failure` targets need `aux_steps` + no
   `depends_on`; `sleep`/`approval` steps take no `task`; `map` = 1 dep
   emitting an array; trigger runs arrive as `{…, "data": …}` — open recipes
   with `((.data // .) | …)`; cron schedules default to UTC (`cron_timezone`
@@ -110,7 +114,7 @@ server (symptom: runs stay `queued`, `workers list` empty).
 
 ## Stack
 
-- Go 1.27 (`go.mod`), dagnats v0.0.30 (pinned), NATS JetStream embedded, worker `distroless/static`.
+- Go 1.27 (`go.mod`), dagnats v0.0.32 (pinned), NATS JetStream embedded, worker `distroless/static`.
 - Skill: `skills/turvez/SKILL.md` (+ `references/` detail files) — direct → confirm → build.
 
 ## Observability

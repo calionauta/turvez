@@ -5,8 +5,10 @@ layers so a solo operator hears about breakage without watching the UI.
 
 ## 1. In-workflow failure pages (per client recipe)
 
-Client workflows set `on_failure` to a notify step with a short payload:
-client id, workflow name, run id, error summary.
+A recipe with a trigger runs unattended, so `on_failure` is the only
+in-engine page. `go test ./clients/` fails a triggered recipe that
+declares none — including `ops.dlq-watchdog`, which must obey the rule
+it is part of.
 
 ```json
 {
@@ -29,7 +31,8 @@ client id, workflow name, run id, error summary.
 
 (`clients/example-client/automation/dagnats/approval-refund.json` — the reference example.)
 
-Two engine facts shape this pattern (verified at v0.0.30):
+Three engine facts shape this pattern (verified against the pinned
+dagnats source, v0.0.32):
 
 - An `on_failure` step receives `{"failed_step":"…","error":"…"}` as
   input, and it must be a **single terminal step**: no `depends_on`,
@@ -37,10 +40,17 @@ Two engine facts shape this pattern (verified at v0.0.30):
   scheduling, so anything chained after the failure step would never
   run — and an unlisted downstream step would block completion. The
   target itself must be listed in top-level `aux_steps`.
-- For a rich payload (client + workflow + run id + error in one
-  message), point `on_failure` at `notify.webhook` instead: it forwards
-  the `failed_step`/`error` input as the payload, merges `client` /
-  `workflow` from step metadata, and always stamps `run_id` / `step_id`.
+- **The envelope alone pages nobody.** Slack, Telegram and Discord
+  ignore unknown keys, so posting `{"failed_step","error"}` verbatim
+  returns 200 and renders an empty message. `notify.webhook` therefore
+  synthesizes a `text` line (`step "x" failed: … (run r)`) when the
+  payload is a failure envelope and the author supplied no message.
+  An explicit `message` still wins. Prefer `notify.slack` +
+  `message` when the page is just text; use `notify.webhook` when you
+  need the run id and error as structured fields as well.
+- The failure path has no engine retry: the target runs once. If the
+  webhook is down, the page is lost — which is why layer 3 is not
+  optional.
 
 ## 2. DLQ watchdog (inside dagnats, best-effort)
 
@@ -48,12 +58,45 @@ Two engine facts shape this pattern (verified at v0.0.30):
 (`ops-dlq-watchdog-cron`): `dlq.check` reads the `DEAD_LETTERS` stream
 depth (there is no dagnats HTTP route for the DLQ, hence the dedicated
 handler), `skip_if` drops the quiet path, `notify.webhook` pages
-`OPS_SLACK_WEBHOOK_URL` when depth > 0.
+`OPS_SLACK_WEBHOOK_URL` when depth exceeds the threshold (default 0,
+so the first dead letter pages).
 
-Scope, stated plainly: the watchdog only runs while dagnats + worker
-are healthy. It catches **silent DLQ buildup** (retries exhausted on
-side-effect steps). It cannot fire when the engine itself is down —
-that is layer 3.
+The message is actionable without opening the console — depth, stream,
+the command that lists the entries, the replay command, and the fact
+that the alert repeats every 5 minutes until the stream is drained.
+That repetition is deliberate: silence must require an action.
+
+The watchdog also has `on_failure` on both its `check` and its `notify`
+step. A watchdog that dies quietly is worse than no watchdog, because
+you believe you are covered.
+
+### Draining it
+
+```bash
+dagnats dlq list                 # entries (run id, step, task, error)
+dagnats dlq list --json --all    # machine-readable, past the 500-entry cap
+dagnats dlq list --run=<run-id>  # one run
+dagnats dlq replay --run=<run-id>  # re-publish the preserved body
+```
+
+Replay needs the body preserved (`body_preserved: true`); entries that
+predate that schema must be recovered upstream. Fix the cause before
+replaying, or the message lands back in the DLQ.
+
+### Scope, stated plainly
+
+The watchdog only runs while dagnats + worker are healthy. It catches
+**silent DLQ buildup** (retries exhausted on side-effect steps). It
+cannot fire when the engine itself is down — that is layer 3.
+
+It is a dagnats-engine layer. The other engines have no DLQ stream, so
+the equivalent is different, not missing:
+
+| Engine | Failure paging |
+|---|---|
+| dagnats | `on_failure` per recipe (layer 1) + this watchdog (layer 2) |
+| Windmill | a flow **error handler** posting to the ops webhook (free edition has no native critical alerts); failed jobs stay in the queue/UI, so there is nothing to drain |
+| Dagu | `handlerOn: {failure: …}` / `mailOnFailure` on the DAG; the run log is the record |
 
 `ops/` is the reserved platform namespace (same prefix conventions as
 client folders, enforced by `go test ./clients/`). Register it with
