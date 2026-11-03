@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6](https://github.com/calionauta/turvez/compare/v0.1.5...v0.1.6) (2026-11-03)
+
+
+### Documentation
+
+* make the decision tree the single description of the stack ([#14](https://github.com/calionauta/turvez/issues/14)) ([4cd224a](https://github.com/calionauta/turvez/commit/4cd224ace635d1f92a832c21e030365d7d13cd5c))
+
 ## [0.1.5](https://github.com/calionauta/turvez/compare/v0.1.4...v0.1.5) (2026-11-03)
 
 
