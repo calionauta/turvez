@@ -6,7 +6,8 @@ description: Decide where an automation belongs (turvez recipe vs sandbox one-of
 # turvez
 
 Repo: consultancy automation runtime. One **client spine** (repo layout,
-fieldbook, recipes, evals) and **two engines, chosen per client**
+fieldbook, recipes, evals) and **three declared engines, chosen per client**
+(Windmill default, dagnats exception, Dagu level 2 only)
 (`docs/client-spine.md#choosing-the-engine`): **Windmill is the default** —
 chosen for FDE work so a client lands on the mature, centralised system from
 day one (UI/forms, step-level replay, code steps in Go). **dagnats**

@@ -1,5 +1,5 @@
-# AGENTS.md — consultancy automation runtime (client spine; two engines,
-# chosen per client)
+# AGENTS.md — consultancy automation runtime (client spine; engine chosen
+# per client: Windmill default, dagnats exception, Dagu level 2)
 
 ## Repo type (Q0 — check before anything else)
 
@@ -22,6 +22,11 @@
   binary, `go test` gate. Chosen with `--engine=dagnats` when the contract needs
   typed contracts, native approvals, no arbitrary code, or AGPL/Postgres is a
   problem. Source in `clients/<client>/automation/dagnats/*.json`.
+- `engine: dagu` — **level 2 only** (script-shaped recurrent jobs), declared in
+  `engines.json` so `client.yaml`, the scaffold and `validate.sh` agree. It is
+  not a product surface: never move an LLM/approval job there, and never run it
+  beside another engine. Source in `clients/<client>/automation/dagu/*.yaml`;
+  criteria in `docs/script-execution.md`.
 - Default comes from `engines.json` (one place). The manifest always wins: an
   explicit `engine:` in `client.yaml` is honored. Criteria:
   `docs/client-spine.md#choosing-the-engine`.

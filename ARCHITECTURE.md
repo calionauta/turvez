@@ -1,6 +1,7 @@
 # Architecture
 
-Turvez is a **spine** plus **two engines** plus **layers**. The spine owns the
+Turvez is a **spine** plus **three declared engines** — Windmill (default),
+dagnats (exception) and Dagu (level 2 only) — plus **layers**. The spine owns the
 contract and the source of truth; the engine runs the work; the layers add
 credentials, models and retrieval without becoming a second orchestrator.
 
@@ -36,6 +37,10 @@ credentials, models and retrieval without becoming a second orchestrator.
    external SaaS              provider / gateway            client documents
 ```
 
+Dagu (the third declared engine, level 2) shares no runtime with these two: a
+separate GPLv3 binary over YAML DAGs, never a second orchestrator beside a
+client's Windmill or dagnats source.
+
 Deployment is orthogonal: profiles A (embedded), B (managed, the SMB default)
 and C (multi-tenant), and `runtime: shared|dedicated` per client
 (`docs/deployment-profiles.md`). The engine choice and the deployment profile
@@ -62,8 +67,10 @@ never change the repo shape.
   Chosen for typed contracts, native approvals, no arbitrary code, one binary,
   or an AGPL/Postgres constraint.
 - **Dagu — level 2 only.** A separate GPLv3 binary that runs YAML DAGs over
-  commands the client already has (SSH, backup, deploy). No repo integration
-  and never a second orchestrator for a client with dagnats/Windmill source.
+  commands the client already has (SSH, backup, deploy). When it is the
+  client's engine, the source is `automation/dagu/*.yaml` and the dags dir is
+  the deployment target; ad-hoc jobs can also live outside the repo. Never a
+  second orchestrator for a client with dagnats/Windmill source.
 - **Nango — credential and tool layer.** OAuth/token store plus an HTTP proxy;
   scripts and recipes call `${NANGO_HOST}/proxy/...` with `Connection-Id: <client>`
   and `Provider-Config-Key: <provider>`, so no raw token reaches git, Windmill
@@ -86,11 +93,10 @@ never change the repo shape.
 - **Retrieval.** A per-client capability, not a runtime: **route-then-read**.
   The 2026 default is lexical for identifiers and hybrid (BM25 + a small dense
   model over the same indexing units, RRF, optional cross-encoder rerank of
-  units) for natural-language queries, not vectors-first. Bleve returns whole
-  units (chapter, or section when a chapter is too long) within a token budget,
-  and the LLM reads the parent of the matched chunk, not the chunk alone.
-  Chunking is the workaround for a small reader window; when the model can read
-  a section or chapter, that is the unit. A curated glossary expands the query
+  units) for natural-language queries, not vectors-first. **The routing unit is
+  the chunk; the reading unit is its parent section**, within a token budget —
+  the LLM never reads the chunk alone. Chunking is the workaround for a small
+  reader window, not the unit the answer is built from. A curated glossary expands the query
   before routing; a query rewrite is an optional step inside the hybrid route,
   not a default rung. Where a rewrite step exists at all in this runtime, keep it
   to **one cached rewrite with a fallback to the original query**, not a

@@ -35,7 +35,7 @@ unit**. Doc rationale and sources: `docs/retrieval.md`.
 2. EXPAND                  glossary → OpenWN-PT → FastText (only behind an eval);
                             optional SLM rewrite cache by query hash, fallback
    ▼
-3. BLEVE ROUTING          whole units (section/chunk + parent), not 500-token chunks;
+3. BLEVE ROUTING          chunks (~256-512 tokens) that remember their parent;
                             hybrid augments recall for paraphrase queries
    ▼
 4. READ PARENT             re-expand the top chunks to their parent section/chapter,
@@ -47,11 +47,11 @@ Corrected placement:
 timeout and a deterministic fallback (route the original question through Bleve).
 Cache the rewrite by query hash. If you add a rewrite step at all, keep it to one
 cached rewrite, not a multi-rewrite fan-out.
-2. **Route** — Bleve returns whole units after dedupe and the candidate cap
+2. **Route** — Bleve matches chunks after dedupe and the candidate cap
 (hybrid when the query is natural language; lexical-only for identifiers), not
 20-50 snippets.
-3. **Rerank (optional)** — a cross-encoder scores **units** (section, or its
-parent when the section fits), then the budget is filled in reading order.
+3. **Rerank (optional)** — a cross-encoder scores the retrieved chunks, never
+arbitrary snippets, then the budget is filled in reading order.
 4. **Read** — long context over the selected **parent sections/chapters**; drop
 to subsections when a reading unit exceeds the budget.
 5. **Cache** — stable prefix; measure the hit rate.

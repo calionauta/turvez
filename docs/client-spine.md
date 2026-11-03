@@ -171,7 +171,10 @@ Promptfoo keeps reading the same cases either way.
    single migration (`scripts/migrate-to-clients.sh`). The test package lives in
    `clients/`; scripts, hooks, CI and docs speak one layout. `workflows/` is
    accepted for reading only, so an ops repo can migrate when it wants.
-4. **Current — two engines, Windmill default, dagnats by exception.** The
+4. **Current — two product engines, Windmill default, dagnats by exception;
+   Dagu level 2.** `engines.json` declares three: `dagu` exists so a
+   script-shaped client has a valid `client.yaml` engine and a real scaffold
+   (`automation/dagu/`), not so it can compete as a product surface. The
    engine is a per-client decision recorded in `client.yaml`; the criteria live in
    § "Choosing the engine". **Windmill is the declared default** (`engines.json`):
    an FDE consultancy wants a client to land on the mature, centralised system
