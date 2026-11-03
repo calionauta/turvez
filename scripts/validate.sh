@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # validate.sh — run every engine gate that applies to this checkout.
 #
-# The repo has two engines (docs/client-spine.md), so `make validate` cannot be
+# engines.json declares three engines (docs/client-spine.md), so `make validate` cannot be
 # a single engine's validator: a Windmill-only ops repo has no dagnats recipes
 # and must still pass, and a dagnats repo must not be forced to install wmill.
 #

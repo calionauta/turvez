@@ -76,8 +76,14 @@ need_file scripts/check-agent-template.sh "scaffold compile gate"
 need_text docs/genkit.md "Install and scaffold" "the install path is documented"
 need_text skills/turvez/references/decision-tree.md "new-agent-service.sh" "the tree names the scaffold"
 need_text README.md '```mermaid' "the README renders the tree"
-for q in Q0 Q1.5 Q2 Q3 Q4 Q5; do
+for q in Q0 Q0.8 Q1.5 Q1.6 Q2 Q4; do
   need_text README.md "$q" "the rendered tree keeps question $q"
+done
+# The README diagram once kept the old Q3/Q5 numbering after the tree moved on.
+for old in 'Q3\.' 'Q5\.'; do
+  if grep -qE "$old" "$ROOT/README.md"; then
+    bad "README numbers a decision $old (canonical ids are Q0.8 and Q1.6)"
+  else ok; fi
 done
 # A floating @latest would install a Genkit the pinned gate never compiled.
 if grep -rq "firebase/genkit/go@latest" "$ROOT/docs" "$ROOT/skills" 2>/dev/null; then
@@ -125,14 +131,14 @@ need_file docs/script-execution.md "level 2 and engine competition doc"
 
 # --- retrieval-unit --------------------------------------------------------
 # The one fact that already drifted once: what is indexed vs what is read.
-for f in docs/retrieval.md skills/turvez/references/retrieval.md; do
+for f in docs/retrieval.md skills/turvez/references/retrieval.md docs/workflows.md README.md ARCHITECTURE.md; do
   need_text "$f" "reading unit" "the indexing/reading split is stated"
 done
-if grep -qE "retrieve whole units \(chapter/section\)" "$ROOT/docs/retrieval.md"; then
-  bad "docs/retrieval.md says 'retrieve whole units' (the chunk is the routing unit)"
-else
-  ok
-fi
+for f in docs/retrieval.md skills/turvez/references/retrieval.md docs/workflows.md README.md ARCHITECTURE.md; do
+  if grep -qE "(retrieve|returns|Read) whole units" "$ROOT/$f"; then
+    bad "$f says whole units are returned/read (the chunk is the routing unit, the parent is read)"
+  else ok; fi
+done
 
 # --- doc-links -------------------------------------------------------------
 # Every path a reader is told to open must exist. Placeholders are skipped.

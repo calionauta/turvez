@@ -12,6 +12,13 @@ updates:
     groups:
       go-dependencies:
         patterns: ["*"]
+    ignore:
+      # The dagnats pin lives in four artifacts (go.mod, Dockerfile.dagnats,
+      # scripts/setup.sh, docs/ops-repo.md) and scripts/check-dagnats-pin.sh
+      # fails on drift, so a bot bump can never be merged green. Bump it in one
+      # deliberate change: `go get ...@vX.Y.Z`, then align the three copies and
+      # run `make validate`.
+      - dependency-name: "github.com/danmestas/dagnats"
 
   - package-ecosystem: github-actions
     directory: /

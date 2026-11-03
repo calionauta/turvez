@@ -21,11 +21,11 @@ credentials and agent tools, an **LLM gateway** for model calls, and optional
 | **Spine** (this repo) | `clients/<client>/`, `client.yaml`, fieldbook, `env/` + age, evals, gates | source of truth, tenancy, review, rollback | git — public template / private ops |
 | **Windmill** — default engine | flows under `automation/windmill/`, Go script nodes, UI/forms, step-level replay | most client work; an operator who is not you | one instance, one workspace per client |
 | **dagnats** — exception engine | Go worker + 12 generic tasks + embedded NATS JetStream, `go test` gate | typed contracts, native approvals, no arbitrary code, one binary, Apache-2.0 | one binary; shared or dedicated |
-| **Dagu** — level 2 | YAML DAGs over commands the client already has | recurrent script/SSH/Docker/backup jobs | separate binary, no DB, no repo integration |
+| **Dagu** — level 2 | YAML DAGs over commands the client already has | recurrent script/SSH/Docker/backup jobs | separate binary, no DB; source under `automation/dagu/`, deployed to a dags dir |
 | **Nango** — credential/tool layer | OAuth store, HTTP proxy, Agent Sessions (MCP) | SaaS auth without raw tokens; tool discovery for agents | Node + Postgres; self-hosted or Cloud |
 | **LLM gateway** | OpenAI-compatible endpoint behind `llm.complete` | one auditable model-call surface, per-client keys/cost | per deployment profile |
 | **Genkit** — optional capability, not an engine | bounded, human-watched agent loop in a Go service (`cmd/<client>-agent`) | review/rewrite, triage with read-only tools, extraction with a critic; goai is still the only model path | scaffolded per client (`scripts/new-agent-service.sh`), in front of its engine |
-| **Retrieval** — per-client capability | long context, or Go + [Bleve](https://github.com/blevesearch/bleve): index ~256-512-token chunks, **read their parent section** under hard token/candidate caps (`docs/retrieval.md`) | answering from documents; a calibrated cutoff refuses rather than filling the prompt with noise | alongside the client's engine |
+| **Retrieval** — per-client capability | long context, or Go + [Bleve](https://github.com/blevesearch/bleve): index ~256-512-token chunks (the routing unit), **read their parent section (the reading unit)** under hard token/candidate caps (`docs/retrieval.md`) | answering from documents; a calibrated cutoff refuses rather than filling the prompt with noise | alongside the client's engine |
 | **Local inference** — optional, eval-gated | Ollama/vLLM (1-3B query rewrite) + ONNX reranker (MiniLM/BGE) | semantic expansion/reranking without sending content to a third party | shared service on the internal network; one per environment |
 | **Evals** | promptfoo + `select-cases.py` / `windmill-job-to-run.py` | quality gate before and after a change | local / CI |
 | **Sandbox** | `scripts/sandbox-run.sh` | one-off scripts, zero residue | local Docker |
@@ -67,18 +67,18 @@ flowchart TD
     Q2 -->|"default"| SH["shared<br/>folder + name prefix + env"]
     Q2 -->|"regulation · client infra ·<br/>noisy neighbour · upgrade window"| DH["dedicated host<br/>runtime: dedicated + target.host"]
 
-    OPS --> Q3{"Q3. Answer from data?"}
-    Q3 -->|"system of record"| NG["call it via Nango<br/>never index a stale copy"]
-    Q3 -->|"a few pages"| LC["long context"]
-    Q3 -->|"documents"| RR["route-then-read<br/>index chunks · read the parent"]
+    OPS --> Q08{"Q0.8. Answer from data?"}
+    Q08 -->|"system of record"| NG["call it via Nango<br/>never index a stale copy"]
+    Q08 -->|"a few pages"| LC["long context"]
+    Q08 -->|"documents"| RR["route-then-read<br/>index chunks · read the parent"]
 
     OPS --> Q4{"Q4. One-off script?"}
     Q4 -->|"yes"| SAND["sandbox-run.sh<br/>zero residue"]
     Q4 -->|"recurs"| DU
 
-    OPS --> Q5{"Q5. New library?"}
-    Q5 -->|"stdlib → go.mod → approved capability"| USE["use it"]
-    Q5 -->|"none fit"| NEW["propose · confirm · pin"]
+    OPS --> Q16{"Q1.6. New library?"}
+    Q16 -->|"stdlib → go.mod → approved capability"| USE["use it"]
+    Q16 -->|"none fit"| NEW["propose · confirm · pin"]
 ```
 
 **Hard defaults** — the facts that settle most asks, and the only row an

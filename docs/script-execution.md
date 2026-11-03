@@ -46,10 +46,19 @@ handlers have direct equivalents (`docs/migrate-to-windmill.md`, step mapping).
 
 **Q1.5. Does it need an agent that loops with tools (shell, files, browser)
 until it is done?**
-Then it is **not** a recipe and **not** level 2 — it is a new platform
-decision (Dagu 2.x `llm.*` / `harness.run` / agent DAGs, or a dedicated
-harness). Do not smuggle an `agent_loop` step into a recipe: this runtime
-has no handler for it and the tools are arbitrary code. Rationale:
+Then it is **not** a recipe and **not** level 2. Split it by who waits:
+
+- **A human waits for this request to finish** (review/rewrite, triage with a
+  short read-only toolset, extraction with a critic): an **agent-loop
+  capability** — a bounded Genkit flow in a Go service, goai as the only model
+  path, Nango for tools, and the durable result recorded as a run in the
+  client's engine. Scaffold: `scripts/new-agent-service.sh <client>`; details:
+  `docs/genkit.md`. It is a capability, not a third engine.
+- **Nobody waits, or it must survive a restart**: a new platform decision
+  (Dagu 2.x `llm.*` / `harness.run` / agent DAGs, or a dedicated harness).
+
+Do not smuggle an `agent_loop` step into a recipe: this runtime has no handler
+for it and the tools are arbitrary code. Rationale:
 `docs/writing-recipes.md` → "Why AgentLoop/planner stay upstream-only".
 
 **Q2. Is it new code that runs once?** (LLM-generated parser, CSV cleanup,

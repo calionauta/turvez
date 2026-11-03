@@ -193,7 +193,7 @@ flowchart LR
     ORIG --> RT
     RT --> RR["Go node: rerank<br/>HTTP → ONNX cross-encoder"]
     RR -->|"timeout/error"| BUD["Fill budget in BM25 order"]
-    RR -->|"ok"| READ["Read whole units<br/>llm.complete, stable prefix"]
+    RR -->|"ok"| READ["Read parent units<br/>llm.complete, stable prefix"]
     BUD --> READ
 ```
 
