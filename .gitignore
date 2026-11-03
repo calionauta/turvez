@@ -32,8 +32,11 @@ sandbox-out/
 # Local agent memory (Engram) — machine-specific, never commit
 .engram/
 
-# Per-agent CLI state (freebuff/codebuff project pin)
+# Per-agent CLI state (freebuff/codebuff project pin, pi session state).
+# Repo-level on purpose: relying on a contributor's global ignore file makes a
+# fresh clone dirty.
 .freebuff/
+.pi/
 
 # Half-finished engine conversions (scripts/convert-to-windmill.py staging).
 # Staging is scratch: the finished flow moves to automation/windmill/.
