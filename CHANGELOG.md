@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.8](https://github.com/calionauta/turvez/compare/v0.1.7...v0.1.8) (2026-11-03)
+
+
+### Bug Fixes
+
+* **deps:** bump github.com/zendev-sh/goai ([#15](https://github.com/calionauta/turvez/issues/15)) ([dbeab9e](https://github.com/calionauta/turvez/commit/dbeab9edb0ff931dbe05b3d8ddfdaa2f7a9d6c44))
+
 ## [0.1.7](https://github.com/calionauta/turvez/compare/v0.1.6...v0.1.7) (2026-11-03)
 
 
