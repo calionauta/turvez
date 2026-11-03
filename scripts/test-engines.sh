@@ -98,6 +98,22 @@ for engine in $ENGINES; do
   rm -rf "$tmp"
 done
 
+# nango-connect.sh is the "ask for an authorisation, not a token" entry point.
+# It must work with no Nango running (it reports that) and always print the two
+# enforced names, or an agent silently falls back to asking for the token.
+if ! nango_out="$("$HERE/nango-connect.sh" probe --provider hubspot 2>&1)"; then
+  echo "FAIL: nango-connect.sh exited non-zero with no Nango running:" >&2
+  printf '%s\n' "$nango_out" | sed 's/^/    /' >&2
+  failures=$((failures + 1))
+else
+  for want in "Provider-Config-Key) : hubspot" "Connection-Id)       : probe"; do
+    if ! printf '%s\n' "$nango_out" | grep -qF "$want"; then
+      echo "FAIL: nango-connect.sh did not print '$want'" >&2
+      failures=$((failures + 1))
+    fi
+  done
+fi
+
 if [ "$failures" -ne 0 ]; then
   echo "test-engines: $failures failure(s)" >&2
   exit 1

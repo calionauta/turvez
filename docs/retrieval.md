@@ -258,12 +258,8 @@ ladder makes three clear points versus earlier defaults:
    filter, hybrid field) rather than asking the orchestrator to solve it at
    query time every call.
 
-These are the same defaults everywhere this guide repeats them. Some docs outside
-`docs/retrieval.md` still say 3 rewrites, some say 1. They should not. The
-current default for this runtime is the tighter one: **0 rewrites unless the eval
-justifies a rewrite step, and if you add one, keep it to 1 cached rewrite with a
-fallback to the original query.** The 3-rewrite numbers are legacy wording that
-the eval and the fallback matrix should not contradict.
+These defaults are repeated across the repo. If a file disagrees with the
+table below, the file is wrong — this guide is the normative copy.
 
 | Limit | Default | Where enforced |
 |---|---|---|

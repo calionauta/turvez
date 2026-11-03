@@ -152,7 +152,7 @@ flowchart TD
     S -->|"documents"| L{"Corpus fits one prompt?"}
     L -->|"yes"| LC["Long context, stable cached prefix"]
     L -->|"no"| RT["Route-then-read:<br/>Bleve selects WHOLE units"]
-    RT --> CAP["Dedupe + cap candidates<br/>3 rewrites x 20, max 60 units"]
+    RT --> CAP["Dedupe + cap units<br/>0-1 cached rewrite, ≤20 units, ≤60 retained"]
     CAP --> BUD{"Hard token budget?<br/>target tokenizer + output reserve"}
     BUD -->|"no"| SEC["Section-level units<br/>or map-reduce summaries"]
     SEC -->|"nothing fits"| REF["Explicit 'not found'<br/>(no cloud call)"]
