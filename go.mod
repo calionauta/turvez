@@ -6,7 +6,7 @@ require (
 	github.com/danmestas/dagnats v0.0.32
 	github.com/itchyny/gojq v0.12.19
 	github.com/nats-io/nats.go v1.55.0
-	github.com/zendev-sh/goai v0.10.9
+	github.com/zendev-sh/goai v0.11.0
 	golang.org/x/sync v0.24.0
 )
 
