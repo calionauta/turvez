@@ -41,6 +41,14 @@ if ! go get "github.com/firebase/genkit/go@$VERSION" >/dev/null 2>&1; then
   echo "check-agent-template: cannot fetch genkit $VERSION (network?)" >&2
   exit 1
 fi
+# Compile against the goai this repo pins, not whatever is newest: a scaffold
+# built on a different goai than the recipes is the version skew this gate is
+# meant to catch.
+goai_ver="$(cd "$ROOT" && go list -m -f '{{.Version}}' github.com/zendev-sh/goai 2>/dev/null || true)"
+if [ -n "$goai_ver" ]; then
+  go get "github.com/zendev-sh/goai@$goai_ver" >/dev/null 2>&1 || {
+    echo "check-agent-template: cannot fetch goai $goai_ver" >&2; exit 1; }
+fi
 go mod tidy >/dev/null 2>&1
 
 if [ -n "$(gofmt -l ./cmd)" ]; then

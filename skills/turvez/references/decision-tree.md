@@ -126,8 +126,8 @@ done? → **not** a recipe, **not** Dagu level 2. Split it by who is waiting:
   (`MaxIterations`, `MaxRunDuration`), escalates to a human instead of
   deciding alone. Build it with the scaffold, not from a blank file:
   `./scripts/new-agent-service.sh <client>` (plan) then `--apply --provider <slug>`,
-  then `go get github.com/firebase/genkit/go@latest` in review — the four
-  commands are in `docs/genkit.md#install-and-scaffold-when-q15-says-yes`.
+  then the pinned `go get` the scaffold prints, in review — the commands are
+  in `docs/genkit.md#install-and-scaffold-when-q15-says-yes`.
 - **Nobody is watching, or it must survive a restart**: a new platform
   decision (Dagu 2.x `llm.*`/`harness.run`/agent DAGs, or a dedicated
   harness). Why: `docs/writing-recipes.md` → "Why AgentLoop/planner stay

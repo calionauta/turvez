@@ -19,6 +19,12 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="${TURVEZ_OPS_DIR:-$(cd "$HERE/.." && pwd)}"
 
+# One pin for the scaffold and the gate that compiles it. `@latest` let a
+# client install a Genkit that CI had never built; the version printed here is
+# the one scripts/check-agent-template.sh actually compiles.
+GENKIT_VERSION="$(sed -n 's/.*GENKIT_VERSION:-\(v[0-9][0-9.]*\).*/\1/p' "$HERE/check-agent-template.sh" | head -1)"
+[ -n "$GENKIT_VERSION" ] || { echo "cannot read the Genkit pin from scripts/check-agent-template.sh" >&2; exit 1; }
+
 CLIENT=""; APPLY=0; PROVIDER="hubspot"
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -69,7 +75,7 @@ if [ "$APPLY" -eq 0 ]; then
   echo "  $SVC_DIR/README.md      (runbook: env, bounds, durable tail)"
   echo
   echo "then, in review:"
-  echo "  go get github.com/firebase/genkit/go@latest"
+  echo "  go get github.com/firebase/genkit/go@${GENKIT_VERSION}"
   echo "  gofmt -l ./cmd/$CLIENT-agent && go build ./... && go test ./..."
   echo
   echo "re-run with --apply to write them."
@@ -90,7 +96,7 @@ Not an engine. The loop lives in this request; anything durable is a run in the
 ## Run
 
 \`\`\`bash
-go get github.com/firebase/genkit/go@latest   # once, in review
+go get github.com/firebase/genkit/go@${GENKIT_VERSION}   # once, in review (the version CI compiles)
 export GOAI_BASE_URL=http://<gateway>/v1 GOAI_API_KEY=... GOAI_MODEL=...
 export NANGO_HOST=http://localhost:8088 NANGO_SECRET_KEY=...
 go run ./cmd/$CLIENT-agent -addr 127.0.0.1:8099
@@ -117,5 +123,5 @@ echo "wrote $SVC_DIR/main.go"
 echo "wrote $SVC_DIR/README.md"
 echo
 echo "next (in review — this edits go.mod):"
-echo "  go get github.com/firebase/genkit/go@latest"
+echo "  go get github.com/firebase/genkit/go@${GENKIT_VERSION}"
 echo "  gofmt -l ./cmd/$CLIENT-agent && go build ./... && go test ./..."
