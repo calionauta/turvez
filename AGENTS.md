@@ -87,8 +87,10 @@
 ```bash
 # every checkout, both engines
 make validate            # every engine with source (dagnats + windmill)
+                         # + the decision-tree contract (scripts/test-decisions.sh)
 go test ./...            # structure, tenancy, jq expressions, secrets guard
 ./scripts/check-windmill.sh   # windmill lint gate (no worker needed)
+./scripts/test-decisions.sh   # tree ↔ artifacts: branches, engines, libs, doc links
 
 # dagnats engine
 dagnats workflow validate <file> && dagnats workflow register <file>

@@ -86,6 +86,7 @@ lint:
 # (client.yaml, engine dir matches the manifest) are `go test ./clients/`.
 validate:
 	./scripts/validate.sh
+	./scripts/test-decisions.sh
 	./scripts/verify-isolation.sh >/dev/null || { ./scripts/verify-isolation.sh; exit 1; }
 
 tidy:

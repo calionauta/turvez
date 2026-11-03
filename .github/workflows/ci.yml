@@ -65,6 +65,11 @@ jobs:
         run: ./scripts/guard-version.sh
       - name: Unit and recipe tests
         run: go test ./... -timeout 300s
+      - name: Decision contract (tree ↔ artifacts)
+        # Every branch of the decision tree names something that exists, and
+        # every engine in engines.json is routed, scaffolded and gated. The
+        # tree is prose, so this is what "tested" means for it.
+        run: ./scripts/test-decisions.sh
       - name: Genkit scaffold compiles
         # Genkit stays out of go.mod, so `go build ./...` cannot see the
         # scaffold. This compiles it in a throwaway module against a pinned
