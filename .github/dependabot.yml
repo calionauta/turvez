@@ -25,6 +25,9 @@ updates:
       github-actions:
         patterns: ["*"]
 
+  # Dependabot's docker fetcher matches any filename containing "Dockerfile"
+  # (dependabot-core/docker file_fetcher.rb), so this one entry covers both
+  # Dockerfile.dagnats and Dockerfile.worker at the repo root.
   - package-ecosystem: docker
     directory: /
     schedule:

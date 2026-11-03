@@ -45,7 +45,8 @@ every other build stays lean.
     --provider hubspot                               # writes cmd/<client>-agent/
 
 # 2. add the dependency, in review (this is the only step that edits go.mod):
-go get github.com/firebase/genkit/go@latest
+#    the scaffold prints this version; it is the one the gate compiles.
+go get github.com/firebase/genkit/go@v1.14.0
 
 # 3. gates
 gofmt -l ./cmd/<client>-agent && go build ./... && go test ./...
@@ -59,9 +60,13 @@ prompt/completion recorder that persists the prompt *before* the call. It prints
 `-record` at the client's store, and emit the durable tail as a run in the
 client's engine.
 
-`go get ...@latest` is deliberate here and only here: the scaffold is created
-once, reviewed, and then the version is pinned by `go.mod` like everything
-else (Dependabot keeps it current — `.github/dependabot.yml`).
+`go get ...@v1.14.0` is one pin, not a floating `@latest`:
+`scripts/new-agent-service.sh` reads this version from
+`scripts/check-agent-template.sh` and prints it, so a client cannot install a
+Genkit the gate has never compiled. Bump it in that one script, rerun the gate,
+and update this line — Dependabot keeps the rest of `go.mod` current
+(`.github/dependabot.yml`). The gate also compiles against the goai version
+this repo pins, so the service and the recipes never skew.
 
 **Where the service lives.** It is Go, so it builds from a checkout with a
 `go.mod` — the template, or a dedicated service repo — never from the

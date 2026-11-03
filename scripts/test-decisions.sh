@@ -75,9 +75,31 @@ need_file scripts/templates/agent-service/main.go.tmpl "scaffold source"
 need_file scripts/check-agent-template.sh "scaffold compile gate"
 need_text docs/genkit.md "Install and scaffold" "the install path is documented"
 need_text skills/turvez/references/decision-tree.md "new-agent-service.sh" "the tree names the scaffold"
+need_text README.md '```mermaid' "the README renders the tree"
+for q in Q0 Q1.5 Q2 Q3 Q4 Q5; do
+  need_text README.md "$q" "the rendered tree keeps question $q"
+done
+# A floating @latest would install a Genkit the pinned gate never compiled.
+if grep -rq "firebase/genkit/go@latest" "$ROOT/docs" "$ROOT/skills" 2>/dev/null; then
+  bad "a Genkit install still says @latest (it must be the pin the gate compiles)"
+else
+  ok
+fi
 pinned="$(sed -n 's/.*GENKIT_VERSION:-\(v[0-9][0-9.]*\).*/\1/p' "$ROOT/scripts/check-agent-template.sh" | head -1)"
 if [ -n "$pinned" ]; then ok; else bad "check-agent-template.sh has no pinned GENKIT_VERSION"; fi
 need_text docs/genkit.md "genkit $pinned" "docs name the version the gate compiles"
+need_text docs/genkit.md "go@$pinned" "the documented install uses the gated pin, not @latest"
+if grep -qF 'go@${GENKIT_VERSION}' "$ROOT/scripts/new-agent-service.sh"; then
+  ok
+else
+  bad "new-agent-service.sh does not print the pin it reads from the gate"
+fi
+# The always-loaded skill must not carry a version: it would rot and break the prefix.
+if grep -q "$pinned" "$SKILL"; then
+  bad "SKILL.md hardcodes $pinned (versions belong in the scaffold/gate, not the loaded prefix)"
+else
+  ok
+fi
 
 # --- library-goai ----------------------------------------------------------
 # One model path: goai is a dependency; Genkit stays out of the build.

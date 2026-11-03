@@ -45,7 +45,7 @@ Build loop when Q1.5 says "a human is watching":
 ```bash
 ./scripts/new-agent-service.sh <client>                 # plan
 ./scripts/new-agent-service.sh <client> --apply --provider <slug>
-go get github.com/firebase/genkit/go@latest             # in review; edits go.mod
+# then run the pinned `go get` the scaffold prints, in review (it edits go.mod)
 gofmt -l ./cmd/<client>-agent && go build ./... && go test ./...
 ```
 
