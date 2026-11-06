@@ -332,16 +332,12 @@ func TestRecipeStructure(t *testing.T) {
 	// The same loop also rejects embedded credential values: JSON carries
 	// secret NAMES only. ($schema is accepted since dagnats v0.0.26 and is
 	// optional; none of these recipes carry it.)
-	var secretValuePatterns = []string{
-		"hooks.slack.com/services/", "xoxb-", "xoxp-", "sk-live-",
-		"sk-test-", "ghp_", "-----BEGIN",
-	}
 	for _, f := range recipeFiles(t) {
 		raw, err := os.ReadFile(f)
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, p := range secretValuePatterns {
+		for _, p := range embeddedSecretPatterns {
 			if strings.Contains(string(raw), p) {
 				t.Fatalf("%s: looks like an embedded secret value (%q); use secret names only", f, p)
 			}

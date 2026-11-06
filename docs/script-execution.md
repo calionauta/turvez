@@ -254,9 +254,12 @@ Nango self-hosted handles OAuth, token refresh and encrypted credential
 storage for 1,000+ APIs. It is a layer, not a runtime: dagnats and Windmill
 call its **proxy** over HTTP with a static Nango key and the connection id, and
 Nango injects the provider token. It adds Node + Postgres and is licensed
-under Elastic License 2.0 (free self-host for auth/proxy; some features are
-Enterprise). Confirm with the operator before installing: it is another
-service, another database and another place where client tokens live.
+under Elastic License 2.0 — **not** an OSI licence. Documented self-host is
+Enterprise only (BYOC or self-managed); the community image in this repo runs
+unsupported, and the supported image does not include the Functions runtime.
+See `docs/nango.md` §2 and `docs/tooling.md` before promising a client the
+licence. Confirm with the operator before installing: it is another service,
+another database and another place where client tokens live.
 
 ### Channels
 

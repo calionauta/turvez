@@ -48,13 +48,35 @@ Turvez enforces strict client boundaries (`<client>`). Nango integrates seamless
 - **`Provider-Config-Key` = `<provider>`** (e.g. `hubspot`, `slack`, `google-sheets`, `salesforce`).
 
 ### Deployment Topology
-Nango runs as a central service or per-cluster instance:
+Which broker a client gets is `access.plane` in `client.yaml`
+(`docs/access-plane.md` §3), not a deployment convenience:
 
-| Component | Shared Runtime (`runtime: shared`) | Dedicated Runtime (`runtime: dedicated`) |
-|---|---|---|
-| **Nango Instance** | Single self-hosted Nango (or Nango Cloud) shared by consultancy clients | Dedicated Nango container in client's VPC |
-| **Data Isolation** | Partitioned strictly by `Connection-Id` (`<client>`) | Separate database and encryption key |
-| **Secret in Turvez** | Shared `NANGO_SECRET_KEY` in Windmill/dagnats env | Client-specific `NANGO_SECRET_KEY` |
+| Plane | Nango runs on | Isolation between clients | Licence and account |
+|---|---|---|---|
+| **`client` (A — default)** | the client's infra or their VPC | own container, database, `SERVER_ENCRYPTION_KEY` and `NANGO_SECRET_KEY` | the client's; documented self-host is Enterprise (BYOC or self-managed) |
+| **`cloud` (B — on request)** | Nango Cloud | per account | the client's own account and card — if the account is ours, the plane is `shared`, not `cloud` |
+| **`shared` (C — pilots)** | our host, one instance | application-level, partitioned by `Connection-Id` (`<client>`) | ours |
+
+`runtime: shared` still defaults to one instance, and that is legitimate for a
+**pilot with `data_class: normal`**. It is never legitimate for
+`data_class: sensitive`: there the plane is `client`, and the isolation is
+infrastructure, not a `WHERE tenant_id = ?`. A sensitive client on a shared
+broker fails `go test ./clients/` (invariant 7).
+
+### Licence and self-host (read before promising it)
+Nango is **Elastic License 2.0**, not an OSI licence: the repo's GitHub licence
+detection reports `NOASSERTION`, and the README's "open source" is marketing.
+The **documented** self-host paths — BYOC ("we deploy into your account") and
+Self-Managed — are Enterprise only; BYOC is the shape the vendor itself
+recommends.
+
+The `nangohq/nango-server:hosted` image in `docker-compose.nango.yml` is the
+community image. It runs, and its licence check only logs warnings, but it is
+the **unsupported** path: the supported self-host Dockerfile drops
+`packages/jobs`, `packages/runner` and `packages/persist`, so the lean official
+image does not run the Functions/syncs runtime. Use it for a pilot, with that
+risk written down, not for a client who asked for a supported deployment.
+Licence options and the Apache-2.0 alternative: `docs/tooling.md`.
 
 #### Self-Hosted Docker Compose (`docker-compose.nango.yml` in this repo)
 The repo ships the real file; this is its shape (official image, `SERVER_PORT`

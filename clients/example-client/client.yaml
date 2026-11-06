@@ -9,3 +9,15 @@ target:
   api_url: http://127.0.0.1:8080
 data_class: normal
 owner: operator@example.com
+
+# Access plane (docs/access-plane.md). Profile C: shared broker on the
+# consultancy host, allowed only because data_class is normal — a pilot shape.
+# A sensitive client must be `plane: client`.
+access:
+  enabled: true
+  plane: shared
+  surface: mcp
+  identity: org
+  policy: catalog/policy.yaml
+  vendor_account: consultancy
+

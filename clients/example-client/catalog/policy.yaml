@@ -1,0 +1,19 @@
+# catalog/policy.yaml — the ceiling for example-client (docs/access-plane.md).
+#
+# A worked example of the block in clients/_template/catalog/policy.yaml:
+# HubSpot is the provider its recipe already calls through the Nango proxy
+# (automation/dagnats/hubspot-lead-to-slack.json), so it must be inside the
+# ceiling before any agent can be offered it — a provider you have not
+# declared is a provider you cannot grant (invariant 3).
+#
+# Writes exist here, so an approval policy is mandatory (invariant 2). With
+# `approval: writes`, a read runs unattended and a create asks a human first.
+
+providers:
+  hubspot:
+    kinds: [read, write]
+    approval: writes
+
+limits:
+  max_grants: 10
+  scopes_ceiling: [".read", ".write"]

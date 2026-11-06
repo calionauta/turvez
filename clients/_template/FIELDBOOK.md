@@ -39,6 +39,23 @@ pasted here. Record the id Nango assigns in `nango/connections.json` if a recipe
 needs it literally.
 Value only in `env/TODO-CLIENT.env` (local) or `secrets/TODO-CLIENT/env.age`.
 
+## 3.1 Access plane (only if the client's agents call tools)
+
+Skip unless `access.enabled: true` in `client.yaml`. Design:
+`docs/access-plane.md`; the tool comparison: `docs/tooling.md`.
+
+| Decision | Answer |
+|---|---|
+| Plane A/B/C | `client` (default) / `cloud` (their account and card) / `shared` (pilot, `data_class: normal` only) |
+| Identity | `org` (one connection, agent acts as the company) / `per-user` (`<client>:<user>`) |
+| Ceiling | `catalog/policy.yaml` — providers, kinds, approval per kind, `max_grants` |
+| Who is the custodian of the OAuth grant | (contract language — the client, or us and priced) |
+| Kill switch | who can revoke every grant for this tenant, and how |
+
+Rule: a provider the client has not approved does not go in the ceiling, and a
+provider in the ceiling is not exposed until a grant exists. The ceiling is
+policy (git, reviewed); grants are state (broker, self-serve).
+
 ## 4. Recipes and triggers
 
 | Recipe | Trigger | Trigger id |

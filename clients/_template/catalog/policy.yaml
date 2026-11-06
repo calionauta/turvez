@@ -1,0 +1,32 @@
+# catalog/policy.yaml — the CEILING, not an inventory.
+#
+# Policy lives here, in git, reviewed before it can change. What is actually
+# connected and who granted it is STATE, in the broker: connecting an app that
+# is already allowed below needs no commit, and revoking a grant is a row
+# delete, not a deploy. The effective tool catalog is derived —
+# policy ∩ connections ∩ grants (docs/access-plane.md §2).
+#
+# Ships empty on purpose: a new client has no access plane until
+# `access.enabled: true` in client.yaml and its providers are declared here.
+#
+# providers:
+#   hubspot:                  # the lowercase provider slug, never <client>-hubspot
+#     kinds: [read, write]    # read | write | destructive
+#     approval: writes        # none | writes | all — write/destructive with
+#                             # `none` fails `go test ./clients/` (invariant 2)
+#   gmail:
+#     kinds: [read]
+#     approval: none
+#
+# limits bound how far a client can go inside the ceiling.
+#   max_grants     required as soon as a provider is declared: a ceiling without
+#                  a grant cap is not a ceiling.
+#   scopes_ceiling OAuth scope strings or suffixes the broker may request.
+#                  Anything outside it is refused server-side, not hidden in
+#                  the UI (invariant 4).
+
+providers: {}
+
+limits:
+  max_grants: 20
+  scopes_ceiling: [".read", ".readonly"]

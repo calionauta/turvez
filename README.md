@@ -34,6 +34,33 @@ credentials and agent tools, an **LLM gateway** for model calls, and optional
 they sit in front of Windmill or dagnats, they do not replace either. Running
 two engines for one client is a test failure (`TestClientManifests`).
 
+## Related tooling (evaluated, not installed)
+
+Every one of these is a **layer or an alternative** for a slot this stack
+already fills. They are listed so a future decision starts from facts instead
+of from a README claiming "open source". Full comparison, licences and
+triggers: `docs/tooling.md`.
+
+| Tool | What it does | When it would enter | Today |
+| --- | --- | --- | --- |
+| **Corsair** | Apache-2.0 credential broker: ~300 provider plugins, REST + MCP, per-tool approvals, multi-tenant | If Nango's Elastic-2.0 terms block a use and a Node sidecar is acceptable | Not installed — same role as Nango |
+| **agentgateway** | MCP/A2A data plane: CEL policy, credential injection on egress (CB4A model A), guardrails | When *we* host MCP servers and need per-call policy plus injection | Not installed — no MCP traffic to police |
+| **Executor** | MIT agent-first app host: MCP gateway, per-app accounts, tool approvals, one container | Only if we accept an external app host beside the spine | Not installed — different product shape |
+| **Bifrost** | LLM gateway: provider unification, failover, semantic cache, virtual keys and budgets | When the LLM key is **ours** (resale/budget per end user) or failover has an SLA | Not installed — the client owns their key, GoAI is the only model path |
+| **OpenBao** | Secrets service: KV, dynamic DB credentials, PKI, audit devices | 3+ operators on client secrets, a regulated client demanding an access audit trail, or an agent gateway's vault | Not installed — age covers at-rest encryption with no service to unseal |
+
+## Access plane (client agents calling tools)
+
+Automations are one product; letting the client's own agents call the same
+authenticated tools is another. It is a third plane — not control, not
+execution — and it lives in `access:` in `client.yaml` plus a ceiling in
+`catalog/policy.yaml`. Policy is in git and reviewed; connections and grants are
+state in the broker, so connecting an app that is already allowed needs no PR.
+`go test ./clients/` refuses a write with no approval, a `sensitive` client off
+the client-hosted plane, a `cloud` plane on our account, and a provider used but
+not declared. Design and phases: `docs/access-plane.md`.
+
+
 ## Decision tree
 
 Canonical tree, the interview protocol (read first, ≤3 branch-flipping
@@ -266,6 +293,8 @@ curl -X POST localhost:8090/ops/approvals/<run-id> \
 - `docs/handlers-reference.md` — task inputs/outputs, metadata keys
 - `docs/language-policy.md` — **Go script nodes**; TS/Python only for a dispatch-only WAC orchestrator
 - `docs/nango.md` — credential layer: OAuth proxy, naming/enforcement, Agent Sessions (MCP)
+- `docs/access-plane.md` — the third plane: client agents calling authenticated tools, policy vs state, planes A/B/C, invariants, phases
+- `docs/tooling.md` — when each layer enters (Nango, Corsair, agentgateway, Executor, Bifrost, OpenBao) and when it would be weight
 - `docs/retrieval.md` — documents vs systems of record; route-then-read; hard token/candidate caps; calibrated refusal; eval gate
 - `docs/genkit.md` — agent-loop capability (not an engine): a bounded Genkit flow in the request, goai as the only model path, Nango for tools, durable tail as a run; scaffold `scripts/new-agent-service.sh`, compile gate `scripts/check-agent-template.sh`
 - `skills/turvez/references/decision-tree.md` — the canonical tree, the interview protocol and the defaults table
