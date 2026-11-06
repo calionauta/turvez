@@ -106,6 +106,39 @@ func TestManifestTopology(t *testing.T) {
 	}
 }
 
+func TestManifestKeyCollision(t *testing.T) {
+	raw := "client: acme\nengine: dagnats\ndata_class: normal\naccess:\n  enabled: true\n  plane: shared\n  host: acme.internal\n"
+	if _, err := ParseManifest([]byte(raw)); err == nil || !strings.Contains(err.Error(), "collides") {
+		t.Fatalf("want a collision error, got %v", err)
+	}
+}
+
+func TestDedicatedRuntimeNeedsClientPlane(t *testing.T) {
+	for _, runtime := range []string{"shared", "dedicated"} {
+		for _, plane := range []string{PlaneClient, PlaneCloud, PlaneShared} {
+			raw := "client: acme\ndata_class: normal\nruntime: " + runtime + "\naccess:\n  enabled: true\n  plane: " + plane + "\n  vendor_account: client\n"
+			m, err := ParseManifest([]byte(raw))
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = m.Validate()
+			// A shared runtime may pick any plane; a dedicated one may not.
+			wantErr := runtime == "dedicated" && plane != PlaneClient
+			// plane: shared with vendor_account: client is a separate
+			// contradiction, exercised in TestManifestTopology.
+			if plane == PlaneShared && err != nil && strings.Contains(err.Error(), "contradicts") {
+				continue
+			}
+			if wantErr && (err == nil || !strings.Contains(err.Error(), "runtime: dedicated")) {
+				t.Errorf("%s/%s: want the dedicated-runtime error, got %v", runtime, plane, err)
+			}
+			if !wantErr && err != nil {
+				t.Errorf("%s/%s: unexpected rejection: %v", runtime, plane, err)
+			}
+		}
+	}
+}
+
 func TestPolicy(t *testing.T) {
 	p, err := ParsePolicy([]byte(samplePolicy))
 	if err != nil {

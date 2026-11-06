@@ -44,6 +44,7 @@ triggers: `docs/tooling.md`.
 | Tool | What it does | When it would enter | Today |
 | --- | --- | --- | --- |
 | **Corsair** | Apache-2.0 credential broker: ~300 provider plugins, REST + MCP, per-tool approvals, multi-tenant | If Nango's Elastic-2.0 terms block a use and a Node sidecar is acceptable | Not installed — same role as Nango |
+| **ACI.dev** | Apache-2.0 tool-calling platform: 600+ tools, per-user OAuth, natural-language permission boundaries, tool-use logs, unified MCP server + portal | When the access plane wants a ready tool catalog and MCP surface, and a Python service is acceptable | Not installed — a P3 adapter candidate, not a recipe proxy |
 | **agentgateway** | MCP/A2A data plane: CEL policy, credential injection on egress (CB4A model A), guardrails | When *we* host MCP servers and need per-call policy plus injection | Not installed — no MCP traffic to police |
 | **Executor** | MIT agent-first app host: MCP gateway, per-app accounts, tool approvals, one container | Only if we accept an external app host beside the spine | Not installed — different product shape |
 | **Bifrost** | LLM gateway: provider unification, failover, semantic cache, virtual keys and budgets | When the LLM key is **ours** (resale/budget per end user) or failover has an SLA | Not installed — the client owns their key, GoAI is the only model path |

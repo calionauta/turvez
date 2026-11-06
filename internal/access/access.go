@@ -155,6 +155,14 @@ func ParseManifest(raw []byte) (Manifest, error) {
 		PolicyPath:    scalar(node["policy"]),
 		VendorAccount: scalar(node["vendor_account"]),
 	}
+	// scripts/verify-isolation.sh and clients/recipes_test.go read client.yaml
+	// with a flat `key: value` scan, so a nested key with a top-level name would
+	// silently answer for the wrong field (`access.host` for `target.host`).
+	for _, reserved := range []string{"client", "engine", "runtime", "data_class", "owner", "host"} {
+		if _, dup := node[reserved]; dup {
+			return Manifest{}, fmt.Errorf("access.%s: collides with the top-level manifest key of the same name; the flat readers (verify-isolation.sh, recipes_test.go) cannot tell them apart", reserved)
+		}
+	}
 	if cfg.PolicyPath == "" {
 		cfg.PolicyPath = defaultPolicyPath
 	}
@@ -214,6 +222,14 @@ func (m Manifest) Validate() error {
 	}
 	if err := cfg.Validate(m.DataClass); err != nil {
 		return err
+	}
+	// A dedicated runtime means the whole client lives on their own host. A
+	// broker for that client on our shared stack would put their tokens back
+	// inside our perimeter, which is the one thing dedicated infra exists to
+	// prevent (docs/access-plane.md §3).
+	if m.Runtime == "dedicated" && cfg.Plane != PlaneClient {
+		return fmt.Errorf("access.plane: %q with runtime: dedicated — a dedicated client's broker is client-hosted too (plane: %s)",
+			cfg.Plane, PlaneClient)
 	}
 	return nil
 }

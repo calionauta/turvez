@@ -20,6 +20,7 @@ Not worth it for one static API key in `env/<client>.env`.
 |---|---|---|
 | **Nango** | Elastic 2.0 (not OSI); Node + Postgres; 1,000+ APIs, HTTP proxy, Connect UI, Agent Sessions (MCP) | dagnats or Windmill calling APIs with OAuth; the access plane. Documented self-host is Enterprise (BYOC/self-managed) |
 | **Corsair** | Apache-2.0; TypeScript SDK, REST-first, ~300 plugins, per-tool approvals, multi-tenant | the same role when the ELv2 terms block a use and a Node sidecar is acceptable |
+| **ACI.dev** | Apache-2.0; Python platform, 600+ tools, per-user OAuth, permission boundaries, unified MCP server | the access plane with a ready tool catalog, when a Python service is acceptable — tool-calling infra, not a proxy |
 | **Composio / Arcade** | SDK/CLI or agent runtime, mostly SaaS | agent tool calls with per-user auth, self-host is an enterprise arrangement |
 | **Executor** | MIT, self-hosted MCP gateway + app host, per-connection policies | an app host beside the spine; not a credential layer for automations |
 | **Vault / Infisical / OpenBao** | secret store (stateful service) | static secrets and audit trails, not OAuth refresh |

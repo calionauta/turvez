@@ -155,6 +155,109 @@ func TestAccessPlane(t *testing.T) {
 	}
 }
 
+// TestAccessInvariantsAreRedProofed keeps the manual red-proof automated. Each
+// case takes the real fixture, applies one mutation, and requires the error a
+// broken checkout would produce — so a rule that gets loosened (or a contract
+// test that stops calling it) fails here instead of turning the guarantee back
+// into documentation.
+func TestAccessInvariantsAreRedProofed(t *testing.T) {
+	dir := "example-client"
+	manifestRaw, err := os.ReadFile(filepath.Join(dir, "client.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	policyRaw, err := os.ReadFile(filepath.Join(dir, "catalog", "policy.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The untouched fixture must pass; otherwise every mutation below would
+	// "fail" for the wrong reason.
+	base, err := access.ParseManifest(manifestRaw)
+	if err != nil || base.Validate() != nil {
+		t.Fatalf("fixture does not pass its own rules: %v %v", err, base.Validate())
+	}
+	basePolicy, err := access.ParsePolicy(policyRaw)
+	if err != nil || basePolicy.Validate() != nil {
+		t.Fatalf("ceiling does not pass its own rules: %v %v", err, basePolicy.Validate())
+	}
+	providers := append(connectionProviders(t, dir), recipeProviders(t, dir)...)
+	if len(providers) == 0 {
+		t.Fatal("the fixture declares no provider usage, so invariant 3 would be checked against nothing")
+	}
+
+	cases := []struct {
+		name           string
+		manifest       func(string) string
+		policy         func(string) string
+		extraProviders []string
+		want           string
+	}{
+		{
+			name:   "invariant 2: write with no approval",
+			policy: func(s string) string { return strings.Replace(s, "\n    approval: writes", "\n    approval: none", 1) },
+			want:   "invariant 2",
+		},
+		{
+			name:           "invariant 3: provider used but not declared",
+			extraProviders: []string{"slack"},
+			want:           "not in the catalog ceiling",
+		},
+		{
+			name:     "invariant 7: sensitive client off the client-hosted plane",
+			manifest: func(s string) string { return strings.Replace(s, "data_class: normal", "data_class: sensitive", 1) },
+			want:     "invariant 7",
+		},
+		{
+			name:     "invariant 9: cloud plane on our account",
+			manifest: func(s string) string { return strings.Replace(s, "plane: shared", "plane: cloud", 1) },
+			want:     "invariant 9",
+		},
+		{
+			name:     "runtime dedicated with a shared broker",
+			manifest: func(s string) string { return strings.Replace(s, "runtime: shared", "runtime: dedicated", 1) },
+			want:     "runtime: dedicated",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			mRaw, pRaw := string(manifestRaw), string(policyRaw)
+			if c.manifest != nil {
+				mRaw = c.manifest(mRaw)
+			}
+			if c.policy != nil {
+				pRaw = c.policy(pRaw)
+			}
+			m, err := access.ParseManifest([]byte(mRaw))
+			if err != nil {
+				t.Fatalf("mutated manifest does not parse: %v", err)
+			}
+			if c.manifest != nil && mRaw == string(manifestRaw) {
+				t.Fatal("mutation did not change the manifest — the red-proof would pass for the wrong reason")
+			}
+			if c.policy != nil && pRaw == string(policyRaw) {
+				t.Fatal("mutation did not change the ceiling — the red-proof would pass for the wrong reason")
+			}
+			policy, err := access.ParsePolicy([]byte(pRaw))
+			if err != nil {
+				t.Fatalf("mutated ceiling does not parse: %v", err)
+			}
+
+			err = m.Validate()
+			if err == nil {
+				err = policy.Validate()
+			}
+			if err == nil {
+				err = access.Coverage(policy, append(providers, c.extraProviders...))
+			}
+			if err == nil || !strings.Contains(err.Error(), c.want) {
+				t.Fatalf("want error containing %q, got %v", c.want, err)
+			}
+		})
+	}
+}
+
 // TestAccessTemplate pins the scaffold: a new client inherits a parseable
 // manifest with the plane OFF, so turning it on is a decision and never an
 // accident of copying a working client.

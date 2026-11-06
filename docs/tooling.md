@@ -27,6 +27,7 @@ Facts below were read at the source (vendor docs, licence files, repo) on
 | --- | --- | --- | --- | --- |
 | **Nango** | Elastic 2.0 (not OSI) | OAuth broker: 1,000+ provider configs, token refresh with a distributed lock, HTTP proxy, Connect UI, Agent Sessions (an MCP endpoint per tenant) | Model routing; it is not an LLM gateway | A client has OAuth providers, or its agents call tools. **Today's default**, already in `docs/nango.md` |
 | **Corsair** | Apache-2.0 | TypeScript broker: ~300 provider plugins, REST-first SDK, multi-tenancy, per-tool permissions with approval, signed webhooks | Guarantee a documented refresh lock; its OAuth consent flow runs through the vendor's Hub | The ELv2 terms block a use, and a Node sidecar is acceptable. Closest drop-in for the Nango *role* |
+| **ACI.dev** | Apache-2.0 | Python tool-calling platform: 600+ tools, per-user OAuth, natural-language permission boundaries, tool-use logging, and a **unified MCP server** (separate `aci-mcp` repo) plus a dev portal | Proxy arbitrary HTTP for a recipe — it executes *its* tools, not your URL; and it is not a workflow engine | The access plane wants a ready 600-tool catalog and an MCP surface, and running Python + Postgres/pgvector + portal is acceptable |
 | **agentgateway** | Apache-2.0 | MCP/A2A data plane: CEL policy, credential injection on egress (CB4A model A), guardrails, OTel | OAuth consent and refresh — it injects from a vault, it does not obtain grants | **We host MCP servers ourselves** and need per-call policy plus injection |
 | **Executor** | MIT | Agent-first app host: MCP gateway, "accounts" per app, tool approvals, 1 container + embedded Postgres | Stay out of the source of truth; durable workflows are only partly documented | Never as a broker. Only if we accept it as an app host beside the spine |
 | **Bifrost** | Apache-2.0 | LLM gateway: provider unification, failover, semantic cache, virtual keys and budgets | SaaS credentials; it is the model path, not the tool path | The LLM key is **ours** (resale/budget per end user) or failover has an SLA |
@@ -49,7 +50,7 @@ Facts below were read at the source (vendor docs, licence files, repo) on
   worker start and never asks again. OpenBao sealed means every automation of
   every client stops, to solve audit and dynamic credentials we do not yet need.
 
-## Two substitutions worth knowing
+## Three substitutions worth knowing
 
 **Corsair instead of Nango** — same role, Apache-2.0, REST + MCP + approvals.
 The cost is a Node sidecar and an OAuth consent flow through the vendor's Hub.
@@ -62,6 +63,28 @@ Switch the adapter, not the ceiling (docs/access-plane.md §8).
 plus a `pg_advisory_lock` around the refresh is ~100 lines, no service, no
 licence. The broker earns its place at three or more providers, or the moment a
 client's agent needs a per-tenant tool surface.
+
+**ACI.dev instead of building the tool catalog** — ACI is the Apache-2.0 answer
+to the question "what if the agent's tools were a product instead of a table in
+my backend": 600+ tool integrations, per-end-user OAuth, permission boundaries
+in natural language, tool-use logs, and a unified MCP server. It is the closest
+open-source peer to Composio, and it is *not* the same layer as the others in
+this table:
+
+| ACI compares to | Same | Different |
+| --- | --- | --- |
+| **Composio** | tool-calling platform, hundreds of integrations, per-user auth | ACI is Apache-2.0 end to end; Composio's self-host is an enterprise arrangement |
+| **Nango** | per-tenant OAuth storage and a tool surface for agents (Agent Sessions) | Nango is a *proxy*: recipes call `Connection-Id` + URL. ACI *executes* named tools server-side, so a dagnats recipe would call an ACI endpoint instead of the SaaS API |
+| **Corsair** | Apache-2.0, per-tool permissions | Corsair is a TS SDK you embed; ACI is a Python platform with its own portal and MCP server |
+| **agentgateway / MCPHub / Docker MCP Gateway** | an MCP endpoint for agents | those proxy MCP servers you already have; ACI ships the catalog and the server |
+| **Executor** | accounts per app, approvals | Executor is an app host with a UI; ACI is tool-calling infrastructure with no durable orchestration |
+
+Cost of adopting it: Python + FastAPI, Postgres with pgvector, a portal
+container, and a KMS-backed encryption key (LocalStack stands in for AWS KMS in
+the dev compose). PropelAuth appears in the portal flow, and the repo ships a
+`propelauth_mock` service so a local stack runs without a commercial account.
+For turvez it is a **P3 adapter candidate for the access plane**, not a
+replacement for the credential layer recipes already use.
 
 ## Adoption order if the product grows
 

@@ -153,7 +153,7 @@ in this repo, and this doc does not claim otherwise.
 | Phase | Work | Gate |
 | --- | --- | --- |
 | **P0 — name the plane** | `access:` block, ceiling schema, `internal/access`, the contract tests, this doc, `docs/tooling.md` | `go test ./...` fails a write with `approval: none`, a `sensitive` client off `plane: client`, a `cloud` plane on our account, a provider used but not declared |
-| **P1 — per-client broker** | `CLIENT_ID` in `docker-compose.nango.yml`, per-client project/volume, `verify-isolation.sh` and `extract-client.py` cover the access plane | a `sensitive` client with a shared broker fails isolation |
+| **P1 — per-client broker** | `CLIENT_ID` in `docker-compose.nango.yml`, per-client project/volume, `extract-client.py` covers the access plane — *`verify-isolation.sh` already reports each client's broker plane* | a `sensitive` client with a shared broker fails isolation |
 | **P2 — self-serve grants** | Connect UI for account linking, grant creation bounded by the ceiling, revocation endpoint, audit events | connecting an already-allowed provider needs zero repo changes; a provider outside the ceiling is refused server-side |
 | **P3 — portability** | adapter contract (`connection`, `grant`, `toolref`, `audit`), one adapter per backend | switching backend changes the adapter only — policy, recipes and evals untouched |
 | **P4 — evals** | tool-selection cases: right tool, no scope creep, refusal when a grant is missing | the eval gate |
@@ -171,6 +171,12 @@ in this repo, and this doc does not claim otherwise.
 Portable: tenant, provider slug, tool ref, kind, approval, grant lifecycle,
 audit events. **Not portable**: each backend's own consent/callback surface and
 its internal storage model.
+
+ACI.dev is a fourth candidate for the same role, with a different unit: it
+stores an end-user's linked account plus a permission boundary rather than a
+connection per tenant. Mapping it is a real adapter, not a rename — which is the
+point of separating the contract from the backend. Its shape and the honest
+comparison: `docs/tooling.md`.
 
 The promise this doc makes is deliberately narrow: switching backend changes the
 **adapter**; it does not touch the ceiling, recipes, evals or tenant naming. Do

@@ -61,8 +61,15 @@ for d in "$CLIENTS_ROOT"/*/; do
   engine="$(manifest_field "$manifest" engine)"
   runtime="$(manifest_field "$manifest" runtime)"
   host="$(manifest_field "$manifest" host)"
+  access_enabled="$(manifest_field "$manifest" enabled)"
+  plane="$(manifest_field "$manifest" plane)"
   runtime="${runtime:-shared}"
   host="${host:-}"
+  # Display only: the access plane is validated by `go test ./clients/`
+  # (internal/access), not here. A missing plane below `enabled: true` shows as
+  # `broker:?` — visible in the report, still the test's job to reject.
+  broker=""
+  [ "$access_enabled" = "true" ] && broker=" / broker:${plane:-?}"
 
   case "$runtime" in
     dedicated)
@@ -79,10 +86,12 @@ for d in "$CLIENTS_ROOT"/*/; do
       else
         host_seen="${host_seen}${host}=${name}"$'\n'
       fi
-      rows_dedicated+=("$name|$engine|$host")
+      rows_dedicated+=("$name|$engine|$host$broker")
       ;;
     shared)
-      rows_shared+=("$name|$engine|shared ($host)")
+      where="shared"
+      [ -n "$host" ] && where="shared ($host)"
+      rows_shared+=("$name|$engine|$where$broker")
       ;;
     *)
       echo "FAIL $name: runtime: '$runtime' must be shared or dedicated"
