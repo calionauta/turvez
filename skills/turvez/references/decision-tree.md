@@ -209,8 +209,9 @@ a single binary.
 OAuth for many SaaS APIs is a **layer**, not an orchestrator: Nango
 (self-hosted, ELv2) exposes an HTTP proxy that dagnats or Windmill can call.
 Never put raw OAuth tokens in Windmill variables or dagnats recipes.
-Scaling strategy: default to shared Nango on consultancy host for SMBs (`runtime: shared`);
-dedicated Nango instance only for isolated clients (`runtime: dedicated`).
+Where the broker runs is `access.plane`, not `runtime` (docs/access-plane.md):
+client-hosted by default and mandatory for `data_class: sensitive`; a shared
+broker on the consultancy host is an explicit pilot (`--shared`, `normal` only).
 Guide: `docs/nango.md`; agent patterns: `references/nango.md`; checklist: `references/auth-layers.md`.
 Windmill free has no native critical alerts; alert from a flow step (HTTP or
 SMTP) plus an external dead-man switch. Rules and test gate: `references/windmill.md`.

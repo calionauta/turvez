@@ -19,7 +19,7 @@ Two rules keep this list honest:
    already ships, not a broker.
 
 Facts below were read at the source (vendor docs, licence files, repo) on
-2026-11-06. Re-read them before buying; licence and self-host terms move.
+2026-11-07. Re-read them before buying; licence and self-host terms move.
 
 ## The table
 
@@ -89,7 +89,7 @@ replacement for the credential layer recipes already use.
 ## Adoption order if the product grows
 
 ```
-age (have)  →  Nango per client (P1)  →  grants + audit (P2)
+age (have)  →  Nango per client (have)  →  grants + audit (P2)
             →  adapter when a second backend exists (P3)
             →  agentgateway, only with self-hosted MCP servers
             →  OpenBao, only with an operator team or a regulated client

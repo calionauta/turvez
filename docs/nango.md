@@ -468,7 +468,7 @@ Here is how Nango scales coherently with that architecture:
 ### 8.2 Best Configurations Nango Offers for Turvez
 
 1. **Master OAuth App for SMBs (Frictionless Onboarding):**
-   - In Tier 1, register ONE master OAuth App in each provider (e.g. "Turvez Consulting Integrations").
+   - In a **shared pilot broker** (`--shared`), register ONE master OAuth App per provider (e.g. "Turvez Consulting Integrations").
    - Clients do **not** need developer accounts or GCP/HubSpot console access. You send a Connect session link, they click "Authorize", and Nango stores the token under `Connection-Id: <client>`.
 2. **Per-Client OAuth App Override:**
    - If an SMB client wants their brand on the consent screen, Nango allows overriding the OAuth App credentials per integration or environment without needing a new Nango instance.
@@ -479,7 +479,7 @@ Here is how Nango scales coherently with that architecture:
 
 ---
 
-### 8.3 Migration Lifecycle: Moving a Client from Shared to Dedicated
+### 8.3 Migration lifecycle: moving a client to its own broker
 
 Because Turvez recipes and scripts use environment variables and the client slug:
 - In a Go node or dagnats input: `os.Getenv("NANGO_HOST") + "/proxy/..."`
@@ -500,7 +500,7 @@ Because Turvez recipes and scripts use environment variables and the client slug
    export NANGO_HOST="http://<client-dedicated-nango>:8088"
    export NANGO_SECRET_KEY="<new-dedicated-secret-key>"
    ```
-4. **Purge Shared Connection (Old Server):** Remove the connection from the shared Nango to prevent lingering tokens:
+4. **Purge the connection on the OLD broker:** remove it to prevent lingering tokens:
    ```bash
    curl -X DELETE -H "Authorization: Bearer $SHARED_NANGO_SECRET_KEY" \
      "$SHARED_NANGO_HOST/connections/<client>?provider_config_key=<provider>"
