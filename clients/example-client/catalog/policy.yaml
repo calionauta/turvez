@@ -10,6 +10,9 @@
 # `approval: writes`, a read runs unattended and a create asks a human first.
 
 providers:
+  github-getting-started:
+    kinds: [read]
+    approval: none
   hubspot:
     kinds: [read, write]
     approval: writes
@@ -17,3 +20,6 @@ providers:
 limits:
   max_grants: 10
   scopes_ceiling: [".read", ".write"]
+  github-getting-started:
+    kinds: [read]
+    approval: none

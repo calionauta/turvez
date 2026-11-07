@@ -20,9 +20,10 @@ flag values. Each client gets its own answer; a dagnats client records only
 `scripts/connect-remotes.sh` is how the operator's answer reaches the shell:
 
 ```bash
-./scripts/connect-remotes.sh          # prompts, validates, saves
-./scripts/connect-remotes.sh --check  # re-validate what is saved
-./scripts/connect-remotes.sh --print  # which names are set (values never shown)
+./scripts/connect-remotes.sh --client acme   # prompts, validates, saves acme's file
+./scripts/connect-remotes.sh --client acme --check
+./scripts/connect-remotes.sh --client acme --print
+./scripts/connect-remotes.sh --client acme --nango-key  # only replace the Nango secret key
 ```
 
 It writes `~/.secrets/turvez-remotes.env` (mode 600, outside the repo) with the
@@ -39,7 +40,9 @@ names the tools already read:
 Load them in a shell:
 
 ```bash
-set -a; . ~/.secrets/turvez-remotes.env; set +a
+set -a; . ~/.secrets/turvez-remotes-acme.env; set +a
+# The wmill CLI needs these flags explicitly; it does not read the env file:
+# wmill --base-url "$BASE_INTERNAL_URL" --token "$WM_TOKEN" --workspace "$WM_WORKSPACE" flow list
 ```
 
 ## What validation proves, and what it does not

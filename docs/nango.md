@@ -412,56 +412,19 @@ If this returns `200 OK`, write the Windmill flow or dagnats recipe referencing 
 
 ---
 
-## 8. Scaling Strategy: Centralized (Shared) vs. Multi-Instance (Dedicated)
+## 8. Scaling Strategy: per-client by default, shared only as a pilot
 
-Turvez scales across two primary dimensions:
-1. **Engine scale:** Expanding recipes and flows across clients using Windmill, dagnats, or Dagu.
-2. **Infrastructure scale:** Evolving from a single centralized consultancy stack (`runtime: shared`) to dedicated client instances (`runtime: dedicated`).
+Turvez scales on two independent axes: the engine the client runs on and the
+broker where its credentials live. The broker placement is chosen explicitly
+(`access.plane` / `deployment.nango`); the engine placement (`runtime`) does not
+imply one for the broker.
 
-Here is how Nango scales coherently with that architecture:
+### 8.1 Two broker shapes
 
-### 8.1 The Two-Tier Topology
-
-```
-                  ┌────────────────────────────────────────────────────────┐
-                  │                 TIER 1: SHARED (SMBs)                  │
-                  │   Consultancy Server (runtime: shared)                 │
-                  │                                                        │
-                  │   ┌───────────────┐     ┌───────────────────────────┐  │
-                  │   │ Windmill /    │     │   Nango Central (:8088)   │  │
-                  │   │ Dagnats /     │────▶│                           │  │
-                  │   │ Dagu          │     │  • acme:hubspot           │  │
-                  │   └───────────────┘     │  • beta:slack             │  │
-                  │                         │  • gamma:google-sheets    │  │
-                  │                         └─────────────┬─────────────┘  │
-                  └───────────────────────────────────────┼────────────────┘
-                                                          │ (Proxy calls with
-                                                          │  auto-refreshed OAuth)
-                                                          ▼
-                                                   [External SaaS]
-                                                          ▲
-                  ┌───────────────────────────────────────┼────────────────┐
-                  │                                       │                │
-                  │                TIER 2: DEDICATED (Enterprise)          │
-                  │   Client VPC / Isolated Server (runtime: dedicated)    │
-                  │                                                        │
-                  │   ┌───────────────┐     ┌───────────────────────────┐  │
-                  │   │ Windmill /    │     │   Nango Dedicated (:8088) │  │
-                  │   │ Dagnats       │────▶│                           │  │
-                  │   │ Dedicated     │     │  • enterprise:salesforce  │  │
-                  │   └───────────────┘     │  • enterprise:quickbooks  │  │
-                  │                         └───────────────────────────┘  │
-                  └────────────────────────────────────────────────────────┘
-```
-
-| Dimension | Per-client (`access.plane: client`, **default**) | Shared (`access.plane: shared`, pilots only) |
-|---|---|---|
-| **Target Client** | any client whose agents call tools; **mandatory** for `data_class: sensitive` | SMB pilots with `data_class: normal`, where an instance each would kill the deal |
-| **Nango Deployment** | `NANGO_CLIENT_ID=<client> ./scripts/setup-nango.sh --up` — project, containers and volume all `nango-<client>` | `./scripts/setup-nango.sh --up --shared` — project `nango-shared` |
-| **Tenancy Boundary** | physical: own database, own `NANGO_ENCRYPTION_KEY`, own host | application-level, partitioned by `Connection-Id: <client>` |
-| **Master OAuth Apps** | client registers their own Developer App in their SaaS org | consultancy creates 1 OAuth App; clients authorise through it |
-| **Encryption Key** | held by the client's host | held by the consultancy |
-| **Operating Cost** | one container + one Postgres per client to monitor | near zero (1 container, 1 DB, 1 backup) |
+| Shape | When | Broker | Isolation |
+| --- | --- | --- | --- |
+| Per-client (default) | 1 broker per client, on the client's infra or their own cloud account | `NANGO_CLIENT_ID=<client> ./scripts/setup-nango.sh --up` | physical: own database, own key |
+| Shared pilot | `data_class: normal`, where an instance each would kill the deal | `./scripts/setup-nango.sh --up --shared` | application-level, `Connection-Id` |
 
 ---
 

@@ -14,6 +14,7 @@
 # Usage:
 #   ./scripts/connect-remotes.sh            # prompt, validate, save
 #   ./scripts/connect-remotes.sh --nango-key # prompt only for the NANGO secret key
+#   ./scripts/connect-remotes.sh --client acme # per-client file
 #   ./scripts/connect-remotes.sh --check    # re-validate what is saved
 #   ./scripts/connect-remotes.sh --print    # which names are set (no values)
 #
@@ -25,9 +26,19 @@
 set -euo pipefail
 
 SECRETS_DIR="${TURVEZ_SECRETS_DIR:-$HOME/.secrets}"
+CLIENT=""
+ARGS=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --client=*) CLIENT="${1#--client=}"; shift ;;
+    --client) CLIENT="${2:-}"; shift 2 ;;
+    *) ARGS+=("$1"); shift ;;
+  esac
+done
 FILE="$SECRETS_DIR/turvez-remotes.env"
+[ -n "$CLIENT" ] && FILE="$SECRETS_DIR/turvez-remotes-$CLIENT.env"
 
-action="${1:-prompt}"
+action="${ARGS[0]:-prompt}"
 case "$action" in
   prompt|--check|--print|--nango-key|--help|-h) ;;
   *) echo "connect-remotes: unknown argument '$action' (want --check | --print | --nango-key)" >&2; exit 2 ;;
