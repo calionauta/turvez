@@ -64,6 +64,9 @@
 - Script nodes are **Go** in both engines. TypeScript/Python only for a Windmill
   WAC orchestrator that dispatches to Go scripts (`taskScript`/`taskFlow`) —
   `docs/language-policy.md`, gate `./scripts/lint-scripts.sh`.
+- Deployment is per layer: `deployment.windmill` and `deployment.nango` record
+  whether each layer runs `cloud` or `self_hosted`, separately; `new-client.sh`
+  asks for each one and the manifest test refuses silence.
 - Access plane: `access:` in `client.yaml` + ceiling in `catalog/policy.yaml`.
   Policy in git, connections/grants in the broker — connecting an allowed app
   needs no PR. One broker per client (`NANGO_CLIENT_ID`); `--shared` is a

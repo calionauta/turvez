@@ -492,6 +492,40 @@ func windmillTargetError(fields map[string]string) string {
 	return ""
 }
 
+// TestDeploymentIsPerLayer pins the onboarding question: Windmill and Nango are
+// answered separately, and "not recorded" is a failure, not a default.
+func TestDeploymentIsPerLayer(t *testing.T) {
+	ok := map[string]string{"windmill": "cloud", "nango": "self_hosted"}
+	if msg := deploymentError(ok, "windmill", true); msg != "" {
+		t.Fatalf("cloud engine + self-hosted broker rejected: %s", msg)
+	}
+	reverse := map[string]string{"windmill": "self_hosted", "nango": "cloud"}
+	if msg := deploymentError(reverse, "windmill", true); msg != "" {
+		t.Fatalf("self-hosted engine + cloud broker rejected: %s", msg)
+	}
+	// A dagnats client does not declare Windmill, but still declares Nango.
+	if msg := deploymentError(map[string]string{"nango": "cloud"}, "dagnats", true); msg != "" {
+		t.Fatalf("declared broker rejected: %s", msg)
+	}
+	if msg := deploymentError(map[string]string{"nango": "cloud"}, "dagnats", false); msg != "" {
+		t.Fatalf("a client that never touches Nango was asked to declare it: %s", msg)
+	}
+	for _, bad := range []struct {
+		fields map[string]string
+		engine string
+		nango  bool
+	}{
+		{map[string]string{"nango": "cloud"}, "windmill", true},
+		{map[string]string{"windmill": "cloud"}, "windmill", true},
+		{map[string]string{"windmill": "cloud", "nango": "both"}, "windmill", true},
+		{map[string]string{"windmill": "TODO-CLIENT", "nango": "cloud"}, "windmill", true},
+	} {
+		if msg := deploymentError(bad.fields, bad.engine, bad.nango); msg == "" {
+			t.Fatalf("unrecorded/invalid hosting accepted: %#v", bad.fields)
+		}
+	}
+}
+
 // TestWindmillTargetIsRecorded pins the rule above on manifests, not on a
 // checkout: a Cloud client and a self-hosted client are equally valid answers,
 // but silence is not one.
@@ -522,6 +556,63 @@ func TestWindmillTargetIsRecorded(t *testing.T) {
 			t.Fatalf("unconfirmed target accepted: %#v", missing)
 		}
 	}
+}
+
+// hostingChoice validates one layer's answer. Empty is not a default: the
+// operator says cloud or self_hosted, per layer, at client onboarding.
+func hostingChoice(layer, value string) string {
+	switch value {
+	case "", "TODO-CLIENT":
+		return "deployment." + layer + " is not recorded — the operator answers cloud or self_hosted; the repo never infers it"
+	case "cloud", "self_hosted":
+		return ""
+	default:
+		return "deployment." + layer + ` is "` + value + `" — must be cloud or self_hosted`
+	}
+}
+
+// deploymentError keeps Windmill and Nango separate on purpose: a client can
+// run its engine on Cloud and its broker on the client's own host (or the
+// reverse). One answer for both would hide that.
+func deploymentError(fields map[string]string, engine string, usesNango bool) string {
+	if engine == "windmill" {
+		if msg := hostingChoice("windmill", fields["windmill"]); msg != "" {
+			return msg
+		}
+	}
+	if usesNango {
+		if msg := hostingChoice("nango", fields["nango"]); msg != "" {
+			return msg
+		}
+	}
+	return ""
+}
+
+// clientUsesNango reports whether anything under the client references the
+// broker: recipes, flows or env examples. A client that never touches Nango is
+// not asked to declare where Nango runs.
+func clientUsesNango(dir string) bool {
+	found := false
+	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || found || info.IsDir() {
+			return nil
+		}
+		switch filepath.Ext(path) {
+		case ".json", ".yaml", ".yml", ".go", ".ts":
+		default:
+			return nil
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		text := strings.ToLower(string(raw))
+		if strings.Contains(text, "nango") || strings.Contains(text, "provider-config-key") {
+			found = true
+		}
+		return nil
+	})
+	return found
 }
 
 // TestClientFieldbooks enforces the fieldbook-per-client structure: every
@@ -901,6 +992,11 @@ func TestClientManifests(t *testing.T) {
 			if err := windmillTargetError(fields); err != "" {
 				t.Errorf("%s: %s", manifest, err)
 			}
+		}
+		// Per-layer hosting: Windmill and Nango are answered separately, and a
+		// client only declares the layer it actually uses.
+		if msg := deploymentError(fields, engine, clientUsesNango(dir)); msg != "" {
+			t.Errorf("%s: %s", manifest, msg)
 		}
 
 		// Count active engine dirs; more than one means the manifest and the

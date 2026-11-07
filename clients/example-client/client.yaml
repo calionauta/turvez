@@ -10,6 +10,12 @@ target:
 data_class: normal
 owner: operator@example.com
 
+# Per-layer hosting. Windmill and Nango are answered separately, because a
+# client can run its engine on Cloud and its broker on its own host (or the
+# reverse). example-client keeps the broker on Cloud for the remote test.
+deployment:
+  nango: cloud
+
 # Access plane (docs/access-plane.md). Profile C: shared broker on the
 # consultancy host, allowed only because data_class is normal — a pilot shape.
 # A sensitive client must be `plane: client`.

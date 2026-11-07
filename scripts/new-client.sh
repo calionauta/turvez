@@ -29,6 +29,8 @@
 set -euo pipefail
 
 CLIENT=""
+WM_HOSTING=""
+NG_HOSTING=""
 # The default engine comes from engines.json, not from this script: one place to
 # change the policy (docs/client-spine.md#choosing-the-engine).
 ENGINES_JSON="$(cd "$(dirname "$0")/.." && pwd)/engines.json"
@@ -40,6 +42,8 @@ ENGINE="${ENGINE:-windmill}"
 for arg in "$@"; do
   case "$arg" in
     --engine=*) ENGINE="${arg#--engine=}" ;;
+    --windmill=*) WM_HOSTING="${arg#--windmill=}" ;;
+    --nango=*) NG_HOSTING="${arg#--nango=}" ;;
     -*) echo "unknown flag: $arg" >&2; exit 1 ;;
     *) CLIENT="$arg" ;;
   esac
@@ -56,8 +60,62 @@ case " $VALID_ENGINES " in
   *) echo "bad engine: $ENGINE (known: $VALID_ENGINES — add it to engines.json)" >&2; exit 1 ;;
 esac
 
-[ -n "$CLIENT" ] || { echo "Usage: new-client.sh <client-id> [--engine=<$(echo $VALID_ENGINES | tr ' ' '|')>]" >&2; exit 1; }
+[ -n "$CLIENT" ] || { echo "Usage: new-client.sh <client-id> [--engine=<$(echo $VALID_ENGINES | tr ' ' '|')>] [--windmill=cloud|self_hosted] [--nango=cloud|self_hosted]" >&2; exit 1; }
 [[ "$CLIENT" =~ ^[a-z0-9][a-z0-9-]*$ ]] || { echo "bad client id: $CLIENT (lowercase, digits, dashes)" >&2; exit 1; }
+
+# Per-layer hosting (docs/cloud-remotes.md). The operator answers each layer
+# separately; non-interactive scaffolding records the cloud default, and
+# --windmill=/--nango= is how a script or an agent answers without a TTY.
+ask_hosting() { # layer, current
+  local layer="$1" value="${2:-}"
+  case "$value" in
+    cloud|self_hosted) printf '%s' "$value"; return 0 ;;
+    "") ;;
+    *) echo "new-client: --$layer must be cloud or self_hosted, got '$value'" >&2; return 1 ;;
+  esac
+  if [ -t 0 ]; then
+    while :; do
+      printf '%s hosting [cloud/self_hosted] (cloud): ' "$layer" >&2
+      IFS= read -r value || true
+      value="${value:-cloud}"
+      case "$value" in
+        cloud|self_hosted) printf '%s' "$value"; return 0 ;;
+        *) echo "  answer cloud or self_hosted" >&2 ;;
+      esac
+    done
+  fi
+  printf 'cloud'
+}
+
+write_deployment() { # client.yaml, windmill value, nango value
+  python3 - "$1" "$2" "$3" <<'PY'
+import sys
+path, wm, ng = sys.argv[1:4]
+lines = open(path).read().splitlines()
+out, skipping = [], False
+for line in lines:
+    if skipping:
+        if line.strip() and not line.startswith((" ", "\t")):
+            skipping = False
+        elif not line.strip() or line.startswith((" ", "\t")):
+            continue
+        else:
+            skipping = False
+    if line.startswith("deployment:"):
+        skipping = True
+        continue
+    out.append(line)
+while out and not out[-1].strip():
+    out.pop()
+out += ["", "# Per-layer hosting: engine and broker are answered separately.", "deployment:"]
+if wm:
+    out.append("  windmill: %s" % wm)
+if ng:
+    out.append("  nango: %s" % ng)
+open(path, "w").write("\n".join(out) + "\n")
+PY
+}
+
 
 # Resolve target root: explicit ops dir wins; else current checkout.
 if [ -n "${TURVEZ_OPS_DIR:-}" ]; then
@@ -111,6 +169,13 @@ mkdir -p "$C/automation/$ENGINE" "$EV" "$ROOT/env" "$ROOT/secrets/$CLIENT"
 # the directory that actually holds the source.
 if [ -f "$TEMPLATES/client.yaml" ]; then
   sed "s/TODO-CLIENT/$CLIENT/g; s/^engine: .*/engine: $ENGINE/" "$TEMPLATES/client.yaml" > "$C/client.yaml"
+  # Record where each layer runs, separately. A Windmill client is asked about
+  # Windmill; every client is asked about the broker, because a dagnats client
+  # still calls SaaS APIs through Nango (docs/cloud-remotes.md).
+  wm_choice=""
+  [ "$ENGINE" = "windmill" ] && wm_choice="$(ask_hosting windmill "$WM_HOSTING")"
+  ng_choice="$(ask_hosting nango "$NG_HOSTING")"
+  write_deployment "$C/client.yaml" "$wm_choice" "$ng_choice"
 fi
 
 # Ceiling for the access plane (docs/access-plane.md). Copied empty, and the

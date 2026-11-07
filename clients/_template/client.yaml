@@ -21,6 +21,14 @@ target:
 data_class: normal    # normal | sensitive
 owner: TODO-OWNER
 
+# Per-layer hosting (docs/cloud-remotes.md). The operator answers each layer
+# separately — engine and broker can live in different places. Required for the
+# layer the client actually uses: cloud | self_hosted.
+# Written by ./scripts/new-client.sh --windmill=... --nango=...
+deployment:
+  # windmill: cloud
+  # nango: cloud
+
 # Access plane (docs/access-plane.md): the client's own agents calling
 # authenticated tools through a broker. Off by default — turning it on is a
 # decision, recorded here, and it is the only block that decides who holds the
