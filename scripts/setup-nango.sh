@@ -5,10 +5,15 @@
 # calls its proxy and Nango refreshes the OAuth token (docs/nango.md). The
 # runners only ever hold NANGO_HOST and NANGO_SECRET_KEY.
 #
+# One broker per client is the default (docs/access-plane.md §3): NANGO_CLIENT_ID
+# scopes the Compose project, the containers and the Postgres volume
+# (nango-<client>). The shared broker is explicit and pilots-only.
+#
 # Usage:
-#   ./scripts/setup-nango.sh          # check if running; report status
-#   ./scripts/setup-nango.sh --up     # validate env, start the stack, wait
-#   ./scripts/setup-nango.sh --down   # stop the stack (data volume is kept)
+#   NANGO_CLIENT_ID=acme ./scripts/setup-nango.sh --up  # this client's broker
+#   ./scripts/setup-nango.sh --up --shared              # shared (data_class: normal)
+#   ./scripts/setup-nango.sh                            # health check
+#   ./scripts/setup-nango.sh --down                     # stop this client's stack
 #
 # `--up` refuses to start without NANGO_ENCRYPTION_KEY and NANGO_DB_PASSWORD:
 # a default encryption key would be shared by every deployment, which is a
@@ -21,9 +26,80 @@ ROOT="$(cd "$HERE/.." && pwd)"
 PORT="${NANGO_PORT:-8088}"
 NANGO_HOST="${NANGO_HOST:-http://localhost:$PORT}"
 COMPOSE_FILE="$ROOT/docker-compose.nango.yml"
-COMPOSE=(docker compose -f "$COMPOSE_FILE")
 
-action="${1:---check}"
+# One broker per client is the default (docs/access-plane.md §3): the project
+# name, containers and the Postgres volume all carry the client suffix, so two
+# stacks on one host cannot share a database or an encryption key by accident.
+action="--check"
+shared=0
+for arg in "$@"; do
+  case "$arg" in
+    --up|up|--down|down|--check|check) action="$arg" ;;
+    --shared) shared=1 ;;
+    -h|--help)
+      sed -n '3,24p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+    *)
+      echo "setup-nango: unknown argument '$arg' (want --up | --down | --check | --shared)" >&2
+      exit 2
+      ;;
+  esac
+done
+
+CLIENT="${NANGO_CLIENT_ID:-${CLIENT_ID:-}}"
+
+# The id becomes a Compose project name and a volume name, and it is passed as
+# `-p "$PROJECT"`: anything but a lowercase slug is either rejected by Compose
+# later or, with a leading dash, read as a flag.
+case "$CLIENT" in
+  ""|*[!a-z0-9-]*|[-]*)
+    if [ -n "$CLIENT" ]; then
+      echo "setup-nango: NANGO_CLIENT_ID '$CLIENT' must be a lowercase slug (a-z, 0-9, -)" >&2
+      exit 2
+    fi
+    ;;
+esac
+
+if [ -n "$CLIENT" ] && [ "$shared" -eq 1 ]; then
+  echo "setup-nango: --shared contradicts NANGO_CLIENT_ID=$CLIENT" >&2
+  echo "  a shared broker belongs to no single client; drop one (docs/access-plane.md §3)" >&2
+  exit 2
+fi
+
+case "$action" in
+  --up|up)
+    if [ -z "$CLIENT" ] && [ "$shared" -eq 0 ]; then
+      echo "setup-nango: NANGO_CLIENT_ID is required" >&2
+      echo "" >&2
+      echo "  one broker per client is the default (docs/access-plane.md §3):" >&2
+      echo "    NANGO_CLIENT_ID=acme NANGO_PORT=8188 NANGO_CONNECT_PORT=8189 $0 --up" >&2
+      echo "  a shared broker is only legal for a data_class: normal pilot:" >&2
+      echo "    $0 --up --shared" >&2
+      exit 1
+    fi
+    if [ "$shared" -eq 1 ]; then
+      echo "setup-nango: starting the SHARED broker (pilots, data_class: normal only)" >&2
+      echo "  a sensitive client on this stack fails 'go test ./clients/' (invariant 7)" >&2
+    elif [ -z "${NANGO_PORT:-}" ]; then
+      echo "setup-nango: NANGO_PORT unset, using 8088 — that collides with any other" >&2
+      echo "  stack on this host; give each client its own NANGO_PORT/NANGO_CONNECT_PORT" >&2
+    fi
+    ;;
+esac
+
+PROJECT="${NANGO_PROJECT:-nango-shared}"
+if [ -z "${NANGO_PROJECT:-}" ] && [ -n "$CLIENT" ]; then
+  PROJECT="nango-$CLIENT"
+fi
+case "$PROJECT" in
+  ""|[!a-z0-9]*|*[!a-z0-9_-]*)
+    echo "setup-nango: project name '$PROJECT' is not a Compose project name (lowercase, digits, _ or -)" >&2
+    exit 2
+    ;;
+esac
+export NANGO_CLIENT_ID="${CLIENT:-shared}"
+COMPOSE=(docker compose -f "$COMPOSE_FILE" -p "$PROJECT")
 
 missing_env() {
   local missing=()
@@ -51,12 +127,12 @@ case "$action" in
       exit 1
     }
     missing_env || exit 1
-    echo "== starting Nango auth layer (${COMPOSE[*]} up -d)"
+    echo "== starting Nango auth layer for '$NANGO_CLIENT_ID' (project $PROJECT)"
     "${COMPOSE[@]}" up -d
     echo "waiting for Nango at $NANGO_HOST/health ..."
     for _ in $(seq 1 30); do
       if curl -s -f -m 2 "$NANGO_HOST/health" >/dev/null 2>&1; then
-        echo "nango: healthy at $NANGO_HOST"
+        echo "nango: healthy at $NANGO_HOST (project $PROJECT, client $NANGO_CLIENT_ID)"
         echo "  dashboard/API: $NANGO_HOST"
         echo "  connect UI  : http://localhost:${NANGO_CONNECT_PORT:-8089}"
         echo "next: create the integration in the dashboard, then run"
@@ -73,20 +149,20 @@ case "$action" in
     ;;
 
   --down|down)
-    echo "== stopping Nango stack (volume nango-db-data is kept)"
+    echo "== stopping Nango stack '$PROJECT' (volume ${PROJECT}_nango-db-data is kept)"
     "${COMPOSE[@]}" down
     exit 0
     ;;
 
   --check|check|*)
-    echo "== checking Nango auth layer ($NANGO_HOST)"
+    echo "== checking Nango auth layer ($NANGO_HOST, project $PROJECT)"
     if curl -s -f -m 3 "$NANGO_HOST/health" >/dev/null 2>&1; then
       echo "nango: running at $NANGO_HOST"
       exit 0
     fi
     echo "nango: NOT running at $NANGO_HOST"
-    echo "start it with: ./scripts/setup-nango.sh --up"
-    echo "or:            docker compose -f docker-compose.nango.yml up -d"
+    echo "start it with: NANGO_CLIENT_ID=<client> ./scripts/setup-nango.sh --up"
+    echo "or shared:     ./scripts/setup-nango.sh --up --shared   (data_class: normal only)"
     exit 1
     ;;
 esac

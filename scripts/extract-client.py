@@ -51,6 +51,36 @@ def manifest_fields(path):
     return out
 
 
+def access_block(manifest_path):
+    """Read the `access:` block of client.yaml.
+
+    manifest_fields() is deliberately flat, and the access plane is the first
+    nested block, so a flat read would let any future `enabled:` key elsewhere
+    answer for `access.enabled`. This walks the indentation instead: keys at
+    indent > 0 under `access:` belong to the block, and the block ends at the
+    next top-level key (docs/access-plane.md).
+    """
+    out = {}
+    if not manifest_path.is_file():
+        return out
+    inside = False
+    for raw in manifest_path.read_text().splitlines():
+        line = raw.rstrip()
+        if not line.strip() or line.strip().startswith("#"):
+            continue
+        indented = line[0] in " \t"
+        if not indented:
+            inside = line.split(":", 1)[0].strip() == "access"
+            continue
+        if not inside:
+            continue
+        key, sep, value = line.strip().partition(":")
+        if not sep:
+            continue
+        out[key.strip()] = value.split("#", 1)[0].strip().strip("\"'")
+    return out
+
+
 def naming_separator():
     try:
         return json.loads((TEMPLATE / "naming.json").read_text())["client_workflow_separator"]
@@ -239,6 +269,28 @@ def build_plan(client, root):
         add("   (or point `NANGO_HOST` to the client's isolated Nango instance).")
         add("2. Authorize connections for this client in Nango. Either create them with `connection_id: %s` (headless auth / import), or use a connect link and record the id Nango assigned in `clients/%s/nango/connections.json`." % (client, client))
         add("3. Set `NANGO_HOST` and `NANGO_SECRET_KEY` on the new host.")
+
+    policy = cdir / "catalog" / "policy.yaml"
+    access = access_block(cdir / "client.yaml")
+    if (access.get("enabled") or "").lower() == "true":
+        plane = access.get("plane") or "?"
+        identity = access.get("identity") or "org"
+        add("")
+        add("### Access plane (the client's agents calling tools)")
+        add("Broker plane **%s**, identity **%s** (docs/access-plane.md)." % (plane, identity))
+        if policy.is_file():
+            add("- Ceiling to carry as-is: `%s`" % policy.relative_to(root))
+        add("1. Start this client's broker: `NANGO_CLIENT_ID=%s NANGO_PORT=8188 NANGO_CONNECT_PORT=8189 "
+            "./scripts/setup-nango.sh --up`." % client)
+        add("2. Move the connections: they are rows in the broker's own Postgres "
+            "(volume `nango-%s_nango-db-data`). Dump and restore, or re-authorise — "
+            "only the client can consent." % client)
+        add("3. Recreate the grants in the new broker for tenant `%s`, then revoke them "
+            "on the old one; revocation is a row delete, not a deploy." % client)
+        if plane != "client":
+            add("4. **The manifest says `plane: %s`** — an extracted client is "
+                "client-hosted, so set `access.plane: client` before cutover "
+                "(a sensitive client on any other plane fails `go test ./clients/`)." % plane)
     add("")
 
     add("## 3. Commands - NEW server")

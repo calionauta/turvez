@@ -137,6 +137,12 @@ Either way the durable consequence is a **run in the client's engine**
 (dagnats `run start` / Windmill flow, idempotency key from the request) —
 Genkit is a capability, never a third engine, and the engine count stays one.
 
+**Not our agent?** If the agent belongs to the client and calls the tools we
+authenticated, the question stops being "which engine runs the loop" and becomes
+"what may it call": that is the **access plane** — `access:` in `client.yaml`,
+a ceiling in `catalog/policy.yaml`, one broker per client by default
+(`docs/access-plane.md`). It is a layer, like Nango, never a second engine.
+
 ## Q1.6 — is the ask "a library / new dependency"?
 
 Ask in order; the first `yes` wins, and it is the whole answer.
@@ -203,8 +209,9 @@ a single binary.
 OAuth for many SaaS APIs is a **layer**, not an orchestrator: Nango
 (self-hosted, ELv2) exposes an HTTP proxy that dagnats or Windmill can call.
 Never put raw OAuth tokens in Windmill variables or dagnats recipes.
-Scaling strategy: default to shared Nango on consultancy host for SMBs (`runtime: shared`);
-dedicated Nango instance only for isolated clients (`runtime: dedicated`).
+Where the broker runs is `access.plane`, not `runtime` (docs/access-plane.md):
+client-hosted by default and mandatory for `data_class: sensitive`; a shared
+broker on the consultancy host is an explicit pilot (`--shared`, `normal` only).
 Guide: `docs/nango.md`; agent patterns: `references/nango.md`; checklist: `references/auth-layers.md`.
 Windmill free has no native critical alerts; alert from a flow step (HTTP or
 SMTP) plus an external dead-man switch. Rules and test gate: `references/windmill.md`.

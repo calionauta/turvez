@@ -11,6 +11,7 @@ package clients
 
 import (
 	"encoding/json"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -332,16 +333,12 @@ func TestRecipeStructure(t *testing.T) {
 	// The same loop also rejects embedded credential values: JSON carries
 	// secret NAMES only. ($schema is accepted since dagnats v0.0.26 and is
 	// optional; none of these recipes carry it.)
-	var secretValuePatterns = []string{
-		"hooks.slack.com/services/", "xoxb-", "xoxp-", "sk-live-",
-		"sk-test-", "ghp_", "-----BEGIN",
-	}
 	for _, f := range recipeFiles(t) {
 		raw, err := os.ReadFile(f)
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, p := range secretValuePatterns {
+		for _, p := range embeddedSecretPatterns {
 			if strings.Contains(string(raw), p) {
 				t.Fatalf("%s: looks like an embedded secret value (%q); use secret names only", f, p)
 			}
@@ -474,6 +471,56 @@ func TestRecipeStructure(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
+	}
+}
+
+// windmillTargetError is the "did the operator actually say where this runs?"
+// check, split out so it can be proven without a Windmill client in the
+// template checkout. The manifest records a human answer; the repo never
+// infers a target, because the failure mode is pushing one client's flow into
+// another workspace.
+func windmillTargetError(fields map[string]string) string {
+	if fields["base_url"] == "" {
+		return "engine: windmill but no target.base_url — record the operator's answer (Cloud or self-hosted), do not infer it"
+	}
+	if u, err := url.Parse(fields["base_url"]); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return "engine: windmill but target.base_url \"" + fields["base_url"] + "\" is not an http(s) URL"
+	}
+	if w := fields["workspace"]; w == "" || strings.HasPrefix(w, "TODO") {
+		return "engine: windmill but target.workspace is \"" + w + "\" — one workspace per client is the tenancy rule (docs/deployment-profiles.md)"
+	}
+	return ""
+}
+
+// TestWindmillTargetIsRecorded pins the rule above on manifests, not on a
+// checkout: a Cloud client and a self-hosted client are equally valid answers,
+// but silence is not one.
+func TestWindmillTargetIsRecorded(t *testing.T) {
+	base := map[string]string{
+		"engine":    "windmill",
+		"base_url":  "https://cloud.windmill.dev",
+		"workspace": "acme",
+	}
+	if err := windmillTargetError(base); err != "" {
+		t.Fatalf("explicit cloud target rejected: %s", err)
+	}
+	selfHosted := map[string]string{
+		"engine":    "windmill",
+		"base_url":  "https://windmill.acme.internal",
+		"workspace": "acme",
+	}
+	if err := windmillTargetError(selfHosted); err != "" {
+		t.Fatalf("explicit self-hosted target rejected: %s", err)
+	}
+	for _, missing := range []map[string]string{
+		{"engine": "windmill", "workspace": "acme"},
+		{"engine": "windmill", "base_url": "cloud.windmill.dev", "workspace": "acme"},
+		{"engine": "windmill", "base_url": "https://cloud.windmill.dev"},
+		{"engine": "windmill", "base_url": "https://cloud.windmill.dev", "workspace": "TODO-CLIENT"},
+	} {
+		if err := windmillTargetError(missing); err == "" {
+			t.Fatalf("unconfirmed target accepted: %#v", missing)
+		}
 	}
 }
 
@@ -844,6 +891,16 @@ func TestClientManifests(t *testing.T) {
 			t.Errorf("%s: engine: %q is not a known engine (%s) — add it to engines.json",
 				manifest, engine, strings.Join(engineNames(knownEngines), "|"))
 			continue
+		}
+
+		// The manifest records what the human operator said about where this
+		// client runs; the repo does not infer a target. A Windmill client with
+		// no base_url/workspace is an unconfirmed deployment — and the failure
+		// mode is pushing one client's flow into another workspace.
+		if engine == "windmill" {
+			if err := windmillTargetError(fields); err != "" {
+				t.Errorf("%s: %s", manifest, err)
+			}
 		}
 
 		// Count active engine dirs; more than one means the manifest and the

@@ -35,8 +35,13 @@ isolation check.
   recreate from the JSON `triggers` arrays, see below)
 - `env/<client-id>.env` (or `secrets/<client-id>/env.age` +
   the age identity out-of-band)
-- SaaS Auth (Nango): spin up dedicated Nango on the new host (`./scripts/setup-nango.sh --up`)
-  and re-authorize connections for `Connection-Id: <client-id>` (see `docs/nango.md`, section 8)
+- SaaS Auth (Nango): start the client's own broker on the new host with
+  `NANGO_CLIENT_ID=<client-id> NANGO_PORT=8188 NANGO_CONNECT_PORT=8189 ./scripts/setup-nango.sh --up`,
+  then re-authorize connections for `Connection-Id: <client-id>` (see `docs/nango.md`).
+- Access plane, when `access.enabled: true`: carry `clients/<client-id>/catalog/policy.yaml`,
+  move the connections (a Postgres dump or a fresh consent), recreate the grants for the
+  tenant, revoke them on the old broker, and set `access.plane: client`. `./scripts/extract-client.py
+  <client-id>` prints the exact steps.
 - Worker image at the same git SHA / version (same binary, different env)
 
 ## What NOT to migrate

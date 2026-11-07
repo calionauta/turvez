@@ -1,6 +1,6 @@
 # Integrating Nango with Turvez
 
-Nango ([github.com/nangohq/nango](https://github.com/nangohq/nango)) is the **Auth & Integration Layer** for Turvez. It manages OAuth 2.0 flows, token storage, automatic token refreshing, and rate-limiting across 250+ SaaS integrations (HubSpot, Salesforce, Slack, Google Workspace, QuickBooks, Notion, Linear, Stripe, etc.).
+Nango ([github.com/nangohq/nango](https://github.com/nangohq/nango)) is the **Auth & Integration Layer** for Turvez. It manages OAuth 2.0 flows, token storage, automatic token refreshing, and rate-limiting across 1,000+ provider configs (HubSpot, Salesforce, Slack, Google Workspace, QuickBooks, Notion, Linear, Stripe, etc.).
 
 Turvez is the orchestration spine (Windmill or dagnats); **Nango is the credential broker**.
 
@@ -48,13 +48,35 @@ Turvez enforces strict client boundaries (`<client>`). Nango integrates seamless
 - **`Provider-Config-Key` = `<provider>`** (e.g. `hubspot`, `slack`, `google-sheets`, `salesforce`).
 
 ### Deployment Topology
-Nango runs as a central service or per-cluster instance:
+Which broker a client gets is `access.plane` in `client.yaml`
+(`docs/access-plane.md` §3), not a deployment convenience:
 
-| Component | Shared Runtime (`runtime: shared`) | Dedicated Runtime (`runtime: dedicated`) |
-|---|---|---|
-| **Nango Instance** | Single self-hosted Nango (or Nango Cloud) shared by consultancy clients | Dedicated Nango container in client's VPC |
-| **Data Isolation** | Partitioned strictly by `Connection-Id` (`<client>`) | Separate database and encryption key |
-| **Secret in Turvez** | Shared `NANGO_SECRET_KEY` in Windmill/dagnats env | Client-specific `NANGO_SECRET_KEY` |
+| Plane | Nango runs on | Isolation between clients | Licence and account |
+|---|---|---|---|
+| **`client` — default** | the client's infra or their VPC | own container, database, `SERVER_ENCRYPTION_KEY` and `NANGO_SECRET_KEY` | the client's; documented self-host is Enterprise (BYOC or self-managed) |
+| **`cloud` — on request** | Nango Cloud | per account | the client's own account and card — if the account is ours, the plane is `shared`, not `cloud` |
+| **`shared` — pilots only** | our host, one instance | application-level, partitioned by `Connection-Id` (`<client>`) | ours |
+
+`runtime: shared` still defaults to one instance, and that is legitimate for a
+**pilot with `data_class: normal`**. It is never legitimate for
+`data_class: sensitive`: there the plane is `client`, and the isolation is
+infrastructure, not a `WHERE tenant_id = ?`. A sensitive client on a shared
+broker fails `go test ./clients/` (invariant 7).
+
+### Licence and self-host (read before promising it)
+Nango is **Elastic License 2.0**, not an OSI licence: the repo's GitHub licence
+detection reports `NOASSERTION`, and the README's "open source" is marketing.
+The **documented** self-host paths — BYOC ("we deploy into your account") and
+Self-Managed — are Enterprise only; BYOC is the shape the vendor itself
+recommends.
+
+The `nangohq/nango-server:hosted` image in `docker-compose.nango.yml` is the
+community image. It runs, and its licence check only logs warnings, but it is
+the **unsupported** path: the supported self-host Dockerfile drops
+`packages/jobs`, `packages/runner` and `packages/persist`, so the lean official
+image does not run the Functions/syncs runtime. Use it for a pilot, with that
+risk written down, not for a client who asked for a supported deployment.
+Licence options and the Apache-2.0 alternative: `docs/tooling.md`.
 
 #### Self-Hosted Docker Compose (`docker-compose.nango.yml` in this repo)
 The repo ships the real file; this is its shape (official image, `SERVER_PORT`
@@ -80,9 +102,23 @@ services:
       - nango-db
 ```
 
-`./scripts/setup-nango.sh --up` validates the two required env vars, starts the
-stack and waits for `/health`. A default encryption key is deliberately not
-provided: it protects every stored OAuth token.
+`./scripts/setup-nango.sh --up` requires `NANGO_CLIENT_ID` (one broker per
+client — `docs/access-plane.md` §3), validates the two required env vars, starts
+the stack and waits for `/health`. The Compose project, the containers and the
+Postgres volume carry the client suffix (`nango-<client>`,
+`nango-<client>_nango-db-data`), so two stacks on one host cannot share a
+database or an encryption key by accident; give each its own `NANGO_PORT` and
+`NANGO_CONNECT_PORT`. A shared broker is an explicit choice for a
+`data_class: normal` pilot: `./scripts/setup-nango.sh --up --shared`, project
+`nango-shared`.
+
+A default encryption key is deliberately not provided: it protects every stored
+OAuth token.
+
+**Migration:** before the stack scoped itself the Compose project was the
+checkout directory (`turvez`) and the volume `turvez_nango-db-data`. Set
+`NANGO_PROJECT=turvez` to keep that deployment, or dump/restore the database
+into the new project.
 
 ---
 
@@ -418,21 +454,21 @@ Here is how Nango scales coherently with that architecture:
                   └────────────────────────────────────────────────────────┘
 ```
 
-| Dimension | Tier 1: Shared Centralized (`runtime: shared`) | Tier 2: Dedicated Isolated (`runtime: dedicated`) |
+| Dimension | Per-client (`access.plane: client`, **default**) | Shared (`access.plane: shared`, pilots only) |
 |---|---|---|
-| **Target Client** | SMBs, startups, standard consulting engagements (Profile B) | Enterprise, financial, healthcare (SOC2, HIPAA, GDPR, Profile A) |
-| **Nango Deployment** | Single instance on consultancy server (`docker-compose.nango.yml`) | Dedicated Nango container in client's VPS/VPC |
-| **Tenancy Boundary** | Partitioned strictly by `Connection-Id: <client>` | Complete physical isolation (dedicated DB + container) |
-| **Master OAuth Apps** | Consultancy creates 1 OAuth App in HubSpot/Slack/Google; all clients authorize through it | Client registers their own Developer App in their SaaS organization |
-| **Encryption Key** | Consultancy holds `NANGO_ENCRYPTION_KEY` | Client / dedicated host holds independent encryption key |
-| **Operating Cost** | Near zero (1 container, 1 DB, 1 backup) | Higher ($N$ containers and Postgres DBs to monitor) |
+| **Target Client** | any client whose agents call tools; **mandatory** for `data_class: sensitive` | SMB pilots with `data_class: normal`, where an instance each would kill the deal |
+| **Nango Deployment** | `NANGO_CLIENT_ID=<client> ./scripts/setup-nango.sh --up` — project, containers and volume all `nango-<client>` | `./scripts/setup-nango.sh --up --shared` — project `nango-shared` |
+| **Tenancy Boundary** | physical: own database, own `NANGO_ENCRYPTION_KEY`, own host | application-level, partitioned by `Connection-Id: <client>` |
+| **Master OAuth Apps** | client registers their own Developer App in their SaaS org | consultancy creates 1 OAuth App; clients authorise through it |
+| **Encryption Key** | held by the client's host | held by the consultancy |
+| **Operating Cost** | one container + one Postgres per client to monitor | near zero (1 container, 1 DB, 1 backup) |
 
 ---
 
 ### 8.2 Best Configurations Nango Offers for Turvez
 
 1. **Master OAuth App for SMBs (Frictionless Onboarding):**
-   - In Tier 1, register ONE master OAuth App in each provider (e.g. "Turvez Consulting Integrations").
+   - In a **shared pilot broker** (`--shared`), register ONE master OAuth App per provider (e.g. "Turvez Consulting Integrations").
    - Clients do **not** need developer accounts or GCP/HubSpot console access. You send a Connect session link, they click "Authorize", and Nango stores the token under `Connection-Id: <client>`.
 2. **Per-Client OAuth App Override:**
    - If an SMB client wants their brand on the consent screen, Nango allows overriding the OAuth App credentials per integration or environment without needing a new Nango instance.
@@ -443,7 +479,7 @@ Here is how Nango scales coherently with that architecture:
 
 ---
 
-### 8.3 Migration Lifecycle: Moving a Client from Shared to Dedicated
+### 8.3 Migration lifecycle: moving a client to its own broker
 
 Because Turvez recipes and scripts use environment variables and the client slug:
 - In a Go node or dagnats input: `os.Getenv("NANGO_HOST") + "/proxy/..."`
@@ -454,15 +490,17 @@ Because Turvez recipes and scripts use environment variables and the client slug
 #### The 4-Step Extraction Procedure:
 1. **Provision Dedicated Nango:** On the client's new server, run:
    ```bash
-   ./scripts/setup-nango.sh --up
+   NANGO_CLIENT_ID=<client> NANGO_PORT=8088 ./scripts/setup-nango.sh --up
    ```
+   (the project, containers and volume are named `nango-<client>` — one broker
+   per client is the default, `docs/access-plane.md` §3)
 2. **Authorize Dedicated Connections:** Generate Connect sessions on the new Nango instance for `connection_id = <client>` (using client's own OAuth Developer App if required).
 3. **Point Automation to New Nango:** In the new server's environment or Windmill workspace:
    ```bash
    export NANGO_HOST="http://<client-dedicated-nango>:8088"
    export NANGO_SECRET_KEY="<new-dedicated-secret-key>"
    ```
-4. **Purge Shared Connection (Old Server):** Remove the connection from the shared Nango to prevent lingering tokens:
+4. **Purge the connection on the OLD broker:** remove it to prevent lingering tokens:
    ```bash
    curl -X DELETE -H "Authorization: Bearer $SHARED_NANGO_SECRET_KEY" \
      "$SHARED_NANGO_HOST/connections/<client>?provider_config_key=<provider>"

@@ -22,7 +22,7 @@ credentials and agent tools, an **LLM gateway** for model calls, and optional
 | **Windmill** — default engine | flows under `automation/windmill/`, Go script nodes, UI/forms, step-level replay | most client work; an operator who is not you | one instance, one workspace per client |
 | **dagnats** — exception engine | Go worker + 12 generic tasks + embedded NATS JetStream, `go test` gate | typed contracts, native approvals, no arbitrary code, one binary, Apache-2.0 | one binary; shared or dedicated |
 | **Dagu** — level 2 | YAML DAGs over commands the client already has | recurrent script/SSH/Docker/backup jobs | separate binary, no DB; source under `automation/dagu/`, deployed to a dags dir |
-| **Nango** — credential/tool layer | OAuth store, HTTP proxy, Agent Sessions (MCP) | SaaS auth without raw tokens; tool discovery for agents | Node + Postgres; self-hosted or Cloud |
+| **Nango** — credential/tool layer | OAuth store, HTTP proxy, Agent Sessions (MCP) | SaaS auth without raw tokens; tool discovery for agents | Node + Postgres; **one instance per client** by default, Cloud or a shared pilot broker on request (`docs/access-plane.md`) |
 | **LLM gateway** | OpenAI-compatible endpoint behind `llm.complete` | one auditable model-call surface, per-client keys/cost | per deployment profile |
 | **Genkit** — optional capability, not an engine | bounded, human-watched agent loop in a Go service (`cmd/<client>-agent`) | review/rewrite, triage with read-only tools, extraction with a critic; goai is still the only model path | scaffolded per client (`scripts/new-agent-service.sh`), in front of its engine |
 | **Retrieval** — per-client capability | long context, or Go + [Bleve](https://github.com/blevesearch/bleve): index ~256-512-token chunks (the routing unit), **read their parent section (the reading unit)** under hard token/candidate caps (`docs/retrieval.md`) | answering from documents; a calibrated cutoff refuses rather than filling the prompt with noise | alongside the client's engine |
@@ -33,6 +33,37 @@ credentials and agent tools, an **LLM gateway** for model calls, and optional
 **One orchestrator per client.** Nango, the gateway and retrieval are layers:
 they sit in front of Windmill or dagnats, they do not replace either. Running
 two engines for one client is a test failure (`TestClientManifests`).
+
+## Related tooling (evaluated, not installed)
+
+Every one of these is a **layer or an alternative** for a slot this stack
+already fills. They are listed so a future decision starts from facts instead
+of from a README claiming "open source". Full comparison, licences and
+triggers: `docs/tooling.md`.
+
+| Tool | What it does | When it would enter | Today |
+| --- | --- | --- | --- |
+| **Corsair** | Apache-2.0 credential broker: ~300 provider plugins, REST + MCP, per-tool approvals, multi-tenant | If Nango's Elastic-2.0 terms block a use and a Node sidecar is acceptable | Not installed — same role as Nango |
+| **ACI.dev** | Apache-2.0 tool-calling platform: 600+ tools, per-user OAuth, natural-language permission boundaries, tool-use logs, unified MCP server + portal | When the access plane wants a ready tool catalog and MCP surface, and a Python service is acceptable | Not installed — a P3 adapter candidate, not a recipe proxy |
+| **agentgateway** | MCP/A2A data plane: CEL policy, credential injection on egress (CB4A model A), guardrails | When *we* host MCP servers and need per-call policy plus injection | Not installed — no MCP traffic to police |
+| **Executor** | MIT agent-first app host: MCP gateway, per-app accounts, tool approvals, one container | Only if we accept an external app host beside the spine | Not installed — different product shape |
+| **Bifrost** | LLM gateway: provider unification, failover, semantic cache, virtual keys and budgets | When the LLM key is **ours** (resale/budget per end user) or failover has an SLA | Not installed — the client owns their key, GoAI is the only model path |
+| **OpenBao** | Secrets service: KV, dynamic DB credentials, PKI, audit devices | 3+ operators on client secrets, a regulated client demanding an access audit trail, or an agent gateway's vault | Not installed — age covers at-rest encryption with no service to unseal |
+
+## Access plane (client agents calling tools)
+
+Automations are one product; letting the client's own agents call the same
+authenticated tools is another. It is a third plane — not control, not
+execution — and it lives in `access:` in `client.yaml` plus a ceiling in
+`catalog/policy.yaml`. Policy is in git and reviewed; connections and grants are
+state in the broker, so connecting an app that is already allowed needs no PR.
+`go test ./clients/` refuses a write with no approval, a `sensitive` client off
+the client-hosted plane, a `cloud` plane on our account, a provider used but not
+declared, and an `identity` left unstated. One broker per client is the default
+(`NANGO_CLIENT_ID`); `--shared` is a `data_class: normal` pilot. `identity: org`
+is the recommendation — one refresh chain, one revocation row; `per-user` is a
+compliance choice, not an upgrade. Design and phases: `docs/access-plane.md`.
+
 
 ## Decision tree
 
@@ -266,6 +297,9 @@ curl -X POST localhost:8090/ops/approvals/<run-id> \
 - `docs/handlers-reference.md` — task inputs/outputs, metadata keys
 - `docs/language-policy.md` — **Go script nodes**; TS/Python only for a dispatch-only WAC orchestrator
 - `docs/nango.md` — credential layer: OAuth proxy, naming/enforcement, Agent Sessions (MCP)
+- `docs/access-plane.md` — the third plane: client agents calling authenticated tools, policy vs state, where the broker runs, invariants, phases
+- `docs/tooling.md` — when each layer enters (Nango, Corsair, agentgateway, Executor, Bifrost, OpenBao) and when it would be weight
+- `docs/cloud-remotes.md` — `scripts/connect-remotes.sh`: record Windmill and Nango cloud/self-hosted endpoints (prompts, validates, never prints a secret)
 - `docs/retrieval.md` — documents vs systems of record; route-then-read; hard token/candidate caps; calibrated refusal; eval gate
 - `docs/genkit.md` — agent-loop capability (not an engine): a bounded Genkit flow in the request, goai as the only model path, Nango for tools, durable tail as a run; scaffold `scripts/new-agent-service.sh`, compile gate `scripts/check-agent-template.sh`
 - `skills/turvez/references/decision-tree.md` — the canonical tree, the interview protocol and the defaults table

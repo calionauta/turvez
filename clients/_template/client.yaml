@@ -20,3 +20,25 @@ target:
   # host: TODO-CLIENT.internal
 data_class: normal    # normal | sensitive
 owner: TODO-OWNER
+
+# Access plane (docs/access-plane.md): the client's own agents calling
+# authenticated tools through a broker. Off by default — turning it on is a
+# decision, recorded here, and it is the only block that decides who holds the
+# credential.
+access:
+  enabled: false          # true | false
+  # plane: client           # client | cloud | shared — required when enabled.
+  #                         #   client = broker on the client's infra, under
+  #                         #            their account (default; the only plane
+  #                         #            allowed for data_class: sensitive)
+  #                         #   cloud  = vendor Cloud, under the client's own
+  #                         #            account AND card — if the account is
+  #                         #            ours this is `shared`, not `cloud`
+  #                         #   shared = one broker on our host, pilots with
+  #                         #            data_class: normal only
+  # surface: mcp            # mcp | none
+  # identity: org           # REQUIRED when enabled: org | per-user
+  #                         # → connection id <client> | <client>:<user>;
+  #                         # org is the recommended default for reliability
+  # policy: catalog/policy.yaml
+  # vendor_account: client  # client | consultancy — required when plane: cloud

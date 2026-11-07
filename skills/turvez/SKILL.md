@@ -188,11 +188,12 @@ Methodology questions (discover, scope, runbook): see `references/methodology.md
 | `scripts/clients-root.sh`, `scripts/eval-dir.sh` | resolve the client / eval dir (clients or legacy workflows) |
 | `scripts/check-windmill.sh` | Windmill lint gate, no worker needed |
 | `scripts/lint-scripts.sh` | local script gate: compiles Go nodes, checks `func main`, flow bindings, and the Go-only language policy (no server) |
-| `scripts/setup-nango.sh [--up/--down]` | check or spin up Nango auth layer |
+| `scripts/setup-nango.sh [--up/--down] [--shared]` | check or spin up Nango; per-client needs `NANGO_CLIENT_ID`, `--shared` is pilots only |
 | `scripts/nango-connect.sh <client> --provider <slug> [--link] [--open]` | operator authorises a provider in Nango; prints the link + the exact names (`--link` mints a 30-minute click-to-connect link) |
 | `scripts/verify-isolation.sh` | where every client runs (`runtime`/`target`), read-only; in `make validate` |
 | `docs/retrieval.md`, `references/retrieval.md` | documents vs systems of record; route-then-read; hard token/candidate caps; calibrated refusal; Nango MCP vs proxy; eval gate |
 | `docs/genkit.md` | agent-loop capability (not an engine): Genkit flow in the request, goai as the model path, Nango for tools, durable tail as a run |
+| `docs/access-plane.md`, `docs/tooling.md` | the client's **own** agents calling authenticated tools: policy in git vs state in the broker, one broker per client, and when each tool/broker/gateway earns a place |
 | `scripts/new-agent-service.sh <client>` | Genkit capability scaffold (Q1.5/Q1.6): plan, then `--apply --provider <slug>`; needs a Go checkout |
 | `scripts/check-agent-template.sh` | compile/vet gate for that scaffold (pinned Genkit, temp module); runs in CI |
 | `scripts/extract-client.py <client>` | package one client for its own server — prints the plan, never executes |
@@ -233,7 +234,7 @@ instead of pasting its text into a prompt.
   client stay in the build loop below — no per-write confirm.
 - New Go handler: propose only, human lands (table tests required).
 - Secrets by NAME only. Never print values.
-- SaaS OAuth integrations: use **Nango** (`references/nango.md`), never raw tokens in Windmill variables or dagnats recipes. Client keys/tokens: ask the operator to authorise via `./scripts/nango-connect.sh <client> --provider <slug> --link --open`, never "send me the token".
+- SaaS OAuth integrations: use **Nango** (`references/nango.md`), never raw tokens in Windmill variables or dagnats recipes. If the **client's own agents** will call those tools, that is the access plane (`docs/access-plane.md`): a ceiling in `catalog/policy.yaml`, one broker per client, grants self-serve — not another engine. Client keys/tokens: ask the operator to authorise via `./scripts/nango-connect.sh <client> --provider <slug> --link --open`, never "send me the token".
 
 ## Build loop (level 0 — dagnats engine)
 

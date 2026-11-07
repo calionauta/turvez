@@ -113,6 +113,14 @@ if [ -f "$TEMPLATES/client.yaml" ]; then
   sed "s/TODO-CLIENT/$CLIENT/g; s/^engine: .*/engine: $ENGINE/" "$TEMPLATES/client.yaml" > "$C/client.yaml"
 fi
 
+# Ceiling for the access plane (docs/access-plane.md). Copied empty, and the
+# plane stays off in client.yaml: enabling it and declaring providers is a
+# decision about who holds the credential, never a scaffold default.
+if [ -d "$TEMPLATES/catalog" ]; then
+  mkdir -p "$C/catalog"
+  cp -R "$TEMPLATES/catalog/." "$C/catalog/"
+fi
+
 # Fieldbook from template (placeholder swap; portable upper-case for macOS bash 3.2).
 UPPER="$(echo "$CLIENT" | tr 'a-z' 'A-Z')"
 sed "s/TODO-CLIENT/$CLIENT/g; s/TODO_SLACK_WEBHOOK_URL/${UPPER}_SLACK_WEBHOOK_URL/g" \

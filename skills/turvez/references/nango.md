@@ -174,11 +174,16 @@ Before authoring flows that use Nango, check if Nango is running:
 ./scripts/setup-nango.sh            # or curl -s -f "$NANGO_HOST/health"
 ```
 
-If not running, spin up the stack:
+If not running, spin up this client's stack:
 ```bash
-./scripts/setup-nango.sh --up       # runs docker compose -f docker-compose.nango.yml up -d
+NANGO_CLIENT_ID=<client> NANGO_PORT=8188 NANGO_CONNECT_PORT=8189 \
+  ./scripts/setup-nango.sh --up   # project nango-<client>, own volume
 ```
 Default port: `8088` (API + proxy at `http://localhost:8088`; Connect UI on 8089), non-conflicting with Windmill (:8000) or dagnats (:8080). Inside a compose network the service is `http://nango:3003`.
+
+A shared broker is only for a `data_class: normal` pilot and must say so:
+`./scripts/setup-nango.sh --up --shared` (project `nango-shared`). A sensitive
+client on that stack fails `go test ./clients/` (invariant 7).
 
 ---
 
@@ -191,15 +196,25 @@ When calling the Nango proxy:
 
 ---
 
-## 7. Scaling Strategy: Shared vs Dedicated Nango
+## 7. Scaling Strategy: Per-client by Default, Shared as a Pilot
 
-1. **Shared Consultancy Nango (Default, `runtime: shared`):**
-   - One central Nango instance on your server (`:8088`).
-   - Register ONE master OAuth Developer App in HubSpot/Slack/Google for the consultancy; all SMB clients authorize through it.
-   - Tenancy: `Connection-Id: <client>`.
-   - Security: AES-256 encrypted at rest; clients never have direct access to `NANGO_SECRET_KEY` or the Nango API.
-2. **Dedicated Client Nango (`runtime: dedicated`):**
-   - For enterprise clients with data residency or compliance requirements.
-   - Run dedicated `./scripts/setup-nango.sh --up` on the client's host.
-   - Zero workflow code changes! Workflows only read `NANGO_HOST` and `Connection-Id: <client>`.
-   - When extracting a client to its own server: `./scripts/extract-client.py <client>` generates the exact cutover and old-server connection cleanup commands.
+1. **Per-client Nango (default, `access.plane: client`):**
+   - `docs/access-plane.md` §3. The broker lives where the credential belongs:
+     the client's infrastructure, under their account.
+   - Its Compose project, containers and volume carry the client suffix
+     (`nango-<client>`), so it cannot share a database or a key with another
+     client.
+   - Start it on the client's host:
+     `NANGO_CLIENT_ID=<client> NANGO_PORT=8188 NANGO_CONNECT_PORT=8189 ./scripts/setup-nango.sh --up`
+   - Tenancy inside the instance is still `Connection-Id: <client>`; the
+     instance boundary is what a security review reads.
+2. **Shared Consultancy Nango (`access.plane: shared`, pilots only):**
+   - Explicit: `./scripts/setup-nango.sh --up --shared`. Legal only while
+     `data_class: normal`; a sensitive client on it fails `go test ./clients/`
+     (invariant 7).
+   - One master OAuth Developer App in HubSpot/Slack/Google, all SMB clients
+     authorise through it. Tenancy: `Connection-Id: <client>`.
+   - Security: encrypted at rest, clients never see `NANGO_SECRET_KEY` — but the
+     isolation is application-level, which is exactly why it is a pilot shape.
+3. **Cutover:** `./scripts/extract-client.py <client>` prints the plan,
+   including the access-plane steps (ceiling, connections, grants, plane flip).
