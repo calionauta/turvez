@@ -211,3 +211,31 @@
   why: >
     A retry library is a second path beside the engine's retry; the tree refuses
     it instead of installing it. This also proves the library branch is graded.
+
+- id: hierarchical-documents-pageindex
+  ask: >
+    Cliente tem 200 relatórios longos com capítulos e quer respostas multi-passo
+    com citação de página/seção (ex.: 10-Ks). Nada cabe em um prompt.
+  facts:
+    client_yaml: |
+      client: acme
+      engine: windmill
+      runtime: shared
+  expect:
+    engine: windmill
+    runtime: shared
+    level: "3"
+    capability: retrieval
+    library: none
+    record: clients/acme/client.yaml
+  questions:
+    max: 2
+    forbid: ["qual engine", "which engine"]
+  artifacts:
+    - docs/retrieval.md
+    - skills/turvez/references/decision-tree.md
+  why: >
+    Hierarchical documents with multi-hop and exact-page traceability ask for the
+    PageIndex alternative (tree index + LLM traversal, eval-gated) rather than a
+    vector DB or a bigger prompt. The tree records the alternative; the evals
+    grade alternatives, not code.

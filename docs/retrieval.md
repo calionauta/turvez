@@ -13,6 +13,7 @@ first.
 | A **system of record** (CRM, ERP, ticketing, wiki with an API) | a **tool call** through Nango: the fixed HTTP proxy in a recipe/flow, or an agent session (MCP) when an agent must choose tools | a local index of a copy that goes stale |
 | **Documents the client owns** (PDFs, contracts, manuals) | **route-then-read** (below) | embeddings by default |
 | A handful of pages that fit one prompt | no index: long context with a stable cached prefix | Bleve, a vector DB, a reindex pipeline |
+| Long, hierarchical documents needing multi-hop or exact page traceability | **PageIndex (eval-gated alternative)** — tree index + LLM traversal, vectorless, MIT | general vector DB |
 
 The two expensive mistakes are a vector database for a 40-page FAQ, and a local
 index of HubSpot that answers with last month's deal stage.

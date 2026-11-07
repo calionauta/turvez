@@ -100,8 +100,14 @@ Ask in order; stop at the first branch that answers. Full playbook:
      "not found" answer; no cloud call when nothing passes;
    - eval 30-50 questions + 5-10 refusals; add vectors inside Bleve only when
      lexical + synonyms measurably miss.
-4. **Synthesis across more than fits one context** → hierarchy/map-reduce, or
-   vectors; not a bigger prompt.
+   - **Long, hierarchical documents asking for multi-hop or exact-page
+     traceability**: PageIndex (tree index + LLM traversal, vectorless, MIT) is
+     an **eval-gated alternative** to the chunk route — not a default. Run the
+     same cases over both; adopt only if it beats the chunk route on accuracy on
+     the kinds of question the client actually asks.
+4. **Synthesis across more than fits one context** → hierarchy/map-reduce
+   (including the PageIndex tree alternative above), or vectors; not a bigger
+   prompt.
 5. **Open-domain, paraphrase-heavy, cross-lingual** → semantic retrieval is the
    right tool; still gate it with the eval.
 
