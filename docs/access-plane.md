@@ -169,10 +169,9 @@ would have nothing to check.
 
 ## 7. What is not implemented yet
 
-Status: **P0, P1 and the P2 adapter done** (contract, ceiling, tests, docs,
-per-client broker scoping, and the minimal adapter over the Nango HTTP API:
-connect session, list-by-tag, revoke). The full self-serve UI and the audit
-store are still future work.
+Status: **P0, P1 and P2 implemented** (contract, ceiling, tests, docs,
+per-client broker scoping, minimal Nango adapter and grant manager with
+audited revoke/list/create). The full self-serve UI is still future work.
 
 | Phase | Work | Gate |
 | --- | --- | --- |

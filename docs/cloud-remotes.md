@@ -56,7 +56,7 @@ It proves: the URL answers, and the token/secret is accepted.
 It does **not** prove: that the account belongs to the client (contract and
 fieldbook), that the workspace is the right one for this client (that is
 `target.workspace` in `client.yaml`, enforced by `go test ./clients/`), or that
-the remote runs the same version as the local CLI.
+the remote runs the same version as the local CLI. Record the local `wmill` version in the fieldbook for each client and re-check it at every deploy (the server version is not pinned by us; the CLI version is).
 
 ## Cloud does not change the contracts
 

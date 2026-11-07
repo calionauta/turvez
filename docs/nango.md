@@ -419,6 +419,8 @@ broker where its credentials live. The broker placement is chosen explicitly
 (`access.plane` / `deployment.nango`); the engine placement (`runtime`) does not
 imply one for the broker.
 
+> Canonical: `docs/access-plane.md` §3 (broker placement) and §7 (phases). This section is the Nango-specific view.
+
 ### 8.1 Two broker shapes
 
 | Shape | When | Broker | Isolation |

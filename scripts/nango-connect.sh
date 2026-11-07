@@ -12,7 +12,9 @@
 #   ./scripts/nango-connect.sh <client> --provider slack --subaccount billing
 #
 # --link creates a 30-minute Click-to-connect magic link (Nango
-# POST /connect/sessions) tagged with the client; it needs NANGO_SECRET_KEY.
+# POST /connect/sessions) tagged with the client; it needs an
+# **environment-scoped** NANGO_SECRET_KEY (account-level keys fail with
+# missing_environment on Nango Cloud).
 # The connection it creates gets Nango's own id (a UUID) — the tag is how you
 # find it again. --open opens the link (or the Connect UI / dashboard when
 # there is no link).
