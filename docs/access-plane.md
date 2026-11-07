@@ -152,7 +152,10 @@ limits:
 ```
 
 The scaffold ships the block **off** (`access.enabled: false`) and an empty
-ceiling: a new client opts in, it never inherits an exposure.
+ceiling: a new client opts in, it never inherits an exposure. Both `max_grants`
+and `scopes_ceiling` are required as soon as a provider is declared — a ceiling
+without a grant cap or a scope list is a ceiling in name only, and invariant 4
+would have nothing to check.
 
 ## 7. What is not implemented yet
 

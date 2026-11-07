@@ -1,6 +1,6 @@
 # Integrating Nango with Turvez
 
-Nango ([github.com/nangohq/nango](https://github.com/nangohq/nango)) is the **Auth & Integration Layer** for Turvez. It manages OAuth 2.0 flows, token storage, automatic token refreshing, and rate-limiting across 250+ SaaS integrations (HubSpot, Salesforce, Slack, Google Workspace, QuickBooks, Notion, Linear, Stripe, etc.).
+Nango ([github.com/nangohq/nango](https://github.com/nangohq/nango)) is the **Auth & Integration Layer** for Turvez. It manages OAuth 2.0 flows, token storage, automatic token refreshing, and rate-limiting across 1,000+ provider configs (HubSpot, Salesforce, Slack, Google Workspace, QuickBooks, Notion, Linear, Stripe, etc.).
 
 Turvez is the orchestration spine (Windmill or dagnats); **Nango is the credential broker**.
 

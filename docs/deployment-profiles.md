@@ -42,6 +42,21 @@ The repo is agnostic: `llm.complete` needs a `base_url` (or `LLM_BASE_URL`).
 Whether that URL is a gateway, a proxy or a provider endpoint is deployment
 configuration, not a code branch.
 
+## Broker placement (the access plane)
+
+The credential broker follows the **credential**, not the deployment profile.
+These two axes are orthogonal and both are written down per engagement:
+
+| Deployment profile | Where the broker can run |
+| --- | --- |
+| **A. Embedded** | client-hosted, same host (`plane: client`) |
+| **B. Managed** | client-hosted (`plane: client`, the normal case — you operate the automation, their tokens stay theirs) or consultancy-shared for a `data_class: normal` pilot |
+| **C. Multi-tenant** | consultancy-shared per tenant, or client-hosted per tenant when the contract requires it |
+
+Hard rule: a `data_class: sensitive` client is client-hosted, whichever profile
+runs the automation. `runtime: dedicated` also requires `plane: client`.
+`docs/access-plane.md` §3 has the three rules and the test that enforces them.
+
 ## Engine implications per profile
 
 The engine (`client.yaml`) changes what "your server" has to carry:

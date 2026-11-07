@@ -338,6 +338,11 @@ func (p Policy) Validate() error {
 			return fmt.Errorf("limits.scopes_ceiling: %q is not a scope string or suffix", scope)
 		}
 	}
+	// Invariant 4 is enforced against OAuth scopes in P2; a ceiling with no
+	// scope list has nothing to enforce, so it would silently allow everything.
+	if len(p.Limits.ScopesCeiling) == 0 {
+		return fmt.Errorf("limits.scopes_ceiling: required as soon as a provider is declared (the scope ceiling is what invariant 4 checks)")
+	}
 	return nil
 }
 

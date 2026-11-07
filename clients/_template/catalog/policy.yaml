@@ -21,9 +21,10 @@
 # limits bound how far a client can go inside the ceiling.
 #   max_grants     required as soon as a provider is declared: a ceiling without
 #                  a grant cap is not a ceiling.
-#   scopes_ceiling OAuth scope strings or suffixes the broker may request.
-#                  Anything outside it is refused server-side, not hidden in
-#                  the UI (invariant 4).
+#   scopes_ceiling OAuth scope strings or suffixes the broker may request —
+#                  required too, because a ceiling with no scope list has
+#                  nothing to enforce. Anything outside it is refused
+#                  server-side, not hidden in the UI (invariant 4).
 
 providers: {}
 

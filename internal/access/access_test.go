@@ -172,6 +172,11 @@ func TestPolicyRejections(t *testing.T) {
 			"max_grants",
 		},
 		{
+			"no scope ceiling",
+			"providers:\n  gmail:\n    kinds: [read]\n    approval: none\nlimits:\n  max_grants: 5\n",
+			"scopes_ceiling",
+		},
+		{
 			"unknown kind",
 			"providers:\n  gmail:\n    kinds: [admin]\n    approval: none\nlimits:\n  max_grants: 5\n",
 			"unknown kind",
