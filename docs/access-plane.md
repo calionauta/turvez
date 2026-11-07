@@ -62,24 +62,33 @@ revoking waits for the next push.
 
 ## 3. Topology
 
-| Profile | Broker runs on | Who holds the licence and pays | Default for |
+Where the **broker** runs:
+
+| Shape | Broker runs on | Who holds the licence and pays | Default for |
 | --- | --- | --- | --- |
-| **A. Client-hosted** (`plane: client`) | client infra, under their account | the client | **default**, mandatory for `sensitive` |
-| **B. Client cloud** (`plane: cloud`) | vendor Cloud, under the **client's own account and card** | the client | only if they ask and pay |
-| **C. Consultancy-hosted shared** (`plane: shared`) | our host, one broker for all clients | us | **pilots only**, `data_class: normal` |
+| **Client-hosted** (`plane: client`) | client infra, under their account | the client | **default**, mandatory for `sensitive` |
+| **Client cloud** (`plane: cloud`) | vendor Cloud, under the **client's own account and card** | the client | only if they ask and pay |
+| **Consultancy-shared** (`plane: shared`) | our host, one broker for all clients | us | **pilots only**, `data_class: normal` |
+
+These are **not** the A/B/C of `docs/deployment-profiles.md`. That table decides
+where the **automation stack** runs (embedded / managed / multi-tenant); this one
+decides where the **credential broker** runs. They are orthogonal, and the
+common combination is deliberate: a managed (profile B) engagement where the
+automation runs on our host while the client's tokens stay on theirs
+(`runtime: shared`, `plane: client`).
 
 Three rules, in order of precedence:
 
-1. **`sensitive` → A, no exception.** The consultancy does not become the
-   custodian of another company's refresh tokens unless that is written into the
-   contract and priced.
-2. **B is only B while the account and the card are the client's.** If we open
-   the cloud account we are the custodian, the profile is C, and it must not be
-   sold as B.
-3. **C is legitimate, not forbidden — but it is a pilot.** It exists so a first
-   engagement with `data_class: normal` is not killed by the cost of an instance
-   per client. It is time-boxed: it converts to A at the first renewal, or the
-   moment the client becomes `sensitive`.
+1. **`sensitive` → client-hosted, no exception.** The consultancy does not
+   become the custodian of another company's refresh tokens unless that is
+   written into the contract and priced.
+2. **Client cloud is only client cloud while the account and the card are the
+   client's.** If we open the cloud account we are the custodian, the shape is
+   consultancy-shared, and it must not be sold as client cloud.
+3. **Consultancy-shared is legitimate, not forbidden — but it is a pilot.** It
+   exists so a first engagement with `data_class: normal` is not killed by the
+   cost of an instance per client. It is time-boxed: it converts to client-hosted
+   at the first renewal, or the moment the client becomes `sensitive`.
 
 `runtime` and `plane` must agree: `runtime: dedicated` requires
 `access.plane: client`, and a `sensitive` client on a shared broker is a build

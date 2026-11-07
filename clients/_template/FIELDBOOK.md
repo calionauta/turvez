@@ -46,7 +46,7 @@ Skip unless `access.enabled: true` in `client.yaml`. Design:
 
 | Decision | Answer |
 |---|---|
-| Plane A/B/C | `client` (default) / `cloud` (their account and card) / `shared` (pilot, `data_class: normal` only) |
+| Broker plane | `client` (default; their infra) / `cloud` (their account and card) / `shared` (pilot, `data_class: normal` only) |
 | Identity | `org` (one connection, agent acts as the company) / `per-user` (`<client>:<user>`) |
 | Ceiling | `catalog/policy.yaml` — providers, kinds, approval per kind, `max_grants` |
 | Who is the custodian of the OAuth grant | (contract language — the client, or us and priced) |

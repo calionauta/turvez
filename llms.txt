@@ -20,6 +20,10 @@
   persistence, schema gates, retention, no gateway content logging)
 - Client deployment model: docs/deployment-profiles.md (embedded vs managed
   vs multi-tenant, gateway placement, ownership)
+- Client agents calling tools: docs/access-plane.md (the third plane; policy in
+  git vs state in the broker, the three broker shapes, invariants, phases)
+- Which tool/broker/gateway to add and when: docs/tooling.md (Nango, Corsair,
+  ACI.dev, agentgateway, Executor, Bifrost, OpenBao — trigger per tool)
 - First run, in order, with the known traps: docs/first-run.md
 - Flows as diagrams plus the format map: docs/workflows.md
 - Client spine, engine-agnostic layout and migrations: docs/client-spine.md

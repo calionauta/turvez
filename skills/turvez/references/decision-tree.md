@@ -137,6 +137,12 @@ Either way the durable consequence is a **run in the client's engine**
 (dagnats `run start` / Windmill flow, idempotency key from the request) —
 Genkit is a capability, never a third engine, and the engine count stays one.
 
+**Not our agent?** If the agent belongs to the client and calls the tools we
+authenticated, the question stops being "which engine runs the loop" and becomes
+"what may it call": that is the **access plane** — `access:` in `client.yaml`,
+a ceiling in `catalog/policy.yaml`, one broker per client by default
+(`docs/access-plane.md`). It is a layer, like Nango, never a second engine.
+
 ## Q1.6 — is the ask "a library / new dependency"?
 
 Ask in order; the first `yes` wins, and it is the whole answer.

@@ -53,9 +53,9 @@ Which broker a client gets is `access.plane` in `client.yaml`
 
 | Plane | Nango runs on | Isolation between clients | Licence and account |
 |---|---|---|---|
-| **`client` (A — default)** | the client's infra or their VPC | own container, database, `SERVER_ENCRYPTION_KEY` and `NANGO_SECRET_KEY` | the client's; documented self-host is Enterprise (BYOC or self-managed) |
-| **`cloud` (B — on request)** | Nango Cloud | per account | the client's own account and card — if the account is ours, the plane is `shared`, not `cloud` |
-| **`shared` (C — pilots)** | our host, one instance | application-level, partitioned by `Connection-Id` (`<client>`) | ours |
+| **`client` — default** | the client's infra or their VPC | own container, database, `SERVER_ENCRYPTION_KEY` and `NANGO_SECRET_KEY` | the client's; documented self-host is Enterprise (BYOC or self-managed) |
+| **`cloud` — on request** | Nango Cloud | per account | the client's own account and card — if the account is ours, the plane is `shared`, not `cloud` |
+| **`shared` — pilots only** | our host, one instance | application-level, partitioned by `Connection-Id` (`<client>`) | ours |
 
 `runtime: shared` still defaults to one instance, and that is legitimate for a
 **pilot with `data_class: normal`**. It is never legitimate for

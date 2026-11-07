@@ -77,6 +77,17 @@ never change the repo shape.
   or the run. Agent Sessions add a per-session MCP server (`mcp_url` +
   `session_token`) with a scoped toolset; that is for an agent choosing tools,
   not for a deterministic recipe. `docs/nango.md`, `docs/retrieval.md`.
+- **Access plane — the client's own agents calling tools.** A third plane beside
+  control (git) and execution (the engine): it has per-request identity and the
+  credential belongs to the client. Declared in `client.yaml` as `access:`
+  (plane, surface, identity) and capped by `catalog/policy.yaml` — policy in git,
+  connections and grants in the broker, so connecting an allowed app needs no
+  PR and revoking is a row delete. `internal/access` owns the rules
+  (write⇒approval, sensitive⇒client-hosted, cloud⇒the client's account, provider
+  used⇒declared, one legal tool name); `clients/access_test.go` enforces them,
+  including a red-proof per invariant. One broker per client by default
+  (`NANGO_CLIENT_ID` scopes the stack). `docs/access-plane.md`,
+  `docs/tooling.md`.
 - **LLM gateway.** Every model call is an `llm.complete` step with a required
   `base_url` (`LLM_BASE_URL` fallback) — never a silent direct provider. One
   surface for cost, latency and errors; per-client virtual keys per deployment
@@ -168,6 +179,11 @@ never change the repo shape.
 - **Credentials in Nango, not in the repo.** Provider tokens are connections;
   the client slug is the connection id. `clients/credentials_test.go` enforces
   the naming and follows `WORKFLOWS_DIR` into an ops repo.
+- **The credential broker is per client by default.** A shared broker is an
+  explicit pilot for `data_class: normal`, never the default: concentrating
+  long-lived tokens in one process makes one compromise catastrophic for every
+  client (CB4A, `docs/access-plane.md` §1). `NANGO_CLIENT_ID` scopes the Compose
+  project, containers, volume and label; `--shared` is opt-in.
 - **Retrieval is lexical-first and reads parents.** Bleve indexes and routes
   chunks, the LLM reads their parent section/chapter; glossary before WordNet, before FastText,
   before vectors; each step needs an eval that justifies it. The funnel is
