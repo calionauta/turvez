@@ -195,6 +195,7 @@ Methodology questions (discover, scope, runbook): see `references/methodology.md
 | `docs/retrieval.md`, `references/retrieval.md` | documents vs systems of record; route-then-read; hard token/candidate caps; calibrated refusal; Nango MCP vs proxy; eval gate |
 | `docs/genkit.md` | agent-loop capability (not an engine): Genkit flow in the request, goai as the model path, Nango for tools, durable tail as a run |
 | `docs/access-plane.md`, `docs/tooling.md` | the client's **own** agents calling authenticated tools: policy in git vs state in the broker, one broker per client, and when each tool/broker/gateway earns a place |
+| `cmd/access-plane` | grant/list/revoke/audit over the Nango adapter + grant manager |
 | `scripts/new-agent-service.sh <client>` | Genkit capability scaffold (Q1.5/Q1.6): plan, then `--apply --provider <slug>`; needs a Go checkout |
 | `scripts/check-agent-template.sh` | compile/vet gate for that scaffold (pinned Genkit, temp module); runs in CI |
 | `scripts/extract-client.py <client>` | package one client for its own server — prints the plan, never executes |

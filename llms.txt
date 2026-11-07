@@ -22,6 +22,8 @@
   vs multi-tenant, gateway placement, ownership)
 - Client agents calling tools: docs/access-plane.md (the third plane; policy in
   git vs state in the broker, the three broker shapes, invariants, phases)
+- P2-B operability: `cmd/access-plane` (grant/list/revoke/audit) over the
+  Nango adapter and grant manager; audit events are written by the manager
 - Cloud/self-hosted remotes per client: docs/cloud-remotes.md
   (`scripts/connect-remotes.sh --client <slug>`; Windmill and Nango are answered
   separately, secrets land in `~/.secrets` and are validated read-only)

@@ -62,7 +62,7 @@ the client-hosted plane, a `cloud` plane on our account, a provider used but not
 declared, and an `identity` left unstated. One broker per client is the default
 (`NANGO_CLIENT_ID`); `--shared` is a `data_class: normal` pilot. `identity: org`
 is the recommendation — one refresh chain, one revocation row; `per-user` is a
-compliance choice, not an upgrade. Design and phases: `docs/access-plane.md`.
+compliance choice, not an upgrade. P2-B ships as `cmd/access-plane` (grant/list/revoke/audit) over the Nango adapter and the grant manager. Design and phases: `docs/access-plane.md`.
 
 
 ## Decision tree
