@@ -28,7 +28,8 @@ Not worth it for one static API key in `env/<client>.env`.
 A static key in `env/<client>.env` needs none of this. The broker earns its
 place at 3+ OAuth providers, or when the client's own agent has to call the
 tools — the access plane (`docs/access-plane.md`), where the default is one
-broker **per client** (`access.plane: client`), never one shared instance.
+broker **per client** (`access.plane: client`); a shared instance is allowed
+only as a pilot.
 
 ## Policy and state are different things
 
