@@ -13,6 +13,7 @@
 #
 # Usage:
 #   ./scripts/connect-remotes.sh            # prompt, validate, save
+#   ./scripts/connect-remotes.sh --nango-key # prompt only for the NANGO secret key
 #   ./scripts/connect-remotes.sh --check    # re-validate what is saved
 #   ./scripts/connect-remotes.sh --print    # which names are set (no values)
 #
@@ -28,8 +29,8 @@ FILE="$SECRETS_DIR/turvez-remotes.env"
 
 action="${1:-prompt}"
 case "$action" in
-  prompt|--check|--print|--help|-h) ;;
-  *) echo "connect-remotes: unknown argument '$action' (want --check | --print)" >&2; exit 2 ;;
+  prompt|--check|--print|--nango-key|--help|-h) ;;
+  *) echo "connect-remotes: unknown argument '$action' (want --check | --print | --nango-key)" >&2; exit 2 ;;
 esac
 
 say() { printf '%s\n' "$*"; }
@@ -199,9 +200,32 @@ do_prompt() {
   say "  set -a; . $FILE; set +a"
 }
 
+do_nango_key() {
+  load_saved
+  local ng_url ng_key
+  ng_url="$(normalize_url "${NANGO_HOST:-}")"
+  [ -n "$ng_url" ] || fail "set NANGO_HOST first with $(basename "$0")"
+  ng_key="$(prompt_value 'NANGO_SECRET_KEY (environment API key)' "${NANGO_SECRET_KEY:-}" yes)"
+  [ -n "$ng_key" ] || fail "empty secret key"
+  check_nango "$ng_url" "$ng_key" || fail "nango key did not validate; nothing was written"
+  umask 077
+  {
+    echo "# turvez remotes — updated $(date -u +%Y-%m-%dT%H:%M:%SZ). Never commit."
+    echo "# set -a; . $FILE; set +a"
+    echo "export BASE_INTERNAL_URL=$(shquote "${BASE_INTERNAL_URL:-}")"
+    echo "export WM_TOKEN=$(shquote "${WM_TOKEN:-}")"
+    echo "export WM_WORKSPACE=$(shquote "${WM_WORKSPACE:-}")"
+    echo "export NANGO_HOST=$(shquote "$ng_url")"
+    echo "export NANGO_SECRET_KEY=$(shquote "$ng_key")"
+  } > "$FILE"
+  chmod 600 "$FILE"
+  say "saved: $FILE (600). NANGO_SECRET_KEY updated; the other values were preserved."
+}
+
 case "$action" in
   --help|-h) sed -n '3,20p' "$0" | sed 's/^# \{0,1\}//' ;;
   --print) do_print ;;
   --check) do_check ;;
+  --nango-key) do_nango_key ;;
   *) do_prompt ;;
 esac
