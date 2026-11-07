@@ -52,7 +52,9 @@ func (m *Manager) Create(tenant, provider string) (nango.Grant, error) {
 	if err != nil {
 		return nango.Grant{}, err
 	}
-	_ = m.audit(Event{Kind: EventGrantCreated, Tenant: tenant, Provider: provider, Result: "ok"})
+	if err := m.audit(Event{Kind: EventGrantCreated, Tenant: tenant, Provider: provider, Result: "ok"}); err != nil {
+		return nango.Grant{}, err
+	}
 	return g, nil
 }
 
@@ -61,7 +63,9 @@ func (m *Manager) Active(tenant string) ([]nango.Connection, error) {
 	if err != nil {
 		return nil, err
 	}
-	_ = m.audit(Event{Kind: EventAccessChecked, Tenant: tenant, Result: fmt.Sprintf("ok:%d", len(conns))})
+	if err := m.audit(Event{Kind: EventAccessChecked, Tenant: tenant, Result: fmt.Sprintf("ok:%d", len(conns))}); err != nil {
+		return nil, err
+	}
 	return conns, nil
 }
 
@@ -69,7 +73,9 @@ func (m *Manager) Revoke(tenant, connectionID, providerConfigKey, who string) er
 	if err := m.Backend.Revoke(connectionID, providerConfigKey); err != nil {
 		return err
 	}
-	_ = m.audit(Event{Kind: EventGrantRevoked, Tenant: tenant, Provider: providerConfigKey, ConnID: connectionID, Result: who})
+	if err := m.audit(Event{Kind: EventGrantRevoked, Tenant: tenant, Provider: providerConfigKey, ConnID: connectionID, Result: who}); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -116,7 +122,11 @@ func (s FileSink) Append(e Event) error {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = f.Close() }()
-	_, err = f.Write(append(b, '\n'))
-	return err
+	if _, err := f.Write(append(b, '\n')); err != nil {
+		if closeErr := f.Close(); closeErr != nil {
+			return err
+		}
+		return err
+	}
+	return f.Close()
 }

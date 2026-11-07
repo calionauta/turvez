@@ -66,7 +66,9 @@ func main() {
 	case "list":
 		fs := flag.NewFlagSet("list", flag.ContinueOnError)
 		tenant := fs.String("tenant", "", "client slug")
-		_ = fs.Parse(os.Args[2:])
+		if err := fs.Parse(os.Args[2:]); err != nil {
+			fatal(err)
+		}
 		if *tenant == "" {
 			usageList()
 			os.Exit(2)
@@ -88,7 +90,9 @@ func main() {
 		conn := fs.String("connection", "", "connection id")
 		provider := fs.String("provider", "", "provider config key")
 		who := fs.String("who", "", "operator performing the revocation")
-		_ = fs.Parse(os.Args[2:])
+		if err := fs.Parse(os.Args[2:]); err != nil {
+			fatal(err)
+		}
 		if *tenant == "" || *conn == "" || *provider == "" || *who == "" {
 			usageRevoke()
 			os.Exit(2)
@@ -101,7 +105,9 @@ func main() {
 		fs := flag.NewFlagSet("audit", flag.ContinueOnError)
 		tenant := fs.String("tenant", "", "client slug")
 		file := fs.String("file", auditPath, "audit JSONL file")
-		_ = fs.Parse(os.Args[2:])
+		if err := fs.Parse(os.Args[2:]); err != nil {
+			fatal(err)
+		}
 		data, err := os.ReadFile(*file)
 		if err != nil {
 			fatal(err)

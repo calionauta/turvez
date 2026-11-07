@@ -53,7 +53,7 @@ func (e *Error) Error() string {
 	return fmt.Sprintf("nango: HTTP %d", e.Status)
 }
 
-func (a *Adapter) request(method, path string, query url.Values, body any) ([]byte, error) {
+func (a *Adapter) request(method, path string, query url.Values, body any) (out []byte, err error) {
 	u, err := url.Parse(a.host + path)
 	if err != nil {
 		return nil, err
@@ -84,8 +84,12 @@ func (a *Adapter) request(method, path string, query url.Values, body any) ([]by
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = resp.Body.Close() }()
-	out, err := io.ReadAll(resp.Body)
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+	out, err = io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +99,9 @@ func (a *Adapter) request(method, path string, query url.Values, body any) ([]by
 				Code string `json:"code"`
 			} `json:"error"`
 		}
-		_ = json.Unmarshal(out, &e)
+		if err := json.Unmarshal(out, &e); err != nil {
+			return nil, err
+		}
 		return nil, &Error{Status: resp.StatusCode, Code: e.Error.Code}
 	}
 	return out, nil
