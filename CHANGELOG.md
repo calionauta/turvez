@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.10](https://github.com/calionauta/turvez/compare/v0.1.9...v0.1.10) (2026-11-07)
+
+
+### Features
+
+* expose pageindex as an eval-gated retrieval alternative ([ebcb769](https://github.com/calionauta/turvez/commit/ebcb7696edc24c1e92e95270bfd029a18982c5a8))
+
+
+### Documentation
+
+* break the access plane paragraph into bullets ([b9b4e49](https://github.com/calionauta/turvez/commit/b9b4e4936edc5e507b48b800ffe105c2ead7ef3b))
+* make the ask-with-question instruction explicit in the skill ([f279f85](https://github.com/calionauta/turvez/commit/f279f859650ad48cd275259edcbaec2a8ae091a2))
+* rewrite the README opening as spine / engine table / layers list ([13eb40f](https://github.com/calionauta/turvez/commit/13eb40fd32ca067c19d3b223bd58aac5215a711d))
+
 ## [0.1.9](https://github.com/calionauta/turvez/compare/v0.1.8...v0.1.9) (2026-11-07)
 
 
