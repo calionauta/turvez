@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.1.9](https://github.com/calionauta/turvez/compare/v0.1.8...v0.1.9) (2026-11-07)
+
+
+### Features
+
+* add the minimal P2 nango adapter ([4082348](https://github.com/calionauta/turvez/commit/408234879854ecbaaf74853a1717557874d17470))
+* ask cloud versus self-hosted per layer at onboarding ([#24](https://github.com/calionauta/turvez/issues/24)) ([1126715](https://github.com/calionauta/turvez/commit/1126715e53d3c9bb3f8652378933d0ff840ad274))
+* implement p2 grants manager, windmill version note, nango key docs ([bc66e0d](https://github.com/calionauta/turvez/commit/bc66e0d1d6039f83e8bbe698f3f54c1be0afdea1))
+* P2-B access plane CLI ([#25](https://github.com/calionauta/turvez/issues/25)) ([95edf83](https://github.com/calionauta/turvez/commit/95edf83c1f4e9a73ad6eee4362b215a6de1f6641))
+* the access plane, and a credential broker per client ([#21](https://github.com/calionauta/turvez/issues/21)) ([61e3786](https://github.com/calionauta/turvez/commit/61e3786aea57f6625e79a2f82484d4a1a07bf9ee))
+* update only the nango secret key in connect remotes ([3c4868a](https://github.com/calionauta/turvez/commit/3c4868a9dfa20157e0cb136c310e00936e580e16))
+
+
+### Bug Fixes
+
+* accept bare hosts and use the correct Windmill Cloud URL ([ff55a70](https://github.com/calionauta/turvez/commit/ff55a705b7a8a945eb8f4a9faeffdf7ee3a6abbf))
+* close the client onboarding loop for cloud remotes and nango level 2 ([b99438e](https://github.com/calionauta/turvez/commit/b99438e9c15aec4e74256065f7d1f7e8ebb1a87b))
+* reject account-level nango keys in connect remotes ([3da3c9a](https://github.com/calionauta/turvez/commit/3da3c9a67d2e7f2e2d16fc867f75ace13288cf95))
+
+
+### Documentation
+
+* clarify the per-client broker default and shared pilot ([b36072e](https://github.com/calionauta/turvez/commit/b36072eaf871e940d0b91a754fee209e1357ec42))
+* close the onboarding loop for cloud remotes and nango level 2 ([78a1b08](https://github.com/calionauta/turvez/commit/78a1b08856b9fd985f3b965afc6a2ad32e8e935f))
+* surface the P2-B CLI in skill, llms.txt and README ([2dceb41](https://github.com/calionauta/turvez/commit/2dceb41a649c938152b283cd7e20c09483d8c2b3))
+
 ## [0.1.8](https://github.com/calionauta/turvez/compare/v0.1.7...v0.1.8) (2026-11-03)
 
 
