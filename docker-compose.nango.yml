@@ -9,6 +9,15 @@
 # We publish them on 8088/8089 on the host so they do not collide with
 # Windmill (:8000) or dagnats (:8080).
 #
+# One broker per client is the default for the access plane
+# (docs/access-plane.md §3). Scope a stack with NANGO_CLIENT_ID:
+#   NANGO_CLIENT_ID=acme NANGO_PORT=8188 NANGO_CONNECT_PORT=8189 \
+#     ./scripts/setup-nango.sh --up
+# The project name, containers and the Postgres volume all take the client
+# suffix (`nango-acme`, `nango-acme_nango-db-data`), so two stacks on one host
+# cannot share a database or an encryption key by accident. The shared broker of
+# a `data_class: normal` pilot is `--shared` and is named `nango-shared`.
+#
 # Required env (no defaults on purpose — a shared encryption key is a backdoor):
 #   NANGO_ENCRYPTION_KEY  32-char hex  (openssl rand -hex 16)
 #   NANGO_DB_PASSWORD     any strong password
@@ -16,14 +25,22 @@
 # `.env` is gitignored) or export them before `docker compose up`.
 #
 # Usage:
-#   ./scripts/setup-nango.sh --up      # validates env, starts the stack, waits
-#   ./scripts/setup-nango.sh           # health check only
-#   ./scripts/setup-nango.sh --down
+#   ./scripts/setup-nango.sh --up                    # per-client (needs NANGO_CLIENT_ID)
+#   ./scripts/setup-nango.sh --up --shared           # one broker for pilots
+#   ./scripts/setup-nango.sh                         # health check only
+#   ./scripts/setup-nango.sh --down                  # stop this client's stack
+
+# NANGO_PROJECT is the escape hatch for an existing deployment: before this
+# file scoped itself, the project name was the checkout directory (e.g.
+# `turvez`), so set NANGO_PROJECT=turvez to keep the old containers and volume.
+name: ${NANGO_PROJECT:-nango-${NANGO_CLIENT_ID:-shared}}
 
 services:
   nango-db:
     image: postgres:16.0-alpine
     restart: unless-stopped
+    labels:
+      turvez.client: ${NANGO_CLIENT_ID:-shared}
     environment:
       POSTGRES_USER: ${NANGO_DB_USER:-nango}
       POSTGRES_PASSWORD: ${NANGO_DB_PASSWORD:?set NANGO_DB_PASSWORD (see the header of this file)}
@@ -40,6 +57,8 @@ services:
     image: nangohq/nango-server:hosted
     platform: linux/amd64
     restart: unless-stopped
+    labels:
+      turvez.client: ${NANGO_CLIENT_ID:-shared}
     ports:
       - "${NANGO_PORT:-8088}:${SERVER_PORT:-3003}"
       - "${NANGO_CONNECT_PORT:-8089}:${CONNECT_UI_PORT:-3009}"

@@ -60,7 +60,7 @@ if curl -s -f -m 3 "$NANGO_HOST/health" >/dev/null 2>&1; then
   echo "nango: running at $NANGO_HOST"
 else
   echo "nango: NOT running at $NANGO_HOST"
-  echo "  start it first: ./scripts/setup-nango.sh --up"
+  echo "  start it first: NANGO_CLIENT_ID=<client> ./scripts/setup-nango.sh --up"
 fi
 echo
 echo "1. Open the dashboard and add the integration IF IT IS MISSING:"

@@ -147,13 +147,14 @@ ceiling: a new client opts in, it never inherits an exposure.
 
 ## 7. What is not implemented yet
 
-Status: **P0 done** (contract, ceiling, tests, docs). The broker itself is not
-in this repo, and this doc does not claim otherwise.
+Status: **P0 and P1 done** (contract, ceiling, tests, docs, per-client broker
+scoping). P2 — grants, revocation and audit — needs a running broker; this doc
+does not claim it exists.
 
 | Phase | Work | Gate |
 | --- | --- | --- |
 | **P0 — name the plane** | `access:` block, ceiling schema, `internal/access`, the contract tests, this doc, `docs/tooling.md` | `go test ./...` fails a write with `approval: none`, a `sensitive` client off `plane: client`, a `cloud` plane on our account, a provider used but not declared |
-| **P1 — per-client broker** | `CLIENT_ID` in `docker-compose.nango.yml`, per-client project/volume, `extract-client.py` covers the access plane — *`verify-isolation.sh` already reports each client's broker plane* | a `sensitive` client with a shared broker fails isolation |
+| **P1 — per-client broker** ✅ | `NANGO_CLIENT_ID` scopes the Compose project, containers, volume and `turvez.client` label; `setup-nango.sh` refuses `--up` without it (or an explicit `--shared`); `extract-client.py` prints the access-plane cutover; `verify-isolation.sh` reports the plane | a `sensitive` client with a shared broker fails `go test`; two stacks cannot share a volume or a key |
 | **P2 — self-serve grants** | Connect UI for account linking, grant creation bounded by the ceiling, revocation endpoint, audit events | connecting an already-allowed provider needs zero repo changes; a provider outside the ceiling is refused server-side |
 | **P3 — portability** | adapter contract (`connection`, `grant`, `toolref`, `audit`), one adapter per backend | switching backend changes the adapter only — policy, recipes and evals untouched |
 | **P4 — evals** | tool-selection cases: right tool, no scope creep, refusal when a grant is missing | the eval gate |

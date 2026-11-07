@@ -122,6 +122,19 @@ need_file scripts/nango-connect.sh "operator connects a provider in Nango"
 need_file docs/nango.md "credential layer doc"
 need_text skills/turvez/references/decision-tree.md "Nango" "the tree routes credentials to Nango"
 
+# --- access-plane-broker ---------------------------------------------------
+# One broker per client is the default (docs/access-plane.md §3): the stack must
+# scope itself by client, and the shared shape must be an explicit flag rather
+# than the thing you get by forgetting to set a variable.
+need_file docs/access-plane.md "the access plane doc"
+need_text docker-compose.nango.yml "NANGO_CLIENT_ID" "the broker project, containers and volume are scoped per client"
+need_text docker-compose.nango.yml "NANGO_PROJECT" "an existing deployment keeps a migration escape hatch"
+need_text scripts/setup-nango.sh "NANGO_CLIENT_ID is required" "per-client is the default, not an unwritten rule"
+need_text scripts/setup-nango.sh "SHARED broker" "the shared broker is opt-in and labelled"
+need_text scripts/extract-client.py "Access plane" "the cutover plan carries ceiling, connections, grants and the plane flip"
+need_text skills/turvez/references/nango.md "access.plane" "the skill states the plane, not only runtime"
+need_text docs/isolating-a-client.md "NANGO_CLIENT_ID" "the extraction procedure starts a client-scoped broker"
+
 # --- level-1-sandbox -------------------------------------------------------
 need_file scripts/sandbox-run.sh "level 1 one-off runner"
 need_file docs/sandbox-policy.md "level 1 policy doc"

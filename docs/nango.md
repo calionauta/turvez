@@ -102,9 +102,23 @@ services:
       - nango-db
 ```
 
-`./scripts/setup-nango.sh --up` validates the two required env vars, starts the
-stack and waits for `/health`. A default encryption key is deliberately not
-provided: it protects every stored OAuth token.
+`./scripts/setup-nango.sh --up` requires `NANGO_CLIENT_ID` (one broker per
+client — `docs/access-plane.md` §3), validates the two required env vars, starts
+the stack and waits for `/health`. The Compose project, the containers and the
+Postgres volume carry the client suffix (`nango-<client>`,
+`nango-<client>_nango-db-data`), so two stacks on one host cannot share a
+database or an encryption key by accident; give each its own `NANGO_PORT` and
+`NANGO_CONNECT_PORT`. A shared broker is an explicit choice for a
+`data_class: normal` pilot: `./scripts/setup-nango.sh --up --shared`, project
+`nango-shared`.
+
+A default encryption key is deliberately not provided: it protects every stored
+OAuth token.
+
+**Migration:** before the stack scoped itself the Compose project was the
+checkout directory (`turvez`) and the volume `turvez_nango-db-data`. Set
+`NANGO_PROJECT=turvez` to keep that deployment, or dump/restore the database
+into the new project.
 
 ---
 
@@ -440,14 +454,14 @@ Here is how Nango scales coherently with that architecture:
                   └────────────────────────────────────────────────────────┘
 ```
 
-| Dimension | Tier 1: Shared Centralized (`runtime: shared`) | Tier 2: Dedicated Isolated (`runtime: dedicated`) |
+| Dimension | Per-client (`access.plane: client`, **default**) | Shared (`access.plane: shared`, pilots only) |
 |---|---|---|
-| **Target Client** | SMBs, startups, standard consulting engagements (Profile B) | Enterprise, financial, healthcare (SOC2, HIPAA, GDPR, Profile A) |
-| **Nango Deployment** | Single instance on consultancy server (`docker-compose.nango.yml`) | Dedicated Nango container in client's VPS/VPC |
-| **Tenancy Boundary** | Partitioned strictly by `Connection-Id: <client>` | Complete physical isolation (dedicated DB + container) |
-| **Master OAuth Apps** | Consultancy creates 1 OAuth App in HubSpot/Slack/Google; all clients authorize through it | Client registers their own Developer App in their SaaS organization |
-| **Encryption Key** | Consultancy holds `NANGO_ENCRYPTION_KEY` | Client / dedicated host holds independent encryption key |
-| **Operating Cost** | Near zero (1 container, 1 DB, 1 backup) | Higher ($N$ containers and Postgres DBs to monitor) |
+| **Target Client** | any client whose agents call tools; **mandatory** for `data_class: sensitive` | SMB pilots with `data_class: normal`, where an instance each would kill the deal |
+| **Nango Deployment** | `NANGO_CLIENT_ID=<client> ./scripts/setup-nango.sh --up` — project, containers and volume all `nango-<client>` | `./scripts/setup-nango.sh --up --shared` — project `nango-shared` |
+| **Tenancy Boundary** | physical: own database, own `NANGO_ENCRYPTION_KEY`, own host | application-level, partitioned by `Connection-Id: <client>` |
+| **Master OAuth Apps** | client registers their own Developer App in their SaaS org | consultancy creates 1 OAuth App; clients authorise through it |
+| **Encryption Key** | held by the client's host | held by the consultancy |
+| **Operating Cost** | one container + one Postgres per client to monitor | near zero (1 container, 1 DB, 1 backup) |
 
 ---
 
@@ -476,8 +490,10 @@ Because Turvez recipes and scripts use environment variables and the client slug
 #### The 4-Step Extraction Procedure:
 1. **Provision Dedicated Nango:** On the client's new server, run:
    ```bash
-   ./scripts/setup-nango.sh --up
+   NANGO_CLIENT_ID=<client> NANGO_PORT=8088 ./scripts/setup-nango.sh --up
    ```
+   (the project, containers and volume are named `nango-<client>` — one broker
+   per client is the default, `docs/access-plane.md` §3)
 2. **Authorize Dedicated Connections:** Generate Connect sessions on the new Nango instance for `connection_id = <client>` (using client's own OAuth Developer App if required).
 3. **Point Automation to New Nango:** In the new server's environment or Windmill workspace:
    ```bash

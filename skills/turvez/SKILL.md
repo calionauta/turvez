@@ -188,7 +188,7 @@ Methodology questions (discover, scope, runbook): see `references/methodology.md
 | `scripts/clients-root.sh`, `scripts/eval-dir.sh` | resolve the client / eval dir (clients or legacy workflows) |
 | `scripts/check-windmill.sh` | Windmill lint gate, no worker needed |
 | `scripts/lint-scripts.sh` | local script gate: compiles Go nodes, checks `func main`, flow bindings, and the Go-only language policy (no server) |
-| `scripts/setup-nango.sh [--up/--down]` | check or spin up Nango auth layer |
+| `scripts/setup-nango.sh [--up/--down] [--shared]` | check or spin up Nango; per-client needs `NANGO_CLIENT_ID`, `--shared` is pilots only |
 | `scripts/nango-connect.sh <client> --provider <slug> [--link] [--open]` | operator authorises a provider in Nango; prints the link + the exact names (`--link` mints a 30-minute click-to-connect link) |
 | `scripts/verify-isolation.sh` | where every client runs (`runtime`/`target`), read-only; in `make validate` |
 | `docs/retrieval.md`, `references/retrieval.md` | documents vs systems of record; route-then-read; hard token/candidate caps; calibrated refusal; Nango MCP vs proxy; eval gate |

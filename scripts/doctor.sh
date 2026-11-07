@@ -80,7 +80,7 @@ code="$(curl -s -o /dev/null -m 3 -w '%{http_code}' "${NANGO_CHECK_HOST%/}/healt
 if [ "$code" = "200" ]; then
   ok "Nango reachable at $NANGO_CHECK_HOST"
 else
-  note "Nango not reachable at $NANGO_CHECK_HOST (start with: ./scripts/setup-nango.sh --up)"
+  note "Nango not reachable at $NANGO_CHECK_HOST (start with: NANGO_CLIENT_ID=<client> ./scripts/setup-nango.sh --up)"
 fi
 if [ -n "${NANGO_SECRET_KEY:-}" ]; then
   ok "NANGO_SECRET_KEY present"
