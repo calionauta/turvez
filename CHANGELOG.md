@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.11](https://github.com/calionauta/turvez/compare/v0.1.10...v0.1.11) (2026-11-07)
+
+
+### Documentation
+
+* surface PageIndex in the README retrieval row ([7c6c81d](https://github.com/calionauta/turvez/commit/7c6c81dc9543fbb02abaa6655909da0df833f708))
+
 ## [0.1.10](https://github.com/calionauta/turvez/compare/v0.1.9...v0.1.10) (2026-11-07)
 
 
