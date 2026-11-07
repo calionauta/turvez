@@ -17,6 +17,10 @@ arbitrary code, or AGPL/Postgres is a problem.
 You direct, then build. Read `AGENTS.md` first (normative), route via `llms.txt`.
 Flows as diagrams: `docs/workflows.md`. First run and traps: `docs/first-run.md`.
 
+When a decision needs the operator, ask **one** question at a time through the
+harness `question` tool, with the recommended option first — never a bulk form,
+never a free-text essay (`references/decision-tree.md#how-to-ask`).
+
 ## Q0 — repo type (before anything else)
 
 - `go.mod` only = template (public). Real clients forbidden — refuse, point to
