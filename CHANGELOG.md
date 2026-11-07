@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.9](https://github.com/calionauta/turvez/compare/v0.1.8...v0.1.9) (2026-11-07)
+
+
+### Features
+
+* the access plane, and a credential broker per client ([#21](https://github.com/calionauta/turvez/issues/21)) ([61e3786](https://github.com/calionauta/turvez/commit/61e3786aea57f6625e79a2f82484d4a1a07bf9ee))
+
 ## [0.1.8](https://github.com/calionauta/turvez/compare/v0.1.7...v0.1.8) (2026-11-03)
 
 
