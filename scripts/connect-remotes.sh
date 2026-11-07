@@ -83,14 +83,22 @@ check_windmill() { # base, token
 }
 
 check_nango() { # host, key
-  local code
-  code="$(http_code "${1%/}/integrations" "$2")"
+  local out code
+  out="$(curl -s -w '\n%{http_code}' -m 12 -H "Authorization: Bearer $2" -H 'Accept: application/json' "${1%/}/integrations" 2>/dev/null || true)"
+  code="${out##*$'\n'}"
+  [ -z "$code" ] && code=000
   case "$code" in
     200) return 0 ;;
     401|403) echo "nango: secret key rejected (HTTP $code)" >&2; return 1 ;;
+    400)
+      if printf '%s' "$out" | grep -q 'missing_environment'; then
+        echo "nango: secret key is not environment-scoped; use the Environment API key (not the account-level key)" >&2
+      else
+        echo "nango: request rejected (HTTP 400); check host and key" >&2
+      fi
+      return 1
+      ;;
   esac
-  code="$(http_code "${1%/}/environment" "$2")"
-  [ "$code" = 200 ] && return 0
   echo "nango: no answer at ${1%/} (HTTP $code)" >&2
   return 1
 }
