@@ -299,6 +299,7 @@ curl -X POST localhost:8090/ops/approvals/<run-id> \
 - `docs/nango.md` — credential layer: OAuth proxy, naming/enforcement, Agent Sessions (MCP)
 - `docs/access-plane.md` — the third plane: client agents calling authenticated tools, policy vs state, where the broker runs, invariants, phases
 - `docs/tooling.md` — when each layer enters (Nango, Corsair, agentgateway, Executor, Bifrost, OpenBao) and when it would be weight
+- `docs/cloud-remotes.md` — `scripts/connect-remotes.sh`: record Windmill and Nango cloud/self-hosted endpoints (prompts, validates, never prints a secret)
 - `docs/retrieval.md` — documents vs systems of record; route-then-read; hard token/candidate caps; calibrated refusal; eval gate
 - `docs/genkit.md` — agent-loop capability (not an engine): a bounded Genkit flow in the request, goai as the only model path, Nango for tools, durable tail as a run; scaffold `scripts/new-agent-service.sh`, compile gate `scripts/check-agent-template.sh`
 - `skills/turvez/references/decision-tree.md` — the canonical tree, the interview protocol and the defaults table
