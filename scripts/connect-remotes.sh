@@ -37,6 +37,16 @@ fail() { printf 'connect-remotes: %s\n' "$*" >&2; exit 1; }
 
 shquote() { printf '%q' "$1"; }
 
+normalize_url() {
+  # Accept a bare host from the operator input; the tool they type in a browser
+  # usually has a scheme, but scripts and pasted values often do not.
+  case "$1" in
+    http://*|https://*) printf '%s' "$1" ;;
+    "") printf '' ;;
+    *) printf 'https://%s' "$1" ;;
+  esac
+}
+
 valid_url() {
   case "$1" in
     http://*|https://*) return 0 ;;
@@ -140,21 +150,24 @@ do_prompt() {
   load_saved
   say "Windmill (Cloud or self-hosted — the answer is recorded per client in client.yaml)"
   local wm_url wm_tok wm_ws
-  wm_url="$(prompt_value 'base URL (e.g. https://cloud.windmill.dev)' "${BASE_INTERNAL_URL:-}")"
+  # Bare hostnames are accepted; a scheme is normalized before validation.
+  wm_url="$(prompt_value 'base URL (e.g. app.windmill.dev)' "${BASE_INTERNAL_URL:-}")"
   wm_tok="$(prompt_value 'API token' "${WM_TOKEN:-}" yes)"
   wm_ws="$(prompt_value 'workspace (one per client)' "${WM_WORKSPACE:-}")"
   say ""
   say "Nango (Cloud or self-hosted; the broker is per client by default)"
   local ng_url ng_key
-  ng_url="$(prompt_value 'host (e.g. https://api.nango.dev)' "${NANGO_HOST:-}")"
+  ng_url="$(prompt_value 'host (e.g. api.nango.dev)' "${NANGO_HOST:-}")"
   ng_key="$(prompt_value 'secret key' "${NANGO_SECRET_KEY:-}" yes)"
 
   local rc=0
   if [ -n "$wm_url" ]; then
+    wm_url="$(normalize_url "$wm_url")"
     valid_url "$wm_url" || fail "windmill base URL must start with http:// or https://"
     check_windmill "$wm_url" "$wm_tok" || rc=1
   fi
   if [ -n "$ng_url" ]; then
+    ng_url="$(normalize_url "$ng_url")"
     valid_url "$ng_url" || fail "nango host must start with http:// or https://"
     check_nango "$ng_url" "$ng_key" || rc=1
   fi

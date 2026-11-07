@@ -77,7 +77,7 @@ deployment:
   windmill: cloud
   nango: self_hosted
 target:
-  base_url: https://cloud.windmill.dev
+  base_url: https://app.windmill.dev
   workspace: acme
 access:
   enabled: true
