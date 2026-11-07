@@ -6,13 +6,23 @@ agent drafts it, tests gate it, you approve. One folder per client, extractable
 to dedicated infra when they grow. Your own automations run free on the same
 spine.
 
-The repo is **not** the runtime. It is the **spine**: the client contract, the
-source of truth, the gates and the evals. The **engine is a per-client choice**
-recorded in `clients/<client>/client.yaml`; **Windmill is the default**,
-**dagnats is the exception**, and **Dagu is level 2** for script-shaped jobs.
-Around them sit layers that never become a second orchestrator: **Nango** for
-credentials and agent tools, an **LLM gateway** for model calls, and optional
-**retrieval** for documents.
+The repo is **not** the runtime. It is the **spine**.
+
+**Spine** = the client contract, source of truth, gates and evals.
+
+**Engine (per client)** — recorded in `clients/<client>/client.yaml`:
+
+| Choice | Gets |
+| --- | --- |
+| **Windmill** — default | most automation work |
+| **dagnats** — exception | typed, audit-friendly, no arbitrary code |
+| **Dagu** — level 2 | script-shaped jobs only |
+
+**Layers** sit around the engine and never become a second orchestrator:
+
+- **Nango** — credentials and agent tools
+- **LLM gateway** — model calls
+- **Retrieval** — documents
 
 ## The stack at a glance
 
