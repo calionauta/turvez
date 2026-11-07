@@ -34,7 +34,9 @@ func main() {
 		tenant := fs.String("tenant", "", "client slug")
 		provider := fs.String("provider", "", "provider slug")
 		policy := fs.String("policy", "", "catalog/policy.yaml")
-		_ = fs.Parse(os.Args[2:])
+		if err := fs.Parse(os.Args[2:]); err != nil {
+			fatal(err)
+		}
 		if *tenant == "" || *provider == "" {
 			usageGrant()
 			os.Exit(2)
@@ -77,7 +79,9 @@ func main() {
 		for _, c := range conns {
 			out = append(out, map[string]any{"connection_id": c.ConnectionID, "provider_config_key": c.ProviderConfigKey, "created": c.Created})
 		}
-		_ = json.NewEncoder(os.Stdout).Encode(out)
+		if err := json.NewEncoder(os.Stdout).Encode(out); err != nil {
+			fatal(err)
+		}
 	case "revoke":
 		fs := flag.NewFlagSet("revoke", flag.ContinueOnError)
 		tenant := fs.String("tenant", "", "client slug")

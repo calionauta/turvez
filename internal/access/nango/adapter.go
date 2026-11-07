@@ -61,7 +61,7 @@ func (a *Adapter) request(method, path string, query url.Values, body any) ([]by
 	if query != nil {
 		u.RawQuery = query.Encode()
 	}
-	var payload *strings.Reader = strings.NewReader("")
+	payload := strings.NewReader("")
 	if body != nil {
 		raw, err := json.Marshal(body)
 		if err != nil {
@@ -84,7 +84,7 @@ func (a *Adapter) request(method, path string, query url.Values, body any) ([]by
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	out, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
