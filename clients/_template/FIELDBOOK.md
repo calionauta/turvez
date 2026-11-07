@@ -47,7 +47,7 @@ Skip unless `access.enabled: true` in `client.yaml`. Design:
 | Decision | Answer |
 |---|---|
 | Broker plane | `client` (default; their infra) / `cloud` (their account and card) / `shared` (pilot, `data_class: normal` only) |
-| Identity | `org` (one connection, agent acts as the company) / `per-user` (`<client>:<user>`) |
+| Identity | `org` (recommended: one connection, agent acts as the company) or `per-user` (`<client>:<user>`, only for per-person attribution/approval) |
 | Ceiling | `catalog/policy.yaml` — providers, kinds, approval per kind, `max_grants` |
 | Who is the custodian of the OAuth grant | (contract language — the client, or us and priced) |
 | Kill switch | who can revoke every grant for this tenant, and how |

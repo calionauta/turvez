@@ -47,6 +47,8 @@
   **dagnats engine only**.
 - `internal/handlers/` — 12 generic tasks (stable names recipes depend on).
 - `internal/secret/` — env + age loader. `internal/opshttp/` — approval shim.
+- `internal/access/` — access plane (the client's own agents calling tools): parses
+  `access:` and the ceiling, owns the invariants (`docs/access-plane.md`).
 - `clients/<client>/automation/dagnats/*.json` — THE automation code. `clients/_template/` — skeletons.
 - `clients/<client>/README.md` — per-client fieldbook (copy from `clients/_template/FIELDBOOK.md`).
 - `env/<client>.env.example` — secret names (commit); `env/<client>.env` — values (never).
@@ -62,6 +64,12 @@
 - Script nodes are **Go** in both engines. TypeScript/Python only for a Windmill
   WAC orchestrator that dispatches to Go scripts (`taskScript`/`taskFlow`) —
   `docs/language-policy.md`, gate `./scripts/lint-scripts.sh`.
+- Access plane: `access:` in `client.yaml` + ceiling in `catalog/policy.yaml`.
+  Policy in git, connections/grants in the broker — connecting an allowed app
+  needs no PR. One broker per client (`NANGO_CLIENT_ID`); `--shared` is a
+  `data_class: normal` pilot, never the default. `identity` is explicit (`org`
+  recommended; `per-user` only for per-person attribution). `go test ./clients/`
+  enforces it; a Windmill client must record `target.base_url` + `workspace`.
 - Client SaaS keys/OAuth: authorise in **Nango**, never paste a value.
   `./scripts/nango-connect.sh <client> --provider <slug> --link --open` prints a
   30-minute link and the exact names; `clients/credentials_test.go` enforces the

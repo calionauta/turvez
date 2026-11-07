@@ -166,13 +166,8 @@ func ParseManifest(raw []byte) (Manifest, error) {
 	if cfg.PolicyPath == "" {
 		cfg.PolicyPath = defaultPolicyPath
 	}
-	if cfg.Enabled {
-		if cfg.Surface == "" {
-			cfg.Surface = SurfaceMCP
-		}
-		if cfg.Identity == "" {
-			cfg.Identity = IdentityOrg
-		}
+	if cfg.Enabled && cfg.Surface == "" {
+		cfg.Surface = SurfaceMCP
 	}
 	m.Access = cfg
 	return m, nil
@@ -256,8 +251,13 @@ func (c Config) Validate(dataClass string) error {
 	default:
 		return fmt.Errorf("access.surface: %q must be %s|%s", c.Surface, SurfaceMCP, SurfaceNone)
 	}
+	// Identity is never defaulted: it changes the connection namespace
+	// (`acme` vs `acme:<user>`) and the migration cost of getting it wrong is
+	// paid later, by the client. The operator answers; the repo records.
 	switch c.Identity {
 	case IdentityOrg, IdentityPerUser:
+	case "":
+		return fmt.Errorf("access.identity: required when the plane is enabled — %s (recommended: one connection, the agent acts as the company) or %s (each person connects their own account)", IdentityOrg, IdentityPerUser)
 	default:
 		return fmt.Errorf("access.identity: %q must be %s|%s", c.Identity, IdentityOrg, IdentityPerUser)
 	}

@@ -37,6 +37,8 @@ access:
   #                         #   shared = one broker on our host, pilots with
   #                         #            data_class: normal only
   # surface: mcp            # mcp | none
-  # identity: org           # org | per-user → connection id <client> | <client>:<user>
+  # identity: org           # REQUIRED when enabled: org | per-user
+  #                         # → connection id <client> | <client>:<user>;
+  #                         # org is the recommended default for reliability
   # policy: catalog/policy.yaml
   # vendor_account: client  # client | consultancy — required when plane: cloud

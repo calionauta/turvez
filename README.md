@@ -58,8 +58,11 @@ execution — and it lives in `access:` in `client.yaml` plus a ceiling in
 `catalog/policy.yaml`. Policy is in git and reviewed; connections and grants are
 state in the broker, so connecting an app that is already allowed needs no PR.
 `go test ./clients/` refuses a write with no approval, a `sensitive` client off
-the client-hosted plane, a `cloud` plane on our account, and a provider used but
-not declared. Design and phases: `docs/access-plane.md`.
+the client-hosted plane, a `cloud` plane on our account, a provider used but not
+declared, and an `identity` left unstated. One broker per client is the default
+(`NANGO_CLIENT_ID`); `--shared` is a `data_class: normal` pilot. `identity: org`
+is the recommendation — one refresh chain, one revocation row; `per-user` is a
+compliance choice, not an upgrade. Design and phases: `docs/access-plane.md`.
 
 
 ## Decision tree

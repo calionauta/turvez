@@ -88,6 +88,9 @@ func TestManifestTopology(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			raw := "client: acme\ndata_class: " + c.class + "\naccess:\n  " + c.block + "\n"
+			if !strings.Contains(c.block, "identity:") {
+				raw += "  identity: org\n"
+			}
 			m, err := ParseManifest([]byte(raw))
 			if err != nil {
 				t.Fatal(err)
@@ -116,7 +119,7 @@ func TestManifestKeyCollision(t *testing.T) {
 func TestDedicatedRuntimeNeedsClientPlane(t *testing.T) {
 	for _, runtime := range []string{"shared", "dedicated"} {
 		for _, plane := range []string{PlaneClient, PlaneCloud, PlaneShared} {
-			raw := "client: acme\ndata_class: normal\nruntime: " + runtime + "\naccess:\n  enabled: true\n  plane: " + plane + "\n  vendor_account: client\n"
+			raw := "client: acme\ndata_class: normal\nruntime: " + runtime + "\naccess:\n  enabled: true\n  plane: " + plane + "\n  identity: org\n  vendor_account: client\n"
 			m, err := ParseManifest([]byte(raw))
 			if err != nil {
 				t.Fatal(err)

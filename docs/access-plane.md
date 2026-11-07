@@ -94,18 +94,28 @@ Three rules, in order of precedence:
 `access.plane: client`, and a `sensitive` client on a shared broker is a build
 failure, not a note in a fieldbook.
 
-## 4. Identity: `org` or `per-user`
+## 4. Identity: `org` by default, `per-user` on request
 
-Decided per client in the fieldbook, before the first tool is exposed:
+The field is **required** when the plane is on. It is not defaulted in code,
+because it changes the connection namespace (`acme` vs `acme:<user>`) and the
+cost of getting it wrong is paid later, by the client, during a migration.
 
-- `identity: org` — one connection per provider; the agent acts as the company.
-  One grant per provider, simple onboarding, simple revocation.
-- `identity: per-user` — each staff member connects their own account and the
-  agent acts as that person. Closer to what people expect from an agent, at the
-  cost of N grants, N onboarding flows and N revocations.
+**Decision: `org` is the default and the recommended shape.**
 
-The naming already supports both: `acme` and `acme:fulano`. Start `org` where it
-is enough; the data does not change shape when a client upgrades.
+| | `identity: org` | `identity: per-user` |
+| --- | --- | --- |
+| Grants | one per provider | one per person per provider |
+| Refresh chains | one | N, each able to hit `invalid_grant` on its own |
+| Revocation | one row, atomic | N rows, and an offboarding checklist |
+| Onboarding | one consent link | every staff member consents |
+| Attribution | "the company did it" | "this person did it" |
+| Failure surface | smallest | grows with headcount |
+
+`org` wins on the axis that matters for an unattended automation: fewer moving
+parts. `per-user` is a **compliance or product requirement**, not an
+improvement — choose it when the client needs per-person attribution or
+per-person approvals, and write that reason in the fieldbook. Upgrading later
+does not change the data shape: `<client>` and `<client>:<user>` already coexist.
 
 ## 5. Invariants
 
@@ -199,15 +209,13 @@ hypothetical, two is a pattern. When each backend earns a place:
 
 ## 9. Open decisions (human, not code)
 
-1. **Identity**: `org` first with an upgrade path, or `per-user` from day one
-   for clients whose staff will drive the agent directly?
-2. **The licence** when the broker is client-hosted: the client buys Enterprise,
+1. **The licence** when the broker is client-hosted: the client buys Enterprise,
    or the community image runs unsupported on their infra with that risk stated
    in the fieldbook?
-3. **Which providers are pre-seeded**: only the ones in the first automation, or
+2. **Which providers are pre-seeded**: only the ones in the first automation, or
    the full set the client may want later? Each needs OAuth app credentials,
    which is the real ceiling.
-4. **Custody at offboarding**: who owns the grant, and what happens to the
+3. **Custody at offboarding**: who owns the grant, and what happens to the
    connections when the engagement ends? This belongs in the contract.
 
 ## References
