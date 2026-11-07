@@ -1,9 +1,21 @@
 # Remotes: Windmill and Nango, cloud or self-hosted
 
 The engine and the broker can run on a vendor's cloud, on the client's server,
-or on ours. That is a **deployment answer**, recorded per client in
-`client.yaml`, never inferred by the repo (`docs/access-plane.md` §3,
-`docs/deployment-profiles.md`).
+or on ours. They are **separate answers** — a client can run its engine on
+Cloud and its broker on its own host, or the reverse. Both are recorded under
+`deployment:` in `client.yaml`; the repo never infers them
+(`docs/access-plane.md` §3, `docs/deployment-profiles.md`).
+
+At onboarding, `scripts/new-client.sh` asks for each layer separately:
+
+```bash
+./scripts/new-client.sh acme --engine=windmill --windmill=cloud --nango=self_hosted
+```
+
+With a terminal attached it prompts `windmill hosting [cloud/self_hosted] (cloud)`
+and the same for `nango`; non-interactive runs use the `cloud` default or the
+flag values. Each client gets its own answer; a dagnats client records only
+`deployment.nango`, a Windmill client records both.
 
 `scripts/connect-remotes.sh` is how the operator's answer reaches the shell:
 
@@ -61,6 +73,9 @@ Record it, do not infer it:
 
 ```yaml
 engine: windmill
+deployment:
+  windmill: cloud
+  nango: self_hosted
 target:
   base_url: https://cloud.windmill.dev
   workspace: acme
