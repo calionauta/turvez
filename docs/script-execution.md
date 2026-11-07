@@ -217,7 +217,7 @@ question "should this client use turvez at all" needs a second cut:
 | 400+ SaaS nodes, visual builder, client team edits the flow | **n8n** | catalog and UI; heavier, SUL license |
 | Recurrent script/SSH/Docker job, step-level retry, one binary | **Dagu** | script-shaped work; GPLv3 |
 | One command on a schedule, nothing else | **cron** | zero new surface |
-| OAuth/refresh for many SaaS APIs | **Nango** (optional layer) | self-hosted credential broker; HTTP proxy |
+| OAuth/refresh for many SaaS APIs | **Nango** (optional layer) | per-client credential broker; HTTP proxy |
 | Agent tool auth over MCP | **Executor** (optional layer) | per-connection auth and policies |
 
 Operate **one orchestrator per client**. Nango and Executor are layers, not
@@ -250,7 +250,7 @@ does.
 
 ### Nango (optional)
 
-Nango self-hosted handles OAuth, token refresh and encrypted credential
+A per-client Nango broker handles OAuth, token refresh and encrypted credential
 storage for 1,000+ APIs. It is a layer, not a runtime: dagnats and Windmill
 call its **proxy** over HTTP with a static Nango key and the connection id, and
 Nango injects the provider token. It adds Node + Postgres and is licensed

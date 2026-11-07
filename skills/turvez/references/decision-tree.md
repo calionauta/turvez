@@ -207,7 +207,7 @@ stays for typed contracts, native approvals, no arbitrary code, git-first and
 a single binary.
 
 OAuth for many SaaS APIs is a **layer**, not an orchestrator: Nango
-(self-hosted, ELv2) exposes an HTTP proxy that dagnats or Windmill can call.
+(per-client broker, ELv2; documented self-host is Enterprise) exposes an HTTP proxy that dagnats or Windmill can call.
 Never put raw OAuth tokens in Windmill variables or dagnats recipes.
 Where the broker runs is `access.plane`, not `runtime` (docs/access-plane.md):
 client-hosted by default and mandatory for `data_class: sensitive`; a shared
