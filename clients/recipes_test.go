@@ -11,6 +11,7 @@ package clients
 
 import (
 	"encoding/json"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -482,6 +483,9 @@ func windmillTargetError(fields map[string]string) string {
 	if fields["base_url"] == "" {
 		return "engine: windmill but no target.base_url — record the operator's answer (Cloud or self-hosted), do not infer it"
 	}
+	if u, err := url.Parse(fields["base_url"]); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return "engine: windmill but target.base_url \"" + fields["base_url"] + "\" is not an http(s) URL"
+	}
 	if w := fields["workspace"]; w == "" || strings.HasPrefix(w, "TODO") {
 		return "engine: windmill but target.workspace is \"" + w + "\" — one workspace per client is the tenancy rule (docs/deployment-profiles.md)"
 	}
@@ -510,6 +514,7 @@ func TestWindmillTargetIsRecorded(t *testing.T) {
 	}
 	for _, missing := range []map[string]string{
 		{"engine": "windmill", "workspace": "acme"},
+		{"engine": "windmill", "base_url": "cloud.windmill.dev", "workspace": "acme"},
 		{"engine": "windmill", "base_url": "https://cloud.windmill.dev"},
 		{"engine": "windmill", "base_url": "https://cloud.windmill.dev", "workspace": "TODO-CLIENT"},
 	} {
