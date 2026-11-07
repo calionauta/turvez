@@ -169,9 +169,10 @@ would have nothing to check.
 
 ## 7. What is not implemented yet
 
-Status: **P0 and P1 done** (contract, ceiling, tests, docs, per-client broker
-scoping). P2 — grants, revocation and audit — needs a running broker; this doc
-does not claim it exists.
+Status: **P0, P1 and the P2 adapter done** (contract, ceiling, tests, docs,
+per-client broker scoping, and the minimal adapter over the Nango HTTP API:
+connect session, list-by-tag, revoke). The full self-serve UI and the audit
+store are still future work.
 
 | Phase | Work | Gate |
 | --- | --- | --- |
