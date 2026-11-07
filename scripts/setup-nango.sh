@@ -49,6 +49,18 @@ done
 
 CLIENT="${NANGO_CLIENT_ID:-${CLIENT_ID:-}}"
 
+# The id becomes a Compose project name and a volume name, and it is passed as
+# `-p "$PROJECT"`: anything but a lowercase slug is either rejected by Compose
+# later or, with a leading dash, read as a flag.
+case "$CLIENT" in
+  ""|*[!a-z0-9-]*|[-]*)
+    if [ -n "$CLIENT" ]; then
+      echo "setup-nango: NANGO_CLIENT_ID '$CLIENT' must be a lowercase slug (a-z, 0-9, -)" >&2
+      exit 2
+    fi
+    ;;
+esac
+
 if [ -n "$CLIENT" ] && [ "$shared" -eq 1 ]; then
   echo "setup-nango: --shared contradicts NANGO_CLIENT_ID=$CLIENT" >&2
   echo "  a shared broker belongs to no single client; drop one (docs/access-plane.md §3)" >&2
@@ -80,6 +92,12 @@ PROJECT="${NANGO_PROJECT:-nango-shared}"
 if [ -z "${NANGO_PROJECT:-}" ] && [ -n "$CLIENT" ]; then
   PROJECT="nango-$CLIENT"
 fi
+case "$PROJECT" in
+  ""|[!a-z0-9]*|*[!a-z0-9_-]*)
+    echo "setup-nango: project name '$PROJECT' is not a Compose project name (lowercase, digits, _ or -)" >&2
+    exit 2
+    ;;
+esac
 export NANGO_CLIENT_ID="${CLIENT:-shared}"
 COMPOSE=(docker compose -f "$COMPOSE_FILE" -p "$PROJECT")
 
