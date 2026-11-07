@@ -169,9 +169,11 @@ would have nothing to check.
 
 ## 7. What is not implemented yet
 
-Status: **P0, P1 and P2 implemented** (contract, ceiling, tests, docs,
-per-client broker scoping, minimal Nango adapter and grant manager with
-audited revoke/list/create). The full self-serve UI is still future work.
+Status: **P0, P1, P2 and P2-B implemented** (contract, ceiling, tests, docs,
+per-client broker scoping, Nango adapter, grant manager with audited
+revoke/list/create, and the Go CLI in `cmd/access-plane` backed by those
+packages). A client-facing web portal is still future work and only justified
+when the contract requires the client's own staff to manage access.
 
 | Phase | Work | Gate |
 | --- | --- | --- |
