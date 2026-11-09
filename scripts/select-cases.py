@@ -30,12 +30,16 @@ import argparse
 import base64
 import hashlib
 import json
+import random
+import re
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 import evalconfig
+
+STRATEGIES = ("targeted", "random", "diverse", "stratified")
 
 
 def decode(value: str | None):
@@ -102,6 +106,98 @@ def load_runs(args) -> list[dict]:
     runs = doc["runs"] if isinstance(doc, dict) and "runs" in doc else doc
     # Accept both `[{"run": {...}}]` (what the CLI emits) and `[{...}]`.
     return [item.get("run", item) for item in runs]
+
+
+def run_text(run: dict, cfg: dict) -> tuple[str, str]:
+    """(system, user) text of the run's prompt step; ("", "") when absent."""
+    prompt = step_output(run, cfg["prompt_step"])
+    if not isinstance(prompt, dict):
+        return "", ""
+    messages = prompt.get("messages") or []
+    role = cfg.get("text_role", "user")
+    user = next((m.get("content", "") for m in messages if m.get("role") == role), "")
+    system = next((m.get("content", "") for m in messages if m.get("role") == "system"), "")
+    return system, user
+
+
+def shingles(text: str, n: int = 3) -> set[str]:
+    tokens = re.findall(r"[a-z0-9]+", text.lower())
+    if len(tokens) < n:
+        return {tuple(tokens)} if tokens else set()
+    return {tuple(tokens[i:i + n]) for i in range(len(tokens) - n + 1)}
+
+
+def jaccard(a: set[str], b: set[str]) -> float:
+    if not a or not b:
+        return 0.0
+    return len(a & b) / len(a | b)
+
+
+def order_pool(runs: list[dict], strategy: str, cfg: dict, labels: dict,
+               seed: int, limit: int) -> list[tuple[dict, str]]:
+    """Return (run, strategy_reason) pairs in selection order.
+
+    Only the ordering is strategy-dependent; classify() reasons and dedupe are
+    applied downstream, uniformly.
+    """
+    if strategy == "targeted":
+        # The pre-existing behaviour: file order, first-N controls handled by
+        # the caller via classify().
+        return [(run, "") for run in runs]
+
+    rng = random.Random(seed)
+    pool = list(runs)
+
+    if strategy == "random":
+        rng.shuffle(pool)
+        return [(run, "sample:random") for run in pool]
+
+    if strategy == "diverse":
+        # Greedy max-coverage: at each step take the run whose text shingles
+        # are least similar (lowest max Jaccard) to what is already selected.
+        texts = {id(run): shingles((run_text(run, cfg)[0] + " " + run_text(run, cfg)[1]))
+                 for run in pool}
+        selected: list[tuple[dict, str]] = []
+        picked: set[int] = set()
+        remaining = list(pool)
+        while remaining:
+            if not selected:
+                pick = remaining.pop(0)
+            else:
+                pick = min(
+                    remaining,
+                    key=lambda r: max(jaccard(texts[id(r)], texts[id(s)])
+                                      for s, _ in selected),
+                )
+                remaining.remove(pick)
+            picked.add(id(pick))
+            selected.append((pick, "sample:diverse"))
+            if limit and len(selected) >= limit:
+                break
+        return selected
+
+    # stratified: round-robin across strata (labels first, then gate, then status)
+    strata: dict[str, list[dict]] = {}
+    for run in pool:
+        system, user = run_text(run, cfg)
+        digest = hashlib.sha256((system + "\x00" + user).encode()).hexdigest()[:16]
+        label = labels.get(digest) or {}
+        key = next((str(label[f["var"]]) for f in evalconfig.fields(cfg)
+                    if label.get(f["var"])), None)
+        if key is None:
+            gate = step_output(run, cfg["gate_step"])
+            key = "gate:rejected" if isinstance(gate, dict) and gate.get("matched") is False \
+                else ("gate:passed" if isinstance(gate, dict) else f"status:{run.get('status')}")
+        strata.setdefault(key, []).append(run)
+    for group in strata.values():
+        rng.shuffle(group)
+    ordered: list[tuple[dict, str]] = []
+    keys = sorted(strata, key=lambda k: -len(strata[k]))
+    while any(strata[k] for k in keys):
+        for key in keys:
+            if strata[key]:
+                ordered.append((strata[key].pop(0), f"sample:stratified:{key}"))
+    return ordered
 
 
 def build_case(run: dict, reasons: list[str], labels: dict, cfg: dict) -> dict | None:
@@ -177,6 +273,13 @@ label fields and schema. see skills/turvez/references/eval-loop.md.""")
                     help="also take N clean runs as control cases (deterministic order)")
     ap.add_argument("--labels", default=None,
                     help="labels.json keyed by case hash (default: <out>/../labels.json)")
+    ap.add_argument("--strategy", choices=STRATEGIES, default="targeted",
+                    help="selection strategy: targeted (default, signal-first), "
+                         "random, diverse or stratified (--limit caps cases)")
+    ap.add_argument("--seed", type=int, default=0,
+                    help="seed for random/diverse/stratified (default: 0)")
+    ap.add_argument("--limit", type=int, default=0,
+                    help="cap the number of cases (0 = no cap)")
     args = ap.parse_args()
     if not args.runs and not args.dagnats:
         ap.error("pass --runs FILE or --dagnats")
@@ -199,12 +302,20 @@ label fields and schema. see skills/turvez/references/eval-loop.md.""")
     cases, seen, audit = [], set(), []
     controls = args.include_ok
 
-    for run in runs:
+    ordered = order_pool(runs, args.strategy, cfg, labels, args.seed, args.limit)
+
+    for run, strategy_tag in ordered:
         reasons = classify(run, cfg)
-        if not reasons and controls > 0:
+        if strategy_tag:
+            reasons = [strategy_tag] + [r for r in reasons if r not in (strategy_tag,)]
+        if not reasons and controls > 0 and args.strategy == "targeted":
             reasons = ["control"]
             controls -= 1
         if not reasons:
+            continue
+        if args.limit and len(cases) >= args.limit:
+            audit.append({"run_id": run["run_id"], "reasons": reasons, "case": None,
+                          "why": "over --limit"})
             continue
         case = build_case(run, reasons, labels, cfg)
         if case is None:
@@ -225,6 +336,9 @@ label fields and schema. see skills/turvez/references/eval-loop.md.""")
     (out / "cases.json").write_text(json.dumps(cases, indent=2) + "\n")
     (out / "selection.json").write_text(json.dumps({
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "strategy": args.strategy,
+        "seed": args.seed,
+        "limit": args.limit,
         "runs_examined": len(runs),
         "cases": len(cases),
         "audit": audit,
