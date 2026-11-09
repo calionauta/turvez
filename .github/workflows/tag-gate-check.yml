@@ -1,0 +1,57 @@
+name: tag-gate-check
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tag-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Validate tag and version manifest
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          echo "Checking tag $TAG"
+          if [[ "$TAG" != v* ]]; then
+            echo "ERROR: tag must start with v" >&2; exit 1
+          fi
+          version="${TAG#v}"
+          echo "Tag version: $version"
+          # release-please derives the tag from .release-please-manifest.json;
+          # a mismatch means the tag was created outside release-please.
+          manifest_version=$(python3 -c "import json; print(json.load(open('.release-please-manifest.json'))['.'])")
+          if [ "$version" != "$manifest_version" ]; then
+            echo "ERROR: tag version $version does not match .release-please-manifest.json ($manifest_version)" >&2
+            exit 1
+          fi
+          # The tag must point at the release commit (chore(main): release …).
+          tagged_commit=$(git rev-list -n 1 "$TAG")
+          subject=$(git log -1 --format=%s "$tagged_commit")
+          case "$subject" in
+            chore\(main\):\ release*) ;;
+            *) echo "ERROR: tagged commit subject is not a release commit: $subject" >&2; exit 1 ;;
+          esac
+          echo "Tag $TAG points at release commit: $subject"
+      - name: Verify tag exists on GitHub
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release view "${{ github.ref_name }}" --json tagName >/dev/null \
+            && echo "Release for ${{ github.ref_name }} exists" \
+            || { echo "ERROR: no GitHub release found for ${{ github.ref_name }}" >&2; exit 1; }
