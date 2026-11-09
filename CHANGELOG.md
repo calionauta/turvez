@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.12](https://github.com/calionauta/turvez/compare/v0.1.11...v0.1.12) (2026-11-09)
+
+
+### Features
+
+* add --strategy sampling to select-cases.py ([dc314a1](https://github.com/calionauta/turvez/commit/dc314a1910bf5de6739cfa71e99475323f68e74f))
+
+
+### Documentation
+
+* add eval strategies decision guide ([be7f023](https://github.com/calionauta/turvez/commit/be7f023a1a166685dbdaa225479c10c455a65a49))
+
 ## [0.1.11](https://github.com/calionauta/turvez/compare/v0.1.10...v0.1.11) (2026-11-07)
 
 
