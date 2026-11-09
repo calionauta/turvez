@@ -312,6 +312,7 @@ curl -X POST localhost:8090/ops/approvals/<run-id> \
 - `docs/deployment-profiles.md` — A embedded / B managed / C multi-tenant, gateway placement, engine cost
 - `docs/script-execution.md` — where to execute: recipe vs sandbox vs Dagu vs Windmill + platform comparison
 - `docs/workflows.md` — Mermaid diagrams: repo choice, automation, eval loop, formats
+- `docs/eval-strategies.md` — how to choose and run each eval method (deterministic, reference, production sampling, logs-only, curated, synthetic, LLM-as-judge, human); sampling mix; judge calibration; instructions for LLMs and humans
 - `docs/first-run.md` — verified install → client → run → observe → eval, with traps
 - `docs/writing-recipes.md` — recipe anatomy, engine-vs-handler table, what the engine allows, v0.0.32 traps
 - `docs/handlers-reference.md` — task inputs/outputs, metadata keys

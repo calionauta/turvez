@@ -3,6 +3,10 @@
 The exact sequence an agent follows to turn run history into a measured eval.
 Confirm at the marked points; never run the eval unasked.
 
+Which strategy to use when — deterministic, reference, production sampling,
+logs-only, curated, synthetic, LLM-as-judge, human — is
+`docs/eval-strategies.md`.
+
 ## 0. Prerequisites
 
 - the client's stack is running and the CLI points at it:

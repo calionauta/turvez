@@ -88,7 +88,9 @@ flowchart TD
 Use the run path when the automation already calls a model: production output
 becomes a *suggestion*, not a label. Use the logs path when the client has only
 inputs: labels are human from the start. `evals/` is engine-agnostic; the
-normalizer is explicit so one script never learns two APIs.
+normalizer is explicit so one script never learns two APIs. Which method to use
+when — deterministic, reference, sampling, logs, curated, synthetic, judge,
+human — is `docs/eval-strategies.md`.
 
 ## 4. Deployment profiles
 
