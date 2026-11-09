@@ -236,11 +236,11 @@ When Q3 says production sampling, choose the sampling mix:
 
 | Strategy | What it catches | Status |
 |---|---|---|
-| **Targeted** (failures, retries, gate rejections, malformed) | known failure modes | ✅ `select-cases.py --strategy targeted` (default) |
-| **Random baseline** | unknown unknowns, distribution drift | ✅ `--strategy random --seed N --limit K` |
-| **Diversity** (greedy shingle coverage) | coverage of distinct behaviours | ✅ `--strategy diverse` |
-| **Stratified** (by category / query type) | per-segment regressions | ✅ `--strategy stratified` (labels → gate → status) |
-| **Active learning** (uncertainty / decision boundary) | the model's weak spots | ❌ proposed |
+| `targeted` (failures, retries, gate rejections, malformed) | known failure modes | ✅ `select-cases.py --strategy targeted` (default) |
+| `random` baseline | unknown unknowns, distribution drift | ✅ `--strategy random --seed N --limit K` |
+| `diverse` (greedy shingle coverage) | coverage of distinct behaviours | ✅ `--strategy diverse` |
+| `stratified` (by category / query type) | per-segment regressions | ✅ `--strategy stratified` (labels → gate → status) |
+| active learning (uncertainty / decision boundary) | the model's weak spots | ❌ proposed |
 
 Rule: targeted for known failures; random/diversity for coverage; stratified
 for segment regressions; active learning for the long tail. Never sample only
