@@ -106,6 +106,36 @@ declared `language: python3|deno|bun` fails validation. When in doubt, use
 
 Bash stays out of both roles: no types, no tests.
 
+### Browser work: a Go node, and the image is the cost
+
+Only for Q1.7 role 3 — after `read` and `flow` failed to produce an HTTP path
+(`docs/browser.md`). The node is thin: exec the CLI with `--json`, parse, return.
+Logic stays in a Go package and is unit-tested, because CI has no browser.
+
+```go
+func main(url string) (interface{}, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "agent-browser", "--json", "--allowed-domains", "supplier.example",
+		"batch", "--json", "--bail",
+		"open "+url, "snapshot -i", "read").Output()
+	if err != nil {
+		return nil, fmt.Errorf("agent-browser: %w", err)
+	}
+	return json.RawMessage(out), nil
+}
+```
+
+What the image needs: the `agent-browser` binary plus an engine — `agent-browser
+install` for Chrome for Testing, or a `lightpanda` binary on `PATH` for public
+pages at volume (10x less memory, no profiles/state; `--engine lightpanda`).
+That image is the real cost of this branch: it is a browser in production, so
+pin the CLI version, use a distinct `--session` per run with `--idle-timeout`,
+and keep `--allowed-domains`, `--content-boundaries`, `--max-output` and
+`--no-webmcp` on every invocation. `read` alone needs no engine at all — prefer
+it. Never pass a token in argv (shell history and `ps`): authenticated pages go
+through the Nango proxy or `--state` on a dedicated host.
+
 ## YAML or JSON for WAC?
 
 Windmill's flow directory uses `flow.yaml`; that is the supported authoring
