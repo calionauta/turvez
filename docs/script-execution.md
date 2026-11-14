@@ -61,6 +61,25 @@ Do not smuggle an `agent_loop` step into a recipe: this runtime has no handler
 for it and the tools are arbitrary code. Rationale:
 `docs/writing-recipes.md` → "Why AgentLoop/planner stay upstream-only".
 
+**Q1.7. Is the data only on a page without an API?**
+(supplier portal, price table, regulator's site). Answer in this order and stop
+at the first that works — the goal is to make the browser disappear
+(`docs/browser.md`, tool `agent-browser`, floor 0.43.0):
+
+1. **`agent-browser read <url>`** — a plain HTTPS GET that returns markdown
+   (`Accept: text/markdown`, `.md` sibling, nearest `llms.txt`), **no browser**.
+   Level 1 to confirm the output, then a **Windmill Go node** if it recurs.
+2. **`--capture flow` → `flow save` → `flow run`** — record the click path once.
+   The run tries direct HTTP first; if that tier answers, the site *has* an
+   endpoint → write it as `http.request`/a Go node and drop the browser.
+   `drifted`/`unverified` means the shape moved, not that you need a browser.
+3. **Neither works** (SSR-only, signed requests, bot challenge, login+session):
+   the browser stays, in a **Windmill Go node** that execs the CLI in a worker
+   image with the binary plus Chrome/Lightpanda. **Never a dagnats recipe** —
+   the worker is `distroless`, recipes are JSON over 12 handlers, and the
+   language policy still forbids arbitrary exec. Inside a human-watched agent
+   loop the browser is a **tool** (`agent-browser mcp`, Q1.5), not a step.
+
 **Q2. Is it new code that runs once?** (LLM-generated parser, CSV cleanup,
 client API probe)
 Yes → level 1. Read the script, copy it inside the repo (the sandbox only
@@ -183,6 +202,7 @@ Stop and choose one — that is the line this page exists to hold.
 | Deploy `git pull + docker compose up` for the client | 2 Dagu | SSH + retry + log in the UI |
 | Client team wants a "generate report" button with form | 3 Windmill | generated UI + catalog, outside dagnats and plain Dagu scope |
 | Agent that codes/tests in a loop until green | new decision | needs tool execution + per-iteration checkpoint; not a recipe |
+| Price table on a supplier portal with no API | Q1.7 first | `read` (HTTP) then `flow` to find the endpoint; a browser only as a Windmill node (`docs/browser.md`) |
 
 ## Recorded verdict
 

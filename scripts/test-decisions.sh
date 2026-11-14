@@ -14,6 +14,8 @@
 #   engine:<name>      every engines.json entry is in the tree, the scaffold
 #                      and the README, and its declared gate path exists
 #   capability-genkit  not an engine, has a scaffold, a compile gate, one pin
+#   capability-browser a tool for pages with no API: doc, floor, commands, flags,
+#                      and the refusal to be an engine, a dependency or a recipe
 #   library-goai       the only model path is a go.mod dependency
 #   library-nango      the credential layer has a script and a doc
 #   level-1-sandbox    the one-off path has a runner
@@ -36,7 +38,7 @@ need_file() { # path, why
   if [ -e "$ROOT/$1" ]; then ok; else bad "missing $1 ($2)"; fi
 }
 need_text() { # file, pattern, why
-  if grep -qE "$2" "$ROOT/$1" 2>/dev/null; then ok; else bad "$1 does not mention '$2' ($3)"; fi
+  if grep -qE -e "$2" "$ROOT/$1" 2>/dev/null; then ok; else bad "$1 does not mention '$2' ($3)"; fi
 }
 
 json() { python3 -c "import json,sys;d=json.load(open(sys.argv[1]));$2" "$ROOT/engines.json"; }
@@ -105,6 +107,67 @@ if grep -q "$pinned" "$SKILL"; then
   bad "SKILL.md hardcodes $pinned (versions belong in the scaffold/gate, not the loaded prefix)"
 else
   ok
+fi
+
+# --- capability-browser ----------------------------------------------------
+# agent-browser is the answer for data that only exists on a page with no API
+# (Q1.7). It is a separate binary: never an engine (engines.json is the engine
+# list), never a go.mod dependency, never a recipe step (the dagnats worker is
+# distroless and a recipe is JSON over 12 handlers). The doc is the contract, so
+# an edit that drops a safety flag fails here instead of at 3am.
+BROWSER_MIN_VERSION="${BROWSER_MIN_VERSION:-0.43.0}"
+ver_lt() { # a b -> true when a < b
+  awk -v a="$1" -v b="$2" 'BEGIN {
+    split(a,x,"."); split(b,y,".");
+    for (i=1;i<=3;i++) { if ((x[i]+0) < (y[i]+0)) exit 0; if ((x[i]+0) > (y[i]+0)) exit 1 }
+    exit 1
+  }'
+}
+need_file docs/browser.md "Q1.7 tool doc (docs/script-execution.md)"
+if grep -qE '"(agent-browser|browser)"' "$ROOT/engines.json"; then
+  bad "a browser is an engine in engines.json (it is a tool, docs/browser.md)"
+else ok; fi
+if grep -qi "agent-browser" "$ROOT/go.mod"; then
+  bad "agent-browser leaked into go.mod (a separate binary, like Dagu)"
+else ok; fi
+for phrase in "not an engine" "not a recipe" "distroless" "untrusted" "lightpanda" "$BROWSER_MIN_VERSION"; do
+  need_text docs/browser.md "$phrase" "docs/browser.md states it"
+done
+for cmd in read flow batch webmcp mcp; do
+  need_text docs/browser.md "agent-browser $cmd" "the documented command set"
+done
+for flag in allowed-domains content-boundaries max-output allow-write no-webmcp; do
+  need_text docs/browser.md "-$flag" "the safety flag stays in the doc"
+done
+# Routing: the index, the tree and the diagram must all lead to the doc.
+need_text llms.txt "docs/browser.md" "llms.txt routes the tool"
+need_text skills/turvez/references/decision-tree.md "docs/browser.md" "the tree routes Q1.7"
+need_text docs/script-execution.md "Q1.7" "the level doc asks Q1.7"
+need_text README.md "Q1.7" "the rendered tree keeps Q1.7"
+need_text skills/turvez/references/windmill.md "agent-browser" "the Windmill node pattern is documented"
+# The always-loaded skill carries no version (it would rot and break the prefix).
+if grep -q "$BROWSER_MIN_VERSION" "$SKILL"; then
+  bad "SKILL.md hardcodes $BROWSER_MIN_VERSION (the floor belongs in docs/browser.md)"
+else ok; fi
+# Live probe when the CLI is installed: the doc must be usable as written.
+if command -v agent-browser >/dev/null 2>&1; then
+  v="$(agent-browser --version 2>/dev/null | awk '{print $2}' | head -1)"
+  if [ -z "$v" ]; then
+    bad "agent-browser is installed but --version printed nothing"
+  elif ver_lt "$v" "$BROWSER_MIN_VERSION"; then
+    bad "agent-browser $v is older than the documented floor $BROWSER_MIN_VERSION"
+  else
+    ok
+    ref="$(agent-browser skills get core --ref commands 2>/dev/null || true)"
+    for cmd in read flow batch webmcp mcp; do
+      case "$ref" in
+        *"agent-browser $cmd"*) ok ;;
+        *) bad "agent-browser $v cannot '$cmd' (docs/browser.md documents it)" ;;
+      esac
+    done
+  fi
+else
+  echo "test-decisions: agent-browser not installed — CLI probe skipped (doc checks above still ran)"
 fi
 
 # --- library-goai ----------------------------------------------------------

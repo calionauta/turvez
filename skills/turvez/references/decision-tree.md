@@ -71,6 +71,7 @@ one row. This is what makes two runs on the same repo agree.
 | One-off code | level 1 sandbox, zero residue | it recurs → level 2; it needs replay/UI → level 3 |
 | Answer over data | system of record via Nango | documents that don't fit one prompt → route-then-read |
 | Model call | `llm.complete` (goai) | a human watches a loop → Genkit; nobody watching → recipe |
+| Data only on a page (no API) | `agent-browser read`, then `flow` to find the endpoint | neither answers → Windmill Go node with a browser; never a dagnats recipe (Q1.7) |
 | Library | stdlib → `go.mod` → approved capability | none of those fit → propose a new dependency, confirm, then pin |
 
 ## Q0.8 — is the ask "answer questions over our data"?
@@ -142,6 +143,31 @@ done? → **not** a recipe, **not** Dagu level 2. Split it by who is waiting:
 Either way the durable consequence is a **run in the client's engine**
 (dagnats `run start` / Windmill flow, idempotency key from the request) —
 Genkit is a capability, never a third engine, and the engine count stays one.
+If the loop needs a **browser** as a tool, that tool is `agent-browser mcp` and
+its rules are `docs/browser.md` (Q1.7).
+
+## Q1.7 — is the data only on a page with no API?
+
+A supplier portal, a price table, a regulator's page: no API, and the client
+will not get one. Answer in order, stop at the first that works. The goal is to
+make the browser disappear; details and safety flags in `docs/browser.md`.
+
+1. **`agent-browser read <url>`** — plain HTTPS, **no browser**, returns
+   markdown (`.md` sibling, nearest `llms.txt`). Confirm as a level 1 one-off,
+   then a **Windmill Go node** if it recurs. Not a recipe: no markdown handler.
+2. **`--capture flow` → `flow save` → `flow run`** — record the clicks once.
+   The run tries direct HTTP first; if that tier answers, the site *has* an
+   endpoint → write it as `http.request`/a Go node and delete the browser from
+   the runtime. `drifted`/`unverified` = the shape moved; re-save.
+3. **Neither works** (SSR-only, signed requests, bot challenge, login+session):
+   the browser stays, as a **Windmill Go node** that execs the CLI in a worker
+   image with the binary plus Chrome or Lightpanda. **Never a dagnats
+   recipe** — `distroless` worker, JSON recipes over 12 handlers, no arbitrary
+   exec.
+
+Two rules that decide most cases before any command runs: an undocumented JSON
+endpoint behind the page is the normal outcome (role 2), and a second path to
+data the repo already has is the same failure as a second orchestrator.
 
 **Not our agent?** If the agent belongs to the client and calls the tools we
 authenticated, the question stops being "which engine runs the loop" and becomes

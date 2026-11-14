@@ -75,6 +75,13 @@
   in the client's engine. Never add `genkit` to `engines.json`. Scaffold:
   `scripts/new-agent-service.sh <client>` (plan, then `--apply --provider <slug>`);
   `scripts/check-agent-template.sh` compiles it in CI (pinned Genkit, temp module).
+- Data that exists only on a web page (no API): docs/browser.md — Q1.7.
+  `agent-browser read` (HTTP, no browser) → `flow` (record once; if the direct
+  HTTP tier answers, the site has an endpoint → write `http.request`/Go node
+  and drop the browser) → only then a browser, in a Windmill Go node (or as a
+  Genkit tool), never a dagnats recipe. Version floor 0.43.0; safety flags and
+  the Lightpanda/Chrome choice are in the doc. Gate:
+  `./scripts/test-decisions.sh` (capability-browser).
 - Answering questions over client data: docs/retrieval.md — split documents
   (route-then-read: 2026 default is lexical for identifiers and hybrid BM25 + small
   dense + RRF + optional rerank of units for natural language; glossary expansion;

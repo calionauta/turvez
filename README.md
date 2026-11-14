@@ -114,6 +114,11 @@ flowchart TD
     GK --> TAIL["durable tail → a run in the client's engine"]
     RC --> TAIL
 
+    OPS --> Q17{"Q1.7. Data only on a page?"}
+    Q17 -->|"read — HTTP, no browser"| RD["markdown / llms.txt<br/>level 1 → Windmill Go node"]
+    Q17 -->|"flow — record once"| FL["direct HTTP tier answers →<br/>it is an API: http.request / Go node"]
+    Q17 -->|"neither works"| BR["browser stays<br/>Windmill Go node · never a dagnats recipe"]
+
     OPS --> Q2{"Q2. Where does it run?"}
     Q2 -->|"default"| SH["shared<br/>folder + name prefix + env"]
     Q2 -->|"regulation · client infra ·<br/>noisy neighbour · upgrade window"| DH["dedicated host<br/>runtime: dedicated + target.host"]
@@ -145,6 +150,8 @@ interview changes:
   behind an eval.
 - Genkit only when a human watches the loop; the durable result becomes a run in
   the client's engine.
+- A page with no API: `agent-browser read`, then `flow` to find the endpoint; a
+  browser only in a Windmill Go node, never a dagnats recipe (`docs/browser.md`).
 - A new library goes stdlib → `go.mod` → approved capability → propose and
   confirm; then `go.mod` pins and Dependabot keeps it current.
 
