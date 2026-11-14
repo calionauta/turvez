@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.13](https://github.com/calionauta/turvez/compare/v0.1.12...v0.1.13) (2026-11-14)
+
+
+### Features
+
+* **browser:** route no-API sites through read, then flow ([#30](https://github.com/calionauta/turvez/issues/30)) ([3aab9d4](https://github.com/calionauta/turvez/commit/3aab9d4e252caa10bc186e2511eb115130cd2e91))
+
 ## [0.1.12](https://github.com/calionauta/turvez/compare/v0.1.11...v0.1.12) (2026-11-09)
 
 
