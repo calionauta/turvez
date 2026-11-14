@@ -235,6 +235,7 @@ question "should this client use turvez at all" needs a second cut:
 | Typed API automation, native approvals, no arbitrary code, light footprint, Apache-2.0 | **dagnats** | contract + tests + git; 1 binary |
 | Client-facing UI/forms/apps, replay from a step, test one step, code steps in Go | **Windmill** | flow editor, step results, restart from node |
 | 400+ SaaS nodes, visual builder, client team edits the flow | **n8n** | catalog and UI; heavier, SUL license |
+| Same slot, but the client owns the instance and the licence should be permissive | **Activepieces** | MIT core, 200+ pieces, one-click on a VPS; Git Sync is paid, so it is client-operated, never an engine here |
 | Recurrent script/SSH/Docker job, step-level retry, one binary | **Dagu** | script-shaped work; GPLv3 |
 | One command on a schedule, nothing else | **cron** | zero new surface |
 | OAuth/refresh for many SaaS APIs | **Nango** (optional layer) | per-client credential broker; HTTP proxy |
@@ -267,6 +268,30 @@ Catalog and visual building are its advantage; the cost is Node + Postgres
 it as a service), and a Code node that runs arbitrary JavaScript. It does not
 give typed contracts, git-first recipes or step replay at the level Windmill
 does.
+
+### Activepieces (the other n8n slot)
+
+Same job as n8n — a no-code builder a client's team can own — with a more
+permissive core: **MIT** outside `packages/ee/`, 200+ pieces, ~400 MCP servers,
+and a one-click Docker template on a VPS (Hostinger and others; third-party, so
+it installs the free Community edition and can lag the release).
+
+The costs that keep it in the same slot and out of `engines.json`:
+
+- **Git Sync and Releases are Ultimate-only.** On the free/CE tiers the
+  platform database is the source of truth, which is the one thing this repo
+  does not accept (git first, console is a deployment target).
+- Code steps are **TypeScript**, i.e. arbitrary code from a definition — the
+  thing `AGENTS.md` forbids for recipes.
+- Cloud free is 1,000 credits/month for 5 users; **one run is one credit
+  whatever the step count**, AI steps cost more, and over quota on Free the run
+  waits for the reset instead of failing loudly. Self-host CE has no credit
+  meter, but you own Postgres + Redis + the upgrades.
+- No step replay at Windmill's level, and no native approval primitive to
+  replace dagnats' `request.approval`.
+
+So: a client-owned product we scope and hand off, never an orchestrator we
+operate beside dagnats or Windmill.
 
 ### Nango (optional)
 
