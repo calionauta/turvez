@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.14](https://github.com/calionauta/turvez/compare/v0.1.13...v0.1.14) (2026-11-17)
+
+
+### Features
+
+* **turvez:** read-only router, doc index, and the no-API detour ([#33](https://github.com/calionauta/turvez/issues/33)) ([78936a2](https://github.com/calionauta/turvez/commit/78936a25db4bb251ec9154091bd7e577d53460be))
+
 ## [0.1.13](https://github.com/calionauta/turvez/compare/v0.1.12...v0.1.13) (2026-11-14)
 
 
