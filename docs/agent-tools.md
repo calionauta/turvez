@@ -100,6 +100,40 @@ then replay); 5xx/timeouts retry with backoff first.
 - `dagnats trace <run-id>` for OTLP-free trace inspection.
 - `dagnats status` for engine health.
 
+## The `turvez` router (read-only)
+
+`cmd/turvez` answers "where do I look, and what proves I looked" from the same
+data the gates read — it holds no copy, and it **cannot write**.
+
+```bash
+turvez investigate "automatizar NF do fornecedor, sem API"  # branch + doc + gate
+turvez read docs/browser.md [--full]                        # purpose, headings, gate
+turvez context clients/example-client                       # engine, runtime, access, secret NAMES
+turvez check [--json]                                       # make validate, go test, build
+turvez docs [--json]                                        # the docs/ index as data
+turvez manifest                                             # everything, for a wrapper
+```
+
+`turvez manifest` is the whole router as one JSON document (`schema:
+turvez/manifest/1`): branches, docs, engines, client folders, and the verb list
+with `read_only: true`. It exists so an MCP server or editor plugin can consume
+the routing without shelling out per question — and so this repo can be
+machine-readable without shipping an MCP server to maintain.
+
+`investigate` also verifies its own pointer: the doc's **section** must still
+exist, or the answer comes back with `section_verified: false` and a `stale`
+field saying the doc was reorganised. `scripts/check-turvez-points.py` fails CI
+for the same reason.
+
+There is no `register`, `run start`, `approve` or `trigger delete` command, and
+`cmd/turvez/main_test.go` fails if one is added: those are proposals you show a
+human, never something an agent runs unasked (step 4 below). `investigate` prints
+its matches **with the words that fired**, and says in the output that it does
+not decide — confirm the branch with the human, then read the doc it names.
+
+`context` surfaces secret **names** referenced by the recipes (`ACME_TOKEN`), never
+values: the rule is names in JSON, values in env/age (`docs/secrets.md`).
+
 ## Agent workflow
 
 0. Read the client's fieldbook (`clients/<client>/README.md`; template at

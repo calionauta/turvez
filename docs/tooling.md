@@ -32,6 +32,7 @@ Facts below were read at the source (vendor docs, licence files, repo) on
 | **Executor** | MIT | Agent-first app host: MCP gateway, "accounts" per app, tool approvals, 1 container + embedded Postgres | Stay out of the source of truth; durable workflows are only partly documented | Never as a broker. Only if we accept it as an app host beside the spine |
 | **Bifrost** | Apache-2.0 | LLM gateway: provider unification, failover, semantic cache, virtual keys and budgets | SaaS credentials; it is the model path, not the tool path | The LLM key is **ours** (resale/budget per end user) or failover has an SLA |
 | **OpenBao** | MPL-2.0 | Secrets service: KV, dynamic DB credentials, PKI, audit devices, leases | At-rest encryption for a repo; it is stateful and must be unsealed | 3+ operators touching client secrets, a regulated client demanding an access audit trail, or agentgateway's vault |
+| **Agent Substrate** (substrate) | Apache-2.0 | A Kubernetes runtime for *untrusted agent processes*: gVisor or Cloud Hypervisor per actor, SPIFFE identity, default-deny egress with a credential-injecting gateway, and snapshot/resume so mostly-idle actors multiplex 10-30× onto a small pool | Host durable workflows (it has no scheduler, retries, approvals or run history — that is the engine); run our own trusted Go binaries (it refuses plain containers by design); replace a broker or a vault | We host **third-party or model-written code** that must be isolated per client — not for running `cmd/worker`, the Windmill worker, or the engine itself |
 | **GoAI** | dependency | The only model path: one Go interface over providers, in-process | Anything above a single call — no queue, no budget | Never a decision: it is already the transport behind `llm.complete` |
 
 ## Why the answer today is "Nango, and nothing new"
@@ -86,6 +87,55 @@ the dev compose). PropelAuth appears in the portal flow, and the repo ships a
 For turvez it is a **P3 adapter candidate for the access plane**, not a
 replacement for the credential layer recipes already use.
 
+## Substrate: read closely, because the shape is appealing and wrong here
+
+`agent-substrate/substrate` (Apache-2.0, 1.0) reads like an answer to "how do I
+run a turvez per client". It is not — and the reason is worth writing down
+before somebody proposes it again.
+
+**What it is.** A Kubernetes control plane that maps many *actors* (stateful,
+mostly-idle workloads) onto a few warm *workers*. Each actor runs in its own
+gVisor sandbox or Cloud Hypervisor microVM, with a SPIFFE cert, default-deny
+networking, and an egress gateway that injects credentials *outside* the
+sandbox. Idle actors are snapshotted out of memory and resumed in <500 ms, which
+is what buys the 10-30× density.
+
+**What that is not.** It runs **processes inside sandboxes**. It has no
+scheduler, no retries, no run history, no approval step, no trigger. Those are
+the engine's job here (`docs/client-spine.md`), and Substrate says so itself —
+it is "a low-opinion runtime, not an agent SDK". Adopting it does not remove
+Windmill, dagnats or Dagu; it adds a cluster in front of whatever already runs.
+
+**Four places it would be the wrong tool:**
+
+| Attempt | Why it fails |
+| --- | --- |
+| Run the dagnats worker as an actor | The worker is *our* trusted Go binary on `distroless`, one container per client. It refuses plain containers, so this means gVisor overhead for a process that already has the smallest possible surface — and the worker needs durable JetStream state, which snapshot/resume does not provide |
+| Run a Windmill worker as an actor | Windmill already multiplexes; its workers are stateless consumers of a Postgres job queue. Nesting that inside a snapshotting runtime adds a control plane and removes nothing |
+| Isolation per client | `client.yaml` + `runtime: dedicated` + a host is the current answer, and `scripts/extract-client.py` already prints the cutover. Substrate would be a second isolation mechanism beside the one the gates read — exactly the duplication the repo refuses |
+| Solve the no-API problem | A sandbox with a browser does not make a signed request replayable. That is `docs/traffic-capture.md`, and the answer there is "not an automation" |
+
+**Where it *would* earn a place** — the trigger, stated so it is checkable
+later: we start hosting code we did not write and cannot review, per client. That
+means model-generated scripts executed on a client's behalf, or third-party
+agent packages from their marketplace, where a prompt injection has to be
+contained by something stronger than a Go handler. Then the useful part is not
+the density (we do not run millions of agents); it is the **egress gateway**:
+an actor never holds a client's credential, and the gateway injects it into
+approved outbound requests. That is the same idea as the Nango proxy
+(`docs/nango.md`), one layer lower — which is also why it belongs in this table
+as a *possible* peer to the broker, not as the foundation.
+
+**The cost if adopted today:** a Kubernetes cluster, kind-of-Kubernetes
+knowledge on call, gVisor or KVM availability (`upgrade-e2e` needs nested
+virtualisation), and two gateways to reason about. For a runtime whose worst
+failure is "the 3am cron did not fire", that is more moving parts than it
+solves.
+
+**Re-read the claim before trusting it:** the density numbers come from a demo
+of ~250 stateful actors on 8 pods; our per-client footprint is one container and
+one Postgres. A benchmark for the wrong workload is not evidence.
+
 ## Adoption order if the product grows
 
 ```
@@ -97,7 +147,9 @@ age (have)  →  Nango per client (have)  →  grants + audit (P2)
 
 Bifrost is not on the path: it appears only if the LLM key becomes ours.
 Executor is not on the path: it is a different product shape (an app host), not
-a layer of this one.
+a layer of this one. Substrate is not on the path either: it enters **below**
+the access plane and only when we host code we did not write — a sandbox is not
+a scheduler, and a gateway is not a broker.
 
 ## The test for any future addition
 
