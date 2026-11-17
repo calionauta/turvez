@@ -1,6 +1,7 @@
 # Binaries and build output
 /bin/
 /dist/
+/turvez
 *.test
 
 # Local env with real secrets — never commit (.env.example stays tracked)

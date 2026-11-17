@@ -45,6 +45,9 @@
 
 - `cmd/worker/` — single worker binary (registers handlers, pulls NATS tasks) —
   **dagnats engine only**.
+- `cmd/access-plane/` — grant/list/revoke/audit for the access plane.
+- `cmd/turvez/` — **read-only router** (`investigate`, `read`, `context`, `check`,
+  `docs`). It has no write verb by design; `main_test.go` fails if one appears.
 - `internal/handlers/` — 12 generic tasks (stable names recipes depend on).
 - `internal/secret/` — env + age loader. `internal/opshttp/` — approval shim.
 - `internal/access/` — access plane (the client's own agents calling tools): parses

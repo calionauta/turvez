@@ -7,6 +7,18 @@
 
 - AGENTS.md — layout, rules, traps, commands (normative). Q0: repo type first
   (`go.mod` = template public, `TURVEZ_PIN` = ops private).
+- **docs/README.md — the doc index**: one row per doc (what it is for, when to
+  read it, the gate that covers it), checked by `scripts/test-decisions.sh`
+  (`doc-index`). Use it when you have a doc name; use this file when you have a
+  task.
+- `turvez investigate "<the ask>"` — the repo's read-only router over the same
+  data (`cmd/turvez`): branch + doc + gate, `turvez read <doc>`, `turvez context
+  <client>`, `turvez check`, `turvez docs --json`. It has no write verb on
+  purpose: registering, starting and approving are proposals for a human.
+- **No Go toolchain?** `make help` (and `docs/README.md`) still answer where
+  everything is; the only step that needs Go is building `turvez` and running
+  the tests. Nothing in the decision path requires compiling, so a repo that was
+  only cloned to read is still navigable.
 - ARCHITECTURE.md — diagram, data flow, decisions
 - README.md — quickstart, operator loop, examples
 - docs/ops-repo.md — template vs ops split, lifecycle, tenancy map
@@ -31,7 +43,9 @@
   (`scripts/connect-remotes.sh --client <slug>`; Windmill and Nango are answered
   separately, secrets land in `~/.secrets` and are validated read-only)
 - Which tool/broker/gateway to add and when: docs/tooling.md (Nango, Corsair,
-  ACI.dev, agentgateway, Executor, Bifrost, OpenBao — trigger per tool)
+  ACI.dev, agentgateway, Executor, Bifrost, OpenBao, Agent Substrate — trigger
+  per tool). Substrate is a sandbox runtime, not a scheduler: it is NOT how you
+  run one turvez per client (see "Substrate: read closely…")
 - First run, in order, with the known traps: docs/first-run.md
 - Flows as diagrams plus the format map: docs/workflows.md
 - Client spine, engine-agnostic layout and migrations: docs/client-spine.md
@@ -82,6 +96,15 @@
   Genkit tool), never a dagnats recipe. Version floor 0.43.0; safety flags and
   the Lightpanda/Chrome choice are in the doc. Gate:
   `./scripts/test-decisions.sh` (capability-browser).
+- App, not a page — and the deep path we refuse: docs/traffic-capture.md
+  (Q1.7 step 1.5). `mitmdump` → HAR answers "does this app have an endpoint?"
+  faster than scripting a login; the HAR is evidence, never a dependency, and
+  is deleted once the shape is written. It also names the REA / Frida / Ghidra /
+  binwalk pipeline and says why it has no home here (no place for generated
+  client code, a distroless worker that cannot run the investigation, signed
+  requests the runtime cannot produce), plus the "not an automation" case and
+  what to propose instead. Gate: `./scripts/test-decisions.sh`
+  (capability-traffic).
 - Answering questions over client data: docs/retrieval.md — split documents
   (route-then-read: 2026 default is lexical for identifiers and hybrid BM25 + small
   dense + RRF + optional rerank of units for natural language; glossary expansion;
@@ -98,6 +121,30 @@
 - Client isolation status: `./scripts/verify-isolation.sh` (reads runtime/target,
   read-only). Package one client for its own host: `scripts/extract-client.py`
   (prints the plan + commands, never executes them)
+
+## Traps a fresh clone hits
+
+Read this before running anything. Each one produces a confident, wrong answer,
+which is why it is here and not in a doc you have to remember to open.
+
+- **`make validate` is the only check that matters.** `go test ./...` alone
+  passes on a repo where the decision tree, the docs and the engines disagree;
+  `make validate` runs the contract test that catches exactly that.
+- **The engine is per client, not per repo.** `clients/<client>/client.yaml`
+  wins over `engines.json`. Editing `engines.json` "to switch the engine" is
+  how two clients end up on two engines with one CI.
+- **The dagnats CLI is NATS-first.** It reads `DAGNATS_NATS_URL`
+  (default `127.0.0.1:4222`); `DAGNATS_API_URL` only moves the worker's approval
+  shim. Runs stuck in `queued` with an empty `workers list` means the CLI is
+  reading a different NATS than the worker.
+- **Names in JSON, values in env/age.** A `go test ./clients/` failure for a
+  provider token in `env/` is not a false positive; the fix is a Nango
+  connection, not an exemption.
+- **A recipe is JSON over 12 tasks.** If the task you want is not in
+  `internal/handlers/handlers.go`, it does not exist — do not invent a name and
+  do not reach for a script node to work around it (`docs/language-policy.md`).
+- **`clients/personal/` is where your own automations go**, with you as the
+  approver. There is no "quick" folder that skips the gates.
 
 ## Invariants (do not relearn these)
 

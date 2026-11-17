@@ -116,8 +116,12 @@ flowchart TD
 
     OPS --> Q17{"Q1.7. Data only on a page?"}
     Q17 -->|"read — HTTP, no browser"| RD["markdown / llms.txt<br/>level 1 → Windmill Go node"]
+    Q17 -->|"app · no page worth scripting"| CAP["mitmproxy → HAR<br/>endpoint? → http.request · else next"]
     Q17 -->|"flow — record once"| FL["direct HTTP tier answers →<br/>it is an API: http.request / Go node"]
     Q17 -->|"neither works"| BR["browser stays<br/>Windmill Go node · never a dagnats recipe"]
+    Q17 -->|"no HTTP to replay at all"| NA["not an automation<br/>name the reason · docs/traffic-capture.md"]
+    CAP --> RD
+    CAP --> FL
 
     OPS --> Q2{"Q2. Where does it run?"}
     Q2 -->|"default"| SH["shared<br/>folder + name prefix + env"]
@@ -152,6 +156,11 @@ interview changes:
   the client's engine.
 - A page with no API: `agent-browser read`, then `flow` to find the endpoint; a
   browser only in a Windmill Go node, never a dagnats recipe (`docs/browser.md`).
+  An **app** with no page worth scripting: capture the traffic once (mitmproxy →
+  HAR) to answer "is there an endpoint?" — then either `http.request` or the
+  browser stays. When there is no HTTP to replay, that is **not an automation**, and
+  the deep path (REA / Frida / Ghidra / binwalk) is refused with a reason
+  (`docs/traffic-capture.md`).
 - A new library goes stdlib → `go.mod` → approved capability → propose and
   confirm; then `go.mod` pins and Dependabot keeps it current.
 
@@ -244,6 +253,28 @@ rollback). Procedure: `docs/isolating-a-client.md`.
 `secrets/<client>/.recipients`; they decrypt only their clients. Move to `sops`
 when per-client recipients become routine, not before (`docs/secrets.md`).
 
+## Who this is for
+
+A solo operator or a small company automating its own work is a first-class
+case, not a degraded one — the spine, the gates and the replay are the same.
+What changes is who approves.
+
+| Case | What you need | What you get | Cost you keep |
+|---|---|---|---|
+| **You autonomous** — `clients/personal/` | Windmill (default) or the dagnats binary, one Nango client | recipes in git, replay, approvals addressed to you | you are the approver; `catalog/policy.yaml` is one file |
+| **Solo + 1-2 clientes** | + `env/<client>.env`, one workspace per client | per-client secrets, isolation by folder and name prefix | a Nango client id per client; a real secret store |
+| **Consultoria, 5-20 automações** | + a dedicated host (`runtime: dedicated`) | `scripts/extract-client.py` cutover, per-client recipients | someone on call for the 3am failure |
+| **Empresa pequena, 1 dono** | profile A/B from `docs/deployment-profiles.md` | data stays with you, or crosses under a DPA | the same gate discipline: no gate, no merge |
+
+What is **not** free, and the README will not pretend otherwise: NATS (embedded in
+the dagnats binary, but a real dependency for `run`/`trigger`), one secret store
+(`~/.secrets/*.env` or age), a place to keep runs (Postgres for Windmill), and **a
+human who approves**. The gates exist because those four fail on their own: an
+agent that can register its own workflows is an agent nobody reviews.
+
+If you have none of that and want one script to run once, this is the wrong repo —
+`docs/script-execution.md` (level 1) says so before the quickstart does.
+
 ## Quickstart
 
 ```bash
@@ -315,6 +346,11 @@ curl -X POST localhost:8090/ops/approvals/<run-id> \
 
 ## Docs
 
+**The index is `docs/README.md`** — one row per doc: what it is for, when to
+read it, and the gate that keeps it honest. Start there; this list is the same
+set in reading order. `llms.txt` is the same set ordered by **task** for an
+agent, and `turvez docs` prints the index as data.
+
 - `docs/client-spine.md` — the spine: one repo, per-client engine, shared/dedicated, migrations
 - `docs/deployment-profiles.md` — A embedded / B managed / C multi-tenant, gateway placement, engine cost
 - `docs/script-execution.md` — where to execute: recipe vs sandbox vs Dagu vs Windmill + platform comparison
@@ -323,6 +359,8 @@ curl -X POST localhost:8090/ops/approvals/<run-id> \
 - `docs/first-run.md` — verified install → client → run → observe → eval, with traps
 - `docs/writing-recipes.md` — recipe anatomy, engine-vs-handler table, what the engine allows, v0.0.32 traps
 - `docs/handlers-reference.md` — task inputs/outputs, metadata keys
+- `docs/browser.md` — data that only exists on a page with no API: `read` → `flow` → a browser in a Windmill Go node
+- `docs/traffic-capture.md` — an **app**, not a page: `mitmdump` → HAR as a discovery probe, and why the deep path (REA / Frida / Ghidra / binwalk) has no home here
 - `docs/language-policy.md` — **Go script nodes**; TS/Python only for a dispatch-only WAC orchestrator
 - `docs/nango.md` — credential layer: OAuth proxy, naming/enforcement, Agent Sessions (MCP)
 - `docs/access-plane.md` — the third plane: client agents calling authenticated tools, policy vs state, where the broker runs, invariants, phases
@@ -340,6 +378,7 @@ curl -X POST localhost:8090/ops/approvals/<run-id> \
 - `docs/sandbox-policy.md` — when a sandbox is needed (usually not)
 - `docs/observability.md` — what is stored, prompt persistence, retention
 - `docs/agent-tools.md` — exact CLI/API for an authoring agent
+- `cmd/turvez` — the read-only router: `turvez investigate "<ask>"` → branch, docs and gate; `turvez read <doc>`; `turvez context <client>`; `turvez check`; `turvez docs`. It cannot register, run or approve anything
 - `clients/_template/FIELDBOOK.md` — per-client fieldbook template
 - `skills/turvez/SKILL.md` — the automate-anything skill (direct → confirm → build)
 - `ARCHITECTURE.md` — diagrams, components, data flow, decisions

@@ -58,6 +58,17 @@ eyes), then a **Windmill Go node** if it recurs. It is not a recipe: dagnats
 recur there would mean a new handler as the *only* way to fetch text — last
 resort, and `read` already solves the hard part.
 
+**1.5. Capture the traffic — when the target is an app, not a page.**
+
+A mobile app, a SPA behind a login you cannot re-save, or a client who claims
+"there is no API": ten minutes of capture answers the question faster than
+recording a flow. `mitmdump` writes a HAR, and the HAR is read with the same
+routing decision as `flow` below — an endpoint that answers is an `http.request`,
+an endpoint that signs is `request_signed`, and neither is a reason to go deeper.
+The probe, the HAR-as-secret rule, and the deep path we refuse (REA / Frida /
+Ghidra / binwalk) are in **`docs/traffic-capture.md`**. Delete the capture once
+the shape is written down.
+
 **2. `flow` — record once, and find out whether the site has an API.**
 
 ```bash
@@ -83,8 +94,9 @@ Read the outcome as a routing decision:
   names the missing key; re-save, and treat an unverified flow as documentation
   of what you learned, not as a dependency.
 - **`auth_expired`, `request_signed`, `credential_not_sendable`, `blocked`,
-  `rate_limited`** → the browser has to stay in the loop (role 3), or the ask
-  changes.
+  `rate_limited`** → the browser has to stay in the loop (Q1.7 role 3), or the ask
+  changes. These codes are the end of the road, not a prompt to emulate the
+  signature: `docs/traffic-capture.md` §3 maps each one.
 
 Saved flows are files: `~/.agent-browser/flows/<origin>/<name>.json`,
 `version: 1`, override the root with `AGENT_BROWSER_FLOWS_DIR`. They never keep

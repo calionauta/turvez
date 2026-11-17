@@ -1,4 +1,34 @@
-.PHONY: up down worker register smoke test lint validate tidy new-ops-repo new-client validate-ops register-ops hooks guard-version eval-client eval-client-view eval-loop doctor windmill-check
+# What this repo is and where to look. Safe on a machine with no Go toolchain:
+# it only reads. `make turvez` builds the read-only router below.
+help:
+	@echo "turvez — the spine for durable client automations (engine is per client)"
+	@echo ""
+	@echo "  Read (no toolchain needed)"
+	@echo "    docs/README.md      the doc index: what each doc is for, when, and its gate"
+	@echo "    llms.txt            the same docs ordered by task (agent entry point)"
+	@echo "    AGENTS.md           normative rules for working in this repo"
+	@echo "    README.md           quickstart, operator loop, who this is for"
+	@echo ""
+	@echo "  Route an ask (read-only; it cannot register, run or approve)"
+	@echo "    make turvez && ./bin/turvez investigate \"<the ask>\""
+	@echo "    ./bin/turvez read docs/browser.md | context clients/<c> | check | docs"
+	@echo ""
+	@echo "  Gates (need Go and the composes)"
+	@echo "    make validate       every engine with source + the decision-tree contract"
+	@echo "    go test ./...       structure, tenancy, jq expressions, secrets guard"
+	@echo ""
+	@echo "  Common"
+	@echo "    make up             dagnats engine + embedded NATS + API + console"
+	@echo "    make new-client CLIENT=acme"
+	@echo "    make edit-secrets CLIENT=acme"
+	@echo "    make doctor         diagnose a local install"
+
+# Build the read-only router. /bin is gitignored, so the binary never lands in a
+# commit and `make help` keeps working for someone who never builds it.
+turvez:
+	go build -o bin/turvez ./cmd/turvez
+
+.PHONY: help up down worker register smoke test lint validate tidy new-ops-repo new-client validate-ops register-ops hooks guard-version eval-client eval-client-view eval-loop doctor windmill-check turvez
 
 # Start dagnats (engine + embedded NATS + API + console) and the worker.
 up:

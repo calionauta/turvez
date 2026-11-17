@@ -16,6 +16,10 @@
 #   capability-genkit  not an engine, has a scaffold, a compile gate, one pin
 #   capability-browser a tool for pages with no API: doc, floor, commands, flags,
 #                      and the refusal to be an engine, a dependency or a recipe
+#   cmd-turvez      the read-only router: real verbs, and NO write verb
+#   capability-traffic the Q1.7 detour: capture is discovery, the deep path
+#                      (REA/Frida/Ghidra/binwalk) is refused with a reason, and
+#                      "not an automation" is a named outcome, not a gap
 #   library-goai       the only model path is a go.mod dependency
 #   library-nango      the credential layer has a script and a doc
 #   level-1-sandbox    the one-off path has a runner
@@ -170,6 +174,34 @@ else
   echo "test-decisions: agent-browser not installed — CLI probe skipped (doc checks above still ran)"
 fi
 
+# --- capability-traffic -----------------------------------------------------
+# The Q1.7 detour (docs/traffic-capture.md). mitmproxy/REA are not tools we
+# install and not code we ship: the page exists to route a capture to one of the
+# Q1.7 answers and to REFUSE the deep path (Frida/Ghidra/binwalk) with a reason,
+# so that refusal cannot be quietly softened into "we could try". Every claim
+# here is a phrase the doc must keep, or the gate fails instead of a client
+# discovering it mid-project.
+need_file docs/traffic-capture.md "the Q1.7 capture detour and its refusal"
+for phrase in 'Not an automation' 'request_signed' 'distroless' 'REA' 'mitmproxy' \
+              'Frida' 'Ghidra' 'binwalk' 'evidence, not a dependency'; do
+  need_text docs/traffic-capture.md "$phrase" "docs/traffic-capture.md states it"
+done
+# It must never become part of the runtime: no capture tool in the engine list,
+# no proxy in a recipe, no REA/mitmproxy binary on the worker image path.
+if grep -qE '"(mitmproxy|rea|frida)"' "$ROOT/engines.json"; then
+  bad "a capture/RE tool is an engine in engines.json (docs/traffic-capture.md)"
+else ok; fi
+for f in docs/traffic-capture.md docs/browser.md skills/turvez/references/decision-tree.md; do
+  if grep -qiE 'ghidra|binwalk|frida' "$ROOT/$f" && ! grep -qiE 'not an automation|do not do this|refus|no home' "$ROOT/$f"; then
+    bad "$f names a deep RE tool without the refusal beside it"
+  else ok; fi
+done
+# Routing: the detour is reachable only THROUGH Q1.7, never as a first answer.
+need_text docs/browser.md "docs/traffic-capture.md" "the browser doc reaches the detour"
+need_text skills/turvez/references/decision-tree.md "docs/traffic-capture.md" "the tree names where this stops being automation"
+need_text llms.txt "docs/traffic-capture.md" "llms.txt routes the detour"
+need_text README.md "docs/traffic-capture.md" "the rendered tree leads to the refusal"
+
 # --- library-goai ----------------------------------------------------------
 # One model path: goai is a dependency; Genkit stays out of the build.
 need_text go.mod "zendev-sh/goai" "goai is the only model path"
@@ -218,7 +250,7 @@ done
 
 # --- doc-links -------------------------------------------------------------
 # Every path a reader is told to open must exist. Placeholders are skipped.
-for f in skills/turvez/SKILL.md skills/turvez/references/decision-tree.md llms.txt README.md ARCHITECTURE.md; do
+for f in skills/turvez/SKILL.md skills/turvez/references/decision-tree.md llms.txt README.md ARCHITECTURE.md docs/README.md; do
   while read -r p; do
     p="${p%%#*}"; p="${p%/}"
     # Placeholders, and `acme`, the example client that lives in the ops repo.
@@ -232,6 +264,66 @@ for ref in "$ROOT"/skills/turvez/references/*.md; do
   base="$(basename "$ref")"
   if grep -q "references/$base" "$SKILL" "$TREE"; then ok; else bad "orphan reference: references/$base is never referenced"; fi
 done
+
+# --- doc-index -------------------------------------------------------------
+# docs/README.md is the index for a human who opens the folder, and llms.txt is
+# the same set ordered by task for an agent. Both are manual, so both rot the
+# same way: a new doc lands and nobody adds a row. This gate makes the rot a
+# failure instead of a discovery — every doc in docs/ has a row, and every row
+# names a file that exists. It deliberately does NOT check that the "when" text
+# is still true (no gate can); it checks the two things a script can.
+need_file docs/README.md "the index of docs/ (for humans and agents)"
+while read -r doc; do
+  base="$(basename "$doc")"
+  [ "$base" = "README.md" ] && continue
+  if grep -qF "\`$base\`" "$ROOT/docs/README.md" 2>/dev/null; then ok
+  else bad "docs/$base has no row in docs/README.md (an unindexed doc is unread)"; fi
+done < <(cd "$ROOT" && ls docs/*.md)
+# Every doc name in the index must exist, and README.md (root) must lead here.
+while read -r base; do
+  if [ -f "$ROOT/docs/$base" ]; then ok
+  else bad "docs/README.md indexes docs/$base, which does not exist"; fi
+done < <(grep -oE '`[a-z0-9-]+\.md`' "$ROOT/docs/README.md" | tr -d '`' | sort -u)
+need_text README.md "docs/README.md" "the root README leads to the index"
+need_text llms.txt "docs/README.md" "an agent can find the doc index from its task index"
+
+# --- cmd-turvez ------------------------------------------------------------
+# The router is only safe because it cannot write. That is a property of the
+# source, so it is checked as one: the verbs exist, the write verbs do not, and
+# the binary must not link the executor packages.
+need_file cmd/turvez/main.go "the read-only router (turvez investigate|read|context|check|docs)"
+need_file cmd/turvez/main_test.go "the router's invariant tests"
+for verb in investigate read context check docs manifest; do
+  need_text cmd/turvez/main.go "case \"$verb\"" "turvez $verb is wired"
+done
+for verb in register approve "run start" "trigger delete"; do
+  if grep -q "case \"$verb\"" "$ROOT/cmd/turvez/main.go"; then
+    bad "cmd/turvez grew a write verb ($verb): proposals belong to a human"
+  else ok; fi
+done
+for pkg in internal/handlers internal/opshttp internal/access; do
+  if grep -q "github.com/calionauta/turvez/$pkg" "$ROOT/cmd/turvez/main.go"; then
+    bad "cmd/turvez imports $pkg: a router that can execute is a second orchestrator"
+  else ok; fi
+done
+need_text README.md "cmd/turvez" "the README names the router"
+need_text llms.txt "turvez investigate" "an agent can find the router from its task index"
+need_text docs/agent-tools.md "turvez" "the agent reference documents the router"
+need_text docs/agent-tools.md "turvez manifest" "a wrapper can consume the router as data"
+need_text AGENTS.md "cmd/turvez" "the layout lists the router"
+
+# Every branch in the router points at a doc AND an H2 that doc still has. This
+# is the shell half of TestTurvezPoints: it runs without a Go toolchain, so a
+# doc reorganisation fails the cheap gate too, not only `go test`.
+if command -v python3 >/dev/null 2>&1; then
+  if ! python3 "$ROOT/scripts/check-turvez-points.py"; then fails=$((fails + 1)); fi
+fi
+
+# The LLM clone path: a repo that is only fetched, never built, must still teach
+# an agent that the router, the index and the traps exist.
+need_text llms.txt "make help" "an agent that only cloned a repo still gets a map"
+need_text llms.txt "Traps a fresh clone hits" "the traps a fresh clone hits are written down"
+need_text docs/README.md "Traps a fresh clone hits" "the index names the traps section"
 
 # --- skill-cache -----------------------------------------------------------
 # SKILL.md is re-read every request: a dated fact there breaks the prefix.
