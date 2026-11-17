@@ -484,17 +484,31 @@ func clientContext(root string, args []string) (any, error) {
 				continue
 			}
 			var files []string
-			_ = filepath.Walk(filepath.Join(dir, "automation", e.Name()), func(p string, info os.FileInfo, err error) error {
-				if err != nil || info.IsDir() {
+			engineDir := filepath.Join(dir, "automation", e.Name())
+			// A folder that cannot be walked is reported as `unreadable/<engine>`
+			// instead of vanishing: a context view that silently omits an engine
+			// looks identical to a client that has no recipes there.
+			if walkErr := filepath.Walk(engineDir, func(p string, info os.FileInfo, err error) error {
+				if err != nil {
+					if p == engineDir {
+						files = append(files, "unreadable/"+e.Name())
+						return filepath.SkipDir
+					}
+					return nil // one unreadable file does not hide the rest
+				}
+				if info.IsDir() {
 					return nil
 				}
 				switch filepath.Ext(p) {
 				case ".json", ".yaml", ".yml", ".go":
-					rel, _ := filepath.Rel(dir, p)
-					files = append(files, rel)
+					if rel, relErr := filepath.Rel(dir, p); relErr == nil {
+						files = append(files, rel)
+					}
 				}
 				return nil
-			})
+			}); walkErr != nil && walkErr != filepath.SkipDir {
+				files = append(files, "unreadable/"+e.Name())
+			}
 			sort.Strings(files)
 			recipeDirs[e.Name()] = files
 		}
@@ -505,7 +519,7 @@ func clientContext(root string, args []string) (any, error) {
 	// reads env/ or secrets/, which may hold ciphertext or values.
 	var names []string
 	seen := map[string]bool{}
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
+	scanErr := filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
 			return nil
 		}
@@ -527,6 +541,12 @@ func clientContext(root string, args []string) (any, error) {
 	sort.Strings(names)
 	if names == nil {
 		names = []string{}
+	}
+
+	// A failed walk means the secret list may be incomplete, which is exactly the
+	// kind of silent gap that makes someone trust a wrong answer. Say it.
+	if scanErr != nil {
+		names = append(names, "scan-failed/"+scanErr.Error())
 	}
 
 	return map[string]any{
@@ -567,8 +587,12 @@ func manifest(root string) (any, error) {
 		return nil, err
 	}
 	engines := map[string]any{}
+	// engines.json is the one place the default engine lives, so a parse failure
+	// is reported in the manifest rather than presenting an empty default.
 	if raw, err := os.ReadFile(filepath.Join(root, "engines.json")); err == nil {
-		_ = json.Unmarshal(raw, &engines)
+		if unmarshalErr := json.Unmarshal(raw, &engines); unmarshalErr != nil {
+			engines = map[string]any{"error": "engines.json did not parse: " + unmarshalErr.Error()}
+		}
 	}
 	clients := []string{}
 	if entries, err := os.ReadDir(filepath.Join(root, "clients")); err == nil {
@@ -670,7 +694,9 @@ func print(v any) {
 	case map[string]any:
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		_ = enc.Encode(t)
+		// Writing to stdout is the point; a failure here means the pipe closed,
+		// and there is nobody left to tell.
+		_ = enc.Encode(t) //nolint:errcheck // stdout is the destination and the reader may have gone
 	default:
 		fmt.Println(v)
 	}
