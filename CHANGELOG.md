@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.1.15](https://github.com/calionauta/turvez/compare/v0.1.14...v0.1.15) (2026-11-18)
+
+
+### Features
+
+* **turvez:** entrevista do degustia em modo processo como seed do fieldbook ([4eb91aa](https://github.com/calionauta/turvez/commit/4eb91aa7b7993cb7eacbe8b9c9092ecf2ff024a8))
+
+
+### Bug Fixes
+
+* **deps:** bump the go-dependencies group across 1 directory with 2 updates ([#29](https://github.com/calionauta/turvez/issues/29)) ([19ce776](https://github.com/calionauta/turvez/commit/19ce77675edbf24004c2fa6b5b8b61fa90f77c52))
+
+
+### Documentation
+
+* list Activepieces beside n8n as a client-owned option ([#32](https://github.com/calionauta/turvez/issues/32)) ([716f0d3](https://github.com/calionauta/turvez/commit/716f0d335580a6f725081843c587979d92f5375c))
+
 ## [0.1.14](https://github.com/calionauta/turvez/compare/v0.1.13...v0.1.14) (2026-11-17)
 
 
