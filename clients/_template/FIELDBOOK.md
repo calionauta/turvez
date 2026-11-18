@@ -8,6 +8,15 @@
 > systems mentioned → §3 (NAMES only); automations from chaining 2.2b →
 > candidate recipes in §4. The reverse works too: fieldbook + fresh transcript
 > feed the next diagnosis.
+>
+> **Better seed: `processo.json`** (degustia `modo=processo`) — it is the same
+> interview, mapped for whoever builds. `cliente.*` → §1, `quantificacao.quem_faz`
+> + `quantificacao.aprovacao` → §2, `sistemas.atuais` + `sistemas.pagos` → §3,
+> `dor_principal.*` + `quantificacao.*` + `tentativas.*` → §4,
+> `dor_principal.greenfield` + `tentativas.travas` → §6. Two fields gate the
+> build: `aprovacao` ("nao" = no approval step needed) and `perguntas_abertas`
+> (non-empty = a decision rests on a hypothesis). Mapping detail:
+> `skills/turvez/references/client-intake.md` §0.
 
 ## 1. Context (5 lines)
 

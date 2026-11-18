@@ -21,7 +21,7 @@ Handoff: FDEOps `runbook` output fills `FIELDBOOK.md` §1–§5;
 
 ## Degustia (diagnosis) vs this repo (execution)
 
-Degustia (private sibling repo, `cali-degustia-diagnostico` skill) prescribes
+Degustia (private sibling repo, `degustia-diagnostico` skill) prescribes
 tools from interviews (transcript → Pydantic JSON → HTML). It stops at the
 report: it designs no architecture and operates nothing. Bridge without
 merging repos:
@@ -29,7 +29,17 @@ merging repos:
 - Diagnosis flags automation (chaining 2.2b) + client hires implementation
   (Projeto upsell) → seed the fieldbook (see FIELDBOOK.md: pains → §1,
   systems → §3, automations → §4) and build the recipe here.
+- **Same interview, second consumer:** degustia's `modo=processo` returns
+  `processo.json` (steps, tools per step, who approves, frequency, time per
+  run, error rate, what they already pay) with no LLM and no HTML. That is the
+  seed for `FIELDBOOK.md`, and it is the mode a consultancy should ask a
+  client for — see `references/client-intake.md` §0. `aprovacao != "nao"`
+  means the recipe needs an approval step; `perguntas_abertas` non-empty means
+  a decision rests on a hypothesis.
 - Never edit the degustia catalog from here: it has its own CI
   (recommendation rules + golden tests). Changes there (e.g. citing
   "consultancy implements via dagnats" in middleware routing)
-  are proposals in their repo, not commits in this one.
+  are proposals in their repo, not commits in this one. The interview itself
+  lives in that repo's `scripts/entrevista.py` (single source, parity-checked
+  against the prose the MCP host reads) — questions are added there, not by
+  editing a report.

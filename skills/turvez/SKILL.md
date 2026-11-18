@@ -246,7 +246,8 @@ instead of pasting its text into a prompt.
 
 1. Read `clients/<client>/README.md` + closest `clients/_template/*.json`.
    Fieldbook thin or tool choice open? → `references/client-intake.md`
-   (≤2 fact questions; local degustia ranker for tool picks).
+   (no process mapped anywhere → hand the client the degustia interview in
+   `processo` mode; otherwise ≤2 fact questions + local degustia ranker).
 2. Copy → name `<client><separator><wf>` (separator in `naming.json`) → envelope-tolerant first step `((.data // .) | …)`.
 3. `dagnats workflow validate` + `go test ./clients/`.
 4. Propose `register` + triggers. Never run unasked.

@@ -42,3 +42,6 @@ sandbox-out/
 # Half-finished engine conversions (scripts/convert-to-windmill.py staging).
 # Staging is scratch: the finished flow moves to automation/windmill/.
 converted-windmill/
+
+# Local agent workspace config (not source)
+.commandcode/
