@@ -4,10 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
-    # Release PRs only touch these; the tag is gated by the main CI run.
-    paths-ignore:
-      - CHANGELOG.md
-      - .release-please-manifest.json
+    # No paths-ignore on purpose. Branch protection requires commit-msg/test/lint
+    # on every PR; ignoring CHANGELOG-only PRs meant the release-PR checks were
+    # never created, so release PRs could never satisfy the gate and every
+    # release needed an admin bypass. A release PR now runs CI like any other.
 
 permissions:
   contents: read
