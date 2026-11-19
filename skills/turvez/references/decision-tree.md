@@ -82,8 +82,10 @@ Ask in order; stop at the first branch that answers. Full playbook:
 1. **System of record** (CRM, ERP, ticketing, wiki with an API) → a tool call
    through Nango: the fixed HTTP proxy in a recipe/flow. An Agent Session/MCP
    only when an agent must choose tools (Q1.5). Do not index a stale copy.
-2. **A handful of pages that fit one prompt** → long context with a stable
-   prefix; no index, no pipeline.
+2. **A handful of pages that fit one prompt** → **CAG** (cache-augmented
+   generation): long context in a stable prefix, KV cache precomputed once and
+   reused, not re-read per query. Valid only while the corpus holds still —
+   version the cache by corpus digest and rebuild on change.
 3. **Documents** → **route-then-read**:
    - classify the query first: identifiers → BM25 lexical only; natural language
      → BM25 + small dense hybrid (RRF over units) with an optional cross-encoder

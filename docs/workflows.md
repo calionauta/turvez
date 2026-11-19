@@ -152,7 +152,7 @@ flowchart TD
     Q["Question"] --> S{"Where is the answer?"}
     S -->|"system of record"| P["Nango HTTP proxy (fixed call)<br/>or Agent Session MCP (agent picks tools)"]
     S -->|"documents"| L{"Corpus fits one prompt?"}
-    L -->|"yes"| LC["Long context, stable cached prefix"]
+    L -->|"yes"| LC["CAG: long context,<br/>precomputed cache"]
     L -->|"no"| RT["Route-then-read:<br/>Bleve selects WHOLE units"]
     RT --> CAP["Dedupe + cap units<br/>0-1 cached rewrite, ≤20 units, ≤60 retained"]
     CAP --> BUD{"Hard token budget?<br/>target tokenizer + output reserve"}

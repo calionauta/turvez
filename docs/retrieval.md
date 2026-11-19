@@ -12,7 +12,7 @@ first.
 |---|---|---|
 | A **system of record** (CRM, ERP, ticketing, wiki with an API) | a **tool call** through Nango: the fixed HTTP proxy in a recipe/flow, or an agent session (MCP) when an agent must choose tools | a local index of a copy that goes stale |
 | **Documents the client owns** (PDFs, contracts, manuals) | **route-then-read** (below) | embeddings by default |
-| A handful of pages that fit one prompt | no index: long context with a stable cached prefix | Bleve, a vector DB, a reindex pipeline |
+| A handful of pages that fit one prompt | no index: long context in a stable prefix — named **CAG** below | Bleve, a vector DB, a reindex pipeline |
 | Long, hierarchical documents needing multi-hop or exact page traceability | **PageIndex (eval-gated alternative)** — tree index + LLM traversal, vectorless, MIT | general vector DB |
 
 The two expensive mistakes are a vector database for a 40-page FAQ, and a local
@@ -437,6 +437,74 @@ operator who does not want another local service.
 - Do not sell "long-context + caching" as free retrieval. It is cheaper than
   uncached reading, not cheaper than not reading.
 
+## CAG: the tier-0 shape, with a name
+
+The "handful of pages" row above is a known technique: **cache-augmented
+generation** (CAG) — preload the static corpus, precompute the KV cache, reuse it
+across queries. Naming it matters, because "just put it in the context" invites a
+fresh read per query, and the whole saving is in the reuse.
+
+| Condition | Verdict |
+|---|---|
+| Corpus static for the life of the eval and fits the window with room for the answer | the cheapest correct shape; prefer it over route-then-read |
+| `llm.complete` has no `cache_control` (`internal/handlers/llm_complete.go`) | the saving is the **gateway's implicit prefix cache**, not something this repo controls — measure the hit rate before quoting a cost |
+| Corpus changes per client, per week, or per query | not CAG; that is route-then-read |
+| The gateway charges cache-write, or does not cache at all | "cheap" tier 0 becomes the most expensive per-query option; re-run the eval |
+
+CAG trades **staleness** for cost, so it is only worth precomputing while the
+corpus holds still: version the cache by corpus digest and rebuild on change, or
+the client's first question is answered from a document that changed last month.
+
+The gateway is deploy-time, not client-owned: `base_url` is required and there is
+no silent default to `api.openai.com`, so what a deployment points at — self-hosted
+vLLM, a hosted provider, a tenant-scoped key — decides whether the prefix cache
+exists at all. Do not assume it; read the hit rate off the gateway's own metrics.
+
+## Parametric knowledge injection: why it is not on the ladder
+
+A recurring claim is that retrieval is obsolete because knowledge can be
+"injected into the attention" instead. The current example is **AtlasKV**
+(arXiv 2510.17934, ICLR 2026, HKUST + Huawei): 1B knowledge-graph triples in
+under 20GB VRAM via KG2KV and HiKVP, no external retriever, no retraining when
+the knowledge changes.
+
+Read the artifact, not the tweet. What the paper actually requires:
+
+- a **fine-tune per backbone** — 3K AdamW iterations, new KG query heads per
+  layer initialized from `W_Q` plus randomly initialized K/V projections, on
+  **open weights**. The 20GB is KG memory at *inference* time; every experiment
+  ran on a single **48GB** GPU (their words: "we encourage energy-efficient
+  configurations");
+- a **relation-rewrite pass through GPT-4o-mini for every triple** at ingest.
+  Dropping it is possible — the authors measure only "a slight performance drop"
+  — but then the keys are naive relation+entity strings and the diversity argument
+  weakens. At 1B triples the rewrite is the pipeline's dominant cost, so "no
+  Pinecone bill" is a bill in a different currency;
+- the authors' own stated limits: KG2KV "flattens" the graph, which **blocks
+  multi-hop reasoning** on it; HiKVP trades precision for scale through `top-k`;
+- their Table 11 numbers, which the tweet does not carry: **4.10s average latency
+  at 10¹ triples vs 1.00s without HiKVP** (3.1s of CPU↔GPU I/O), climbing to 6.21s
+  against 2.09s at 10⁴. Retrieval-free, not latency-free.
+
+Why it cannot enter this repo: no GPU; `llm.complete` sends the request to a
+**gateway the client owns** (`base_url` is required), so the backbone is not ours
+to fine-tune; one fine-tune per client breaks `runtime: shared|dedicated` and
+`verify-isolation.sh`; and `docs/language-policy.md` leaves no Go path for it. It
+is not an alternative to the ladder — it is a different product with a different
+hardware bill, and its 4-6s latency sits badly against the p95 budget every
+recipe tracks (`docs/observability.md`).
+
+The transferable part is narrow and mostly already covered: *precompute knowledge
+into a reusable cache when the corpus is static per tenant* is the CAG shape above,
+and AtlasKV competes on that same axis against the CAG and KBLaM baselines — its
+win is over **KBLaM** (40GB+ for 100K triples), not over route-then-read.
+
+So when a client asks for **graph RAG** citing a claim like this, the honest answer
+is in the paper's own limitation section: flattening triples drops the multi-hop
+property the graph was supposed to provide. If a client genuinely needs multi-hop
+over a graph, that is a graph **query** (Cypher, SPARQL, a traversal) called as a
+tool — not a KG dissolved into attention weights.
+
 ## Synonyms: glossary first, WordNet second, FastText last
 
 The user-facing goal is "it understands cancelamento = rescisão". Three ways,
@@ -545,9 +613,26 @@ Do not ship retrieval without a question set:
 - Reindexing on every query.
 - Putting raw client documents in the run KV (`docs/observability.md`).
 - A 300 MB FastText model to expand five words.
+- Re-reading the same static corpus on every query when CAG would precompute it
+  once, and equally, precomputing a cache for a corpus that changes weekly.
+- Buying a "parametric KG injection" paper as a retrieval alternative: it needs
+  a per-backbone fine-tune, a GPU, and per-triple rewrite tokens, and its own
+  authors report that flattening triples kills multi-hop reasoning.
+- Answering "graph RAG" with a knowledge graph melted into attention weights
+  when the client needed a graph query.
 
 ## Source note
 
-Same facts are mirrored in `docs/retrieval.md` and `skills/turvez/references/retrieval.md`;
-the script mirrors the docs, not a pasted substack. If the LLM source below conflicts with
-this file, this file wins.
+Two files describe retrieval, with different jobs — this is the rationale and the
+trap catalogue; `skills/turvez/references/retrieval.md` is the condensed playbook
+and `skills/turvez/references/decision-tree.md` the branch point. They are **not
+verbatim mirrors**: on any conflict this file wins, and the skill should be
+re-pointed here rather than grown in parallel.
+
+External anchors: **CAG** (cache-augmented generation, arXiv 2412.15605) and
+**KBLaM** (knowledge base augmented language model, arXiv 2410.10450) for the
+cache-in-attention family; **AtlasKV** (arXiv 2510.17934, ICLR 2026) for the
+KG-injection claim this file declines; and **PageIndex** for the tree-index
+alternative in the first table. Re-read the artifact before repeating a number
+from a thread — a plausible-looking arXiv id is the cheapest way to be wrong in
+a doc that tells other people not to trust threads.

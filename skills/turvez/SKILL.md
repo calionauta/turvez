@@ -164,7 +164,9 @@ shape, anti-patterns); rationale in `docs/retrieval.md`. Ask in order:
 
 1. **System of record** (CRM, ERP, wiki with an API) → call it through Nango;
    never index a copy that goes stale. A tool-choosing agent is Q1.5, not a recipe.
-2. **A handful of pages that fit one prompt** → long context, stable prefix.
+2. **A handful of pages that fit one prompt** → **CAG**: long context in a stable
+   prefix, KV cache precomputed and reused, not re-read per query. Only while the
+   corpus holds still; version the cache by corpus digest.
 3. **Documents** → **route-then-read**: classify the query (identifiers → BM25;
    natural language → BM25 + small dense, RRF, optional rerank); index chunks
    (~256-512 tokens) that remember their parent; **read the parent**; hard token
@@ -173,6 +175,10 @@ shape, anti-patterns); rationale in `docs/retrieval.md`. Ask in order:
    Bleve only when the eval proves lexical + synonyms miss.
 
 Never promise "RAG" without the eval, and never "top 5" as a safety limit.
+"Inject the knowledge into the attention instead" (AtlasKV and friends) is not a
+rung: it needs a per-backbone fine-tune on a GPU we do not have, and its own
+authors report that flattening triples kills multi-hop.
+
 **Bounded, not immune:** measure worst-case tokens, reranker p95 and false
 refusals; tokenizer drift and PDF tables still bite.
 
