@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.16](https://github.com/calionauta/turvez/compare/v0.1.15...v0.1.16) (2026-11-20)
+
+
+### Documentation
+
+* nomear CAG no tier-0 e recusar injeção paramétrica de KG ([#36](https://github.com/calionauta/turvez/issues/36)) ([095f8b6](https://github.com/calionauta/turvez/commit/095f8b69bba63f512dfc9c1ad280e75e106b0924))
+
 ## [0.1.15](https://github.com/calionauta/turvez/compare/v0.1.14...v0.1.15) (2026-11-18)
 
 
