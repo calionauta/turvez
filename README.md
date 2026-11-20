@@ -129,7 +129,7 @@ flowchart TD
 
     OPS --> Q08{"Q0.8. Answer from data?"}
     Q08 -->|"system of record"| NG["call it via Nango<br/>never index a stale copy"]
-    Q08 -->|"a few pages"| LC["long context"]
+    Q08 -->|"a few pages"| LC["CAG: long context,<br/>precomputed cache"]
     Q08 -->|"documents"| RR["route-then-read<br/>index chunks · read the parent"]
 
     OPS --> Q4{"Q4. One-off script?"}

@@ -100,7 +100,10 @@ Cheapest first; stop at the first rung that passes the eval.
 
 1. **Long context, whole corpus** — corpus < ~100-150k tokens and stable. Corpus
    in a stable prefix, question last. Confirm the gateway really caches;
-   `llm.complete` has no `cache_control` field.
+   `llm.complete` has no `cache_control` field. This is **CAG** (cache-augmented
+   generation): precompute the KV cache once and reuse it, do not re-read the
+   corpus per query. Only valid while the corpus holds still — version the cache
+   by corpus digest and rebuild on change, or tier 0 becomes a stale-answer bug.
 2. **Route-then-read** — Bleve BM25 over routing units (section/chunk + parent),
    Portuguese analyzer, `keyword`/`exact` field for codes, title/heading boosts.
    Return candidates within a token budget, not top-k.
@@ -210,6 +213,29 @@ Traps: `nango_proxy` bypasses allow/deny (leave it off); the tool list is a
 snapshot at session creation; 60s/5MB caps; the session token is a secret. On
 self-hosted Nango, confirm the pinned version supports agent sessions.
 
+## Parametric KG injection (AtlasKV and friends)
+
+When someone says retrieval is obsolete because knowledge can be injected into
+the attention weights, the current example is **AtlasKV** (arXiv 2510.17934,
+ICLR 2026): 1B triples in <20GB VRAM, no retriever, no retraining on new
+knowledge. Check the artifact before repeating it:
+
+- it needs a **fine-tune per backbone** on open weights (3K iterations, new KG
+  query heads per layer); the 20GB is inference-time KG memory and every
+  experiment ran on a 48GB GPU;
+- it pays a **relation rewrite per triple** — at 1B triples that is the dominant
+  cost, so "no Pinecone bill" is a bill in a different currency;
+- its own authors report that KG2KV **flattens the graph**, which blocks
+  multi-hop reasoning; HiKVP trades precision for scale, and pays CPU↔GPU I/O —
+  their Table 11 puts it at **~4s vs ~1s** average latency. Retrieval-free is not
+  latency-free.
+
+No GPU; `llm.complete` targets a gateway the **client** owns, so the backbone is
+not ours to fine-tune; one fine-tune per client breaks `runtime: shared|dedicated`.
+Not a rung on the ladder. The transferable piece is tier 0 done properly (CAG
+above). If a client needs multi-hop over a graph, that is a graph **query**
+(Cypher/SPARQL/traversal) called as a tool.
+
 ## Ship gate
 
 Do not promise "RAG" without 30-50 real questions with expected document ids
@@ -237,3 +263,9 @@ Re-run when the corpus or glossary changes. Without this, it is a demo.
 - Top-5 snippets as the reading unit when the parent section fits the budget.
 - Preferring a 300 MB FastText model over a 200-term curated glossary for the
   client's own vocabulary.
+- Re-reading the same static corpus on every query when CAG precomputes it once —
+  or precomputing a cache for a corpus that changes weekly.
+- Selling a parametric KG-injection paper as a retrieval alternative without the
+  fine-tune, the GPU, the per-triple rewrite cost, and the lost multi-hop.
+- Answering "graph RAG" with a KG melted into attention weights when the client
+  needed a graph query.

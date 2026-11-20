@@ -29,7 +29,7 @@ credentials, models and retrieval without becoming a second orchestrator.
           ▼                              ▼                              ▼
  ┌─────────────────┐          ┌──────────────────┐          ┌─────────────────┐
  │ Nango           │          │ LLM gateway      │          │ Retrieval       │
- │ OAuth + proxy   │          │ llm.complete →   │          │ long context or │
+ │ OAuth + proxy   │          │ llm.complete →   │          │ CAG (static) or │
  │ Agent Sessions  │          │ one auditable    │          │ Go + Bleve      │
  │ (MCP)           │          │ model surface    │          │ (per client)    │
  └────────┬────────┘          └────────┬─────────┘          └────────┬────────┘
