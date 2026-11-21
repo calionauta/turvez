@@ -5,7 +5,7 @@ go 1.27.1
 require (
 	github.com/danmestas/dagnats v0.0.32
 	github.com/itchyny/gojq v0.12.20
-	github.com/nats-io/nats.go v1.55.0
+	github.com/nats-io/nats.go v1.56.0
 	github.com/zendev-sh/goai v0.11.0
 	golang.org/x/sync v0.25.0
 )
